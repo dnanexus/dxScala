@@ -24,7 +24,8 @@ lazy val global = root
   .disablePlugins(AssemblyPlugin)
   .aggregate(
       common,
-      api
+      api,
+      protocols
   )
 
 def getVersion(subproject: String, subprojectName: String): String = {
