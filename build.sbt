@@ -108,11 +108,6 @@ lazy val commonDependencies = Seq(
 
 // SETTINGS
 
-// The Java code causes errors during API doc generation. Right now we disable
-// generating any API docs, but eventually we should selectively exclude just the Java sources.
-//publishArtifact in (Compile, packageDoc) := false
-scalacOptions in (Compile, doc) ++= Seq("-no-java-comments", "-no-link-warnings")
-
 lazy val settings = Seq(
     scalacOptions ++= compilerOptions,
     // javac
