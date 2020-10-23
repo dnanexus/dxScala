@@ -1,50 +1,158 @@
-import sbt.Keys._
+import sbt.Keys.{maxErrors, _}
 import sbtassembly.AssemblyPlugin.autoImport._
-
-scalaVersion := "2.13.2"
-name := "dxScala"
 import com.typesafe.config._
-val confPath =
-  Option(System.getProperty("config.file")).getOrElse("src/main/resources/application.conf")
-val conf = ConfigFactory.parseFile(new File(confPath)).resolve()
-version := conf.getString("dxScala.version")
-organization := "com.dnanexus"
-developers := List(
+
+name := "dxScala"
+
+// build-wide settings
+ThisBuild / organization := "com.dnanexus"
+ThisBuild / scalaVersion := "2.13.2"
+ThisBuild / developers := List(
     Developer("jdidion", "jdidion", "jdidion@dnanexus.com", url("https://github.com/dnanexus-rnd"))
 )
-homepage := Some(url("https://github.com/dnanexus/dxScala"))
-scmInfo := Some(
-    ScmInfo(url("https://github.com/dnanexus/dxScala"),
-            "git@github.com:dnanexus/dxScala.git")
+ThisBuild / homepage := Some(url("https://github.com/dnanexus/dxScala"))
+ThisBuild / scmInfo := Some(
+    ScmInfo(url("https://github.com/dnanexus/dxScala"), "git@github.com:dnanexus/dxScala.git")
 )
-licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
-publishMavenStyle := true
+ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
-val root = project.in(file("."))
+// PROJECTS
 
-// disable publish with scala version, otherwise artifact name will include scala version
-// e.g dxScala_2.11
-crossPaths := false
+lazy val root = project.in(file("."))
+lazy val global = root
+  .settings(settings)
+  .disablePlugins(AssemblyPlugin)
+  .aggregate(
+      common,
+      api
+  )
 
-// add sonatype repository settings
-// snapshot versions publish to sonatype snapshot repository
-// other versions publish to sonatype staging repository
-publishTo := Some(
-    if (isSnapshot.value)
-      Opts.resolver.sonatypeSnapshots
-    else
-      Opts.resolver.sonatypeStaging
+def getVersion(subproject: String, subprojectName: String): String = {
+  val confPath = s"${subproject}/src/main/resources/application.conf"
+  val conf = ConfigFactory.parseFile(new File(confPath)).resolve()
+  conf.getString(s"${subprojectName}.version")
+}
+
+val common = project
+  .in(file("common"))
+  .settings(
+      name := "dxCommon",
+      version := getVersion("common", "dxCommon"),
+      settings,
+      assemblySettings,
+      libraryDependencies ++= commonDependencies ++ Seq(
+          dependencies.typesafe
+      ),
+      assemblyJarName in assembly := "dxCommon.jar"
+  )
+  .disablePlugins(AssemblyPlugin)
+
+val api = project
+  .in(file("api"))
+  .settings(
+      name := "dxApi",
+      version := getVersion("api", "dxApi"),
+      settings,
+      assemblySettings,
+      libraryDependencies ++= commonDependencies ++ Seq(
+          dependencies.jackson,
+          dependencies.guava,
+          dependencies.commonsHttp
+      ),
+      assemblyJarName in assembly := "dxApi.jar"
+  )
+  .dependsOn(common)
+
+val protocols = project
+  .in(file("protocols"))
+  .settings(
+      name := "dxFileAccessProtocols",
+      version := getVersion("protocols", "dxFileAccessProtocols"),
+      settings,
+      assemblySettings,
+      libraryDependencies ++= commonDependencies ++ Seq(
+          dependencies.awssdk
+      ),
+      assemblyJarName in assembly := "dxFileAccessProtocols.jar"
+  )
+  .dependsOn(common, api)
+
+// DEPENDENCIES
+
+lazy val dependencies =
+  new {
+    val typesafeVersion = "1.3.3"
+    val sprayVersion = "1.3.5"
+    val scalatestVersion = "3.1.1"
+    val jacksonVersion = "2.11.0"
+    val guavaVersion = "18.0"
+    val httpClientVersion = "4.5"
+    val logbackVersion = "1.2.3"
+    val awsVersion = "2.15.1"
+
+    val typesafe = "com.typesafe" % "config" % typesafeVersion
+    val spray = "io.spray" %% "spray-json" % sprayVersion
+    val jackson = "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
+    val guava = "com.google.guava" % "guava" % guavaVersion
+    val commonsHttp = "org.apache.httpcomponents" % "httpclient" % httpClientVersion
+    val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
+    val awssdk = "software.amazon.awssdk" % "s3" % awsVersion
+    val scalatest = "org.scalatest" % "scalatest_2.13" % scalatestVersion
+  }
+
+lazy val commonDependencies = Seq(
+    dependencies.logback,
+    dependencies.spray,
+    dependencies.scalatest % Test
 )
 
-// reduce the maximum number of errors shown by the Scala compiler
-maxErrors := 20
+// SETTINGS
 
-//coverageEnabled := true
+// The Java code causes errors during API doc generation. Right now we disable
+// generating any API docs, but eventually we should selectively exclude just the Java sources.
+//publishArtifact in (Compile, packageDoc) := false
+scalacOptions in (Compile, doc) ++= Seq("-no-java-comments", "-no-link-warnings")
 
-javacOptions ++= Seq("-Xlint:deprecation")
+lazy val settings = Seq(
+    scalacOptions ++= compilerOptions,
+    // javac
+    javacOptions ++= Seq("-Xlint:deprecation"),
+    // reduce the maximum number of errors shown by the Scala compiler
+    maxErrors := 20,
+    // scalafmt
+    scalafmtConfig := root.base / ".scalafmt.conf",
+    // Publishing
+    // disable publish with scala version, otherwise artifact name will include scala version
+    // e.g dxScala_2.11
+    crossPaths := false,
+    // add sonatype repository settings
+    // snapshot versions publish to sonatype snapshot repository
+    // other versions publish to sonatype staging repository
+    publishTo := Some(
+        if (isSnapshot.value)
+          Opts.resolver.sonatypeSnapshots
+        else
+          Opts.resolver.sonatypeStaging
+    ),
+    publishMavenStyle := true,
+    // Tests
+    // If an exception is thrown during tests, show the full
+    // stack trace, by adding the "-oF" option to the list.
+    Test / testOptions += Tests.Argument("-oF")
+    // Coverage
+    //
+    // sbt clean coverage test
+    // sbt coverageReport
+    //coverageEnabled := true
+    // To turn it off do:
+    // sbt coverageOff
+    // Ignore code parts that cannot be checked in the unit
+    // test environment
+    //coverageExcludedPackages := "dxScala.Main"
+)
 
 // Show deprecation warnings
-scalacOptions ++= Seq(
+val compilerOptions = Seq(
     "-unchecked",
     "-deprecation",
     "-feature",
@@ -72,60 +180,9 @@ scalacOptions ++= Seq(
     "-Xfatal-warnings" // makes those warnings fatal.
 )
 
-assemblyJarName in assembly := "dxScala.jar"
-logLevel in assembly := Level.Info
-//assemblyOutputPath in assembly := file("applet_resources/resources/dxScala.jar")
-
-resolvers ++= Seq(
-    "zalando-maven" at "https://dl.bintray.com/zalando/maven"
+// Assembly
+lazy val assemblySettings = Seq(
+    logLevel in assembly := Level.Info,
+    // comment out this line to enable tests in assembly
+    test in assembly := {}
 )
-
-val typesafeVersion = "1.3.3"
-val sprayVersion = "1.3.5"
-val scalatestVersion = "3.1.1"
-
-libraryDependencies ++= Seq(
-    "com.typesafe" % "config" % typesafeVersion,
-    "io.spray" %% "spray-json" % sprayVersion,
-    //---------- Test libraries -------------------//
-    "org.scalatest" % "scalatest_2.13" % scalatestVersion % "test"
-)
-
-// If an exception is thrown during tests, show the full
-// stack trace, by adding the "-oF" option to the list.
-//
-
-// exclude the native tests, they are slow.
-// to do this from the command line:
-// sbt testOnly -- -l native
-//
-// comment out this line in order to allow native
-// tests
-// Test / testOptions += Tests.Argument("-l", "native")
-Test / testOptions += Tests.Argument("-oF")
-
-Test / parallelExecution := false
-
-// comment out this line to enable tests in assembly
-test in assembly := {}
-
-// scalafmt
-scalafmtConfig := root.base / ".scalafmt.conf"
-// Coverage
-//
-// sbt clean coverage test
-// sbt coverageReport
-
-// To turn it off do:
-// sbt coverageOff
-
-// Ignore code parts that cannot be checked in the unit
-// test environment
-//coverageExcludedPackages := "dxScala.Main"
-
-// The Java code generated by Antlr causes errors during API doc generation. Right now we disable
-// generating any API docs, but eventually we should selectively exclude just the Java sources.
-//publishArtifact in (Compile, packageDoc) := false
-
-// exclude Java sources from scaladoc
-scalacOptions in (Compile, doc) ++= Seq("-no-java-comments", "-no-link-warnings")
