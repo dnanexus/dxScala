@@ -21,7 +21,7 @@ class DxFileTest extends AnyFlatSpec with Matchers {
   private val FILE5: DxFile = dxApi.file("file-FqP0x4Q0bxKykykX5pVXB1YZ", Some(publicProject))
   private val FILE6: DxFile = dxApi.file("file-Fy9V9000yzZZZZjGJPVVQ4PX", Some(testProject))
   private val FILE6_WO_PROJ: DxFile = dxApi.file("file-Fy9V9000yzZZZZjGJPVVQ4PX", None)
-  private val FILE7_WO_PROJ: DxFile = dxApi.file("file-Fy9V7F80yzZb2Y1FGvYz34fk", None)
+  private val FILE7_WO_PROJ: DxFile = dxApi.file("file-FyQ30800yzZqXXxBBJYxFGF7", None)
 
   private def checkFileDesc(query: Vector[DxFile],
                             expected: Vector[DxFile],
