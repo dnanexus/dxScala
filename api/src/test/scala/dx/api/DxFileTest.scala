@@ -113,12 +113,12 @@ class DxFileTest extends AnyFlatSpec with Matchers {
                   expectedSize = Some(2))
   }
 
-  it should "bulk describe a files from multiple projects" taggedAs ApiTest in {
+  it should "bulk describe files from multiple projects" taggedAs ApiTest in {
     val query = Vector(FILE1, FILE2, FILE5)
     checkFileDesc(query, createFiles(query, Vector("fileA", "fileB", "test2.test")))
   }
 
-  it should "bulk describe a files with and without project" taggedAs ApiTest in {
+  it should "bulk describe files with and without project" taggedAs ApiTest in {
     val query = Vector(FILE4, FILE6_WO_PROJ, FILE7_WO_PROJ)
     checkFileDesc(query,
                   createFiles(query,
