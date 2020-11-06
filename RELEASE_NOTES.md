@@ -4,9 +4,7 @@
 
 ### 0.2.1 (2020-11-06)
 
-* Fix test
-* Set number of API retries to 10
-* Make `dxApi` a secondary parameter in `DxObject` subclasses
+* Move variable attributes to secondary parameters in `FileSource` subclasses
 
 ### 0.2.0 (2020-10-26)
 
@@ -18,4 +16,22 @@
 
 ## dxApi
 
+### 0.1.1 (2020-11-06)
+
+* Fix test
+* Set number of API retries to 10
+* Make `dxApi` a secondary parameter in `DxObject` subclasses
+
+### 0.1.0 (2020-10-23)
+
+* First release
+
 ## dxFileAccessProtocols
+
+### 0.1.1 (2020-11-06)
+
+* Move variable attributes to secondary parameters in `FileSource` subclasses
+
+### 0.1.0 (2020-10-23)
+
+* First release
