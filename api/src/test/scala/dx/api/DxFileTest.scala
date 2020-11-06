@@ -8,7 +8,7 @@ import spray.json._
 import dx.util.Logger
 
 class DxFileTest extends AnyFlatSpec with Matchers {
-  private val dxApi: DxApi = DxApi(Logger.Quiet)
+  private val dxApi: DxApi = DxApi()(Logger.Quiet)
   private val testProject: DxProject = dxApi.resolveProject("dxCompiler_playground")
   private val publicProject: DxProject = dxApi.resolveProject("dxCompiler_CI")
   private val FILE_IN_TWO_PROJS: DxFile =
@@ -53,7 +53,7 @@ class DxFileTest extends AnyFlatSpec with Matchers {
       .getOrElse(
           throw new Exception("no project")
       )
-    val file = DxFile(dxApi, template.id, Some(proj))
+    val file = DxFile(template.id, Some(proj))(dxApi)
     val desc = DxFileDescribe(
         proj.id,
         template.id,

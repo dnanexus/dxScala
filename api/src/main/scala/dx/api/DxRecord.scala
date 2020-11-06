@@ -12,7 +12,8 @@ case class DxRecordDescribe(project: String,
                             details: Option[JsValue])
     extends DxObjectDescribe
 
-case class DxRecord(dxApi: DxApi, id: String, project: Option[DxProject]) extends DxDataObject {
+case class DxRecord(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
+    extends DxDataObject {
   def describe(fields: Set[Field.Value] = Set.empty): DxRecordDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
     val defaultFields =

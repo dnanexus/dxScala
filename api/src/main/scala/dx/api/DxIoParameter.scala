@@ -208,7 +208,7 @@ object IOParameter {
               case _                => None
             }
             val project: Option[DxProject] = fields.get("project") match {
-              case Some(JsString(p)) => Some(DxProject(dxApi, p))
+              case Some(JsString(p)) => Some(DxProject(p)(dxApi))
               case _                 => None
             }
             val path: Option[String] = fields.get("path") match {

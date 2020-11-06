@@ -14,7 +14,7 @@ case class DxAppDescribe(id: String,
                          access: Option[JsValue] = None)
     extends DxObjectDescribe
 
-case class DxApp(dxApi: DxApi, id: String)
+case class DxApp(id: String)(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxAppDescribe]
     with DxExecutable {
   override def describeNoCache(fields: Set[Field.Value] = Set.empty): DxAppDescribe = {

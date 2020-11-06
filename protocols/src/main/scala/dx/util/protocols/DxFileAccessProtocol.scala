@@ -6,11 +6,10 @@ import java.nio.file.Path
 import dx.api.{DxApi, DxFile, DxFileDescCache}
 import dx.util.{AbstractAddressableFileNode, FileAccessProtocol, FileSource, FileUtils}
 
-case class DxFileSource(override val address: String,
-                        dxFile: DxFile,
-                        dxApi: DxApi,
-                        override val encoding: Charset)
-    extends AbstractAddressableFileNode(address, encoding) {
+case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
+    override val address: String,
+    dxApi: DxApi
+) extends AbstractAddressableFileNode(address, encoding) {
 
   override def name: String = dxFile.describe().name
 
@@ -50,18 +49,18 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
       case Some(src) => src
       case None =>
         val dxFile = dxFileCache.updateFileFromCache(resolveFileUri(uri))
-        val src = DxFileSource(uri, dxFile, dxApi, encoding)
+        val src = DxFileSource(dxFile, encoding)(uri, dxApi)
         uriToFileSource += (uri -> src)
         src
     }
   }
 
   def resolveNoCache(uri: String): FileSource = {
-    DxFileSource(uri, resolveFileUri(uri), dxApi, encoding)
+    DxFileSource(resolveFileUri(uri), encoding)(uri, dxApi)
   }
 
   def fromDxFile(dxFile: DxFile): DxFileSource = {
-    DxFileSource(dxFile.asUri, dxFile, dxApi, encoding)
+    DxFileSource(dxFile, encoding)(dxFile.asUri, dxApi)
   }
 }
 

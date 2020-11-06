@@ -31,7 +31,7 @@ case class DxFileDescribe(project: String,
                           parts: Option[Map[Int, DxFilePart]])
     extends DxObjectDescribe
 
-case class DxFile(dxApi: DxApi, id: String, project: Option[DxProject])
+case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxFileDescribe]
     with DxDataObject {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxFileDescribe = {
@@ -201,8 +201,8 @@ object DxFile {
     }
 
     projId match {
-      case None      => DxFile(dxApi, fid, None)
-      case Some(pid) => DxFile(dxApi, fid, Some(DxProject(dxApi, pid)))
+      case None      => DxFile(fid, None)(dxApi)
+      case Some(pid) => DxFile(fid, Some(DxProject(pid)(dxApi)))(dxApi)
     }
   }
 

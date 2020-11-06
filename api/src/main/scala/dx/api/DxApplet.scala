@@ -24,7 +24,7 @@ case class DxAppletDescribe(project: String,
                             ignoreReuse: Option[Boolean] = None)
     extends DxObjectDescribe
 
-case class DxApplet(dxApi: DxApi, id: String, project: Option[DxProject])
+case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxAppletDescribe]
     with DxDataObject
     with DxExecutable {

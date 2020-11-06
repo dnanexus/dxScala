@@ -450,7 +450,7 @@ abstract class BaseDxDataObjectDescribe(dxProject: Option[DxProject], dxApi: DxA
     with NewDxDataObjectDescribe {
 
   override def project: Option[DxProject] =
-    dxProject.orElse(getCachedField[String](DescriptionField.Project).map(DxProject(dxApi, _)))
+    dxProject.orElse(getCachedField[String](DescriptionField.Project).map(DxProject(_)(dxApi)))
 
   override protected def globalFields: Set[DescriptionField.DescriptionField] = {
     super.globalFields | Set(DescriptionField.Project)

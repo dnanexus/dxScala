@@ -30,12 +30,12 @@ import scala.jdk.CollectionConverters._
   * @param objectKey the object key
   * @param encoding character encoding
   */
-case class S3FileSource(override val address: String,
-                        client: S3Client,
-                        bucketName: String,
-                        objectKey: String,
-                        override val isDirectory: Boolean,
-                        override val encoding: Charset)
+case class S3FileSource(
+    bucketName: String,
+    objectKey: String,
+    override val isDirectory: Boolean,
+    override val encoding: Charset
+)(override val address: String, client: S3Client)
     extends AbstractAddressableFileNode(address, encoding) {
 
   private lazy val request: GetObjectRequest =
@@ -128,7 +128,7 @@ case class S3FileAccessProtocol(region: Region,
   override def resolve(uri: String): S3FileSource = {
     uri match {
       case S3UriRegexp(bucketName, objectKey) if objectKey.nonEmpty && !objectKey.endsWith("/") =>
-        S3FileSource(uri, getClient, bucketName, objectKey, isDirectory = false, encoding)
+        S3FileSource(bucketName, objectKey, isDirectory = false, encoding)(uri, getClient)
       case _ =>
         throw new Exception(s"invalid s3 file URI ${uri}")
     }

@@ -15,7 +15,7 @@ case class DxAnalysisDescribe(project: String,
                               output: Option[JsValue])
     extends DxObjectDescribe
 
-case class DxAnalysis(dxApi: DxApi, id: String, project: Option[DxProject])
+case class DxAnalysis(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxAnalysisDescribe]
     with DxExecution {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxAnalysisDescribe = {

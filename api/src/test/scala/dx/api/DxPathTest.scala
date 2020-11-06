@@ -8,7 +8,7 @@ import spray.json._
 import dx.util.{Logger, SysUtils}
 
 class DxPathTest extends AnyFlatSpec with Matchers {
-  private val dxApi: DxApi = DxApi(Logger.Quiet)
+  private val dxApi: DxApi = DxApi()(Logger.Quiet)
   private val testProject = "dxCompiler_playground"
 
 //  private lazy val dxTestProject: DxProject = {

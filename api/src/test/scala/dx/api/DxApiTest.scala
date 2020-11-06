@@ -8,7 +8,8 @@ import dx.util.Logger
 
 class DxApiTest extends AnyFlatSpec with Matchers {
   assume(isLoggedIn)
-  private val dxApi: DxApi = DxApi(Logger.Quiet)
+  private val logger = Logger.Quiet
+  private val dxApi: DxApi = DxApi()(logger)
   private val testProject = "dxCompiler_playground"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
   private val testFile = "file-FJ1qyg80ffP9v6gVPxKz9pQ7"
@@ -27,12 +28,12 @@ class DxApiTest extends AnyFlatSpec with Matchers {
 
   ignore should "describe a record with details" taggedAs ApiTest in {
     val record = dxApi.record(testRecord, Some(dxTestProject))
-    dxApi.logger.ignore(record.describe(Set(Field.Details)))
+    logger.ignore(record.describe(Set(Field.Details)))
   }
 
   ignore should "describe a file with details" taggedAs ApiTest in {
     val record = dxApi.file(testFile, Some(dxTestProject))
-    dxApi.logger.ignore(record.describe())
+    logger.ignore(record.describe())
   }
 
   it should "download files as bytes" in {

@@ -191,12 +191,11 @@ trait FileAccessProtocol {
   * @param encoding the file encoding
   * @param isDirectory whether this FileSource represents a directory
   */
-case class LocalFileSource(override val address: String,
-                           originalPath: Path,
-                           canonicalPath: Path,
-                           logger: Logger,
-                           override val encoding: Charset,
-                           override val isDirectory: Boolean = false)
+case class LocalFileSource(
+    canonicalPath: Path,
+    override val encoding: Charset,
+    override val isDirectory: Boolean
+)(override val address: String, val originalPath: Path, logger: Logger)
     extends AbstractAddressableFileNode(address, encoding) {
 
   override lazy val name: String = canonicalPath.getFileName.toString
@@ -250,16 +249,6 @@ case class LocalFileSource(override val address: String,
       Files.copy(canonicalPath, file)
     }
   }
-
-  // two LocalFileSources may differ in `value`s but have the same `localPath`
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: LocalFileSource => this.canonicalPath == that.canonicalPath
-      case _                     => false
-    }
-  }
-
-  override def toString: String = canonicalPath.toString
 }
 
 case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
@@ -299,7 +288,7 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
           FileUtils.absolutePath(path)
       )
     }
-    LocalFileSource(value.getOrElse(path.toString), path, resolved, logger, encoding, isDirectory)
+    LocalFileSource(resolved, encoding, isDirectory)(value.getOrElse(path.toString), path, logger)
   }
 
   def resolve(address: String): LocalFileSource = {
@@ -311,11 +300,11 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
   }
 }
 
-case class HttpFileSource(override val address: String,
-                          uri: URI,
-                          override val encoding: Charset,
-                          logger: Logger,
-                          override val isDirectory: Boolean = false)
+case class HttpFileSource(
+    uri: URI,
+    override val encoding: Charset,
+    override val isDirectory: Boolean
+)(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
   private lazy val path = Paths.get(uri.getPath)
@@ -408,15 +397,14 @@ case class HttpFileSource(override val address: String,
   }
 }
 
-case class HttpFileAccessProtocol(logger: Logger = Logger.Quiet,
-                                  encoding: Charset = FileUtils.DefaultEncoding)
+case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
     extends FileAccessProtocol {
   override val schemes = Vector(FileUtils.HttpScheme, FileUtils.HttpsScheme)
   // directories are supported via unpacking of archive files
   override val supportsDirectories: Boolean = true
 
   def resolve(uri: URI, value: Option[String] = None): HttpFileSource = {
-    HttpFileSource(value.getOrElse(uri.toString), uri, encoding, logger)
+    HttpFileSource(uri, encoding, isDirectory = false)(value.getOrElse(uri.toString))
   }
 
   override def resolve(address: String): HttpFileSource = {
@@ -424,7 +412,7 @@ case class HttpFileAccessProtocol(logger: Logger = Logger.Quiet,
   }
 
   override def resolveDirectory(address: String): HttpFileSource = {
-    HttpFileSource(address, URI.create(address), encoding, logger, isDirectory = true)
+    HttpFileSource(URI.create(address), encoding, isDirectory = true)(address)
   }
 }
 
@@ -527,7 +515,7 @@ object FileSourceResolver {
              encoding: Charset = FileUtils.DefaultEncoding): FileSourceResolver = {
     val protocols: Vector[FileAccessProtocol] = Vector(
         LocalFileAccessProtocol(localDirectories, logger, encoding),
-        HttpFileAccessProtocol(logger, encoding)
+        HttpFileAccessProtocol(encoding)
     )
     FileSourceResolver(protocols ++ userProtocols)
   }

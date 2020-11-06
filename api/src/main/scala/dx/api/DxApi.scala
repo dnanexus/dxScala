@@ -17,7 +17,7 @@ object DxApi {
 
   def get: DxApi =
     instance.getOrElse({
-      instance = Some(DxApi())
+      instance = Some(DxApi()())
       instance.get
     })
 
@@ -28,7 +28,7 @@ object DxApi {
   }
 
   def createAndSet(logger: Logger = Logger.get): DxApi = {
-    val dxApi = DxApi(logger)
+    val dxApi = DxApi()(logger)
     set(dxApi)
     dxApi
   }
@@ -38,21 +38,21 @@ object DxApi {
   * Wrapper around DNAnexus Java API
   * @param limit maximal number of objects in a single API request
   */
-case class DxApi(logger: Logger = Logger.get,
-                 version: String = "1.0.0",
-                 dxEnv: DXEnvironment = DXEnvironment.create(),
-                 limit: Int = DxApi.ResultsPerCallLimit) {
+case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment.create())(
+    logger: Logger = Logger.get,
+    val limit: Int = DxApi.ResultsPerCallLimit
+) {
   require(limit > 0 && limit <= DxApi.ResultsPerCallLimit)
   val currentProjectId: Option[String] = dxEnv.getProjectContext match {
     case null      => None
     case projectId => Some(projectId)
   }
   lazy val currentProject: DxProject = currentProjectId
-    .map(DxProject(this, _))
+    .map(DxProject(_)(this))
     .getOrElse(
         throw new Exception("no current project selected")
     )
-  lazy val currentJob: DxJob = DxJob(this, dxEnv.getJob)
+  lazy val currentJob: DxJob = DxJob(dxEnv.getJob)(this)
   // Convert from spray-json to jackson JsonNode
   // Used to convert into the JSON datatype used by dxjava
   private lazy val objMapper: ObjectMapper = new ObjectMapper()
@@ -66,15 +66,15 @@ case class DxApi(logger: Logger = Logger.get,
   def getObject(id: String, container: Option[DxProject] = None): DxObject = {
     val (objType, _) = DxUtils.parseObjectId(id)
     objType match {
-      case "analysis"  => DxAnalysis(this, id, container)
-      case "app"       => DxApp(this, id)
-      case "applet"    => DxApplet(this, id, container)
-      case "container" => DxProject(this, id)
-      case "file"      => DxFile(this, id, container)
-      case "job"       => DxJob(this, id, container)
-      case "project"   => DxProject(this, id)
-      case "record"    => DxRecord(this, id, container)
-      case "workflow"  => DxWorkflow(this, id, container)
+      case "analysis"  => DxAnalysis(id, container)(this)
+      case "app"       => DxApp(id)(this)
+      case "applet"    => DxApplet(id, container)(this)
+      case "container" => DxProject(id)(this)
+      case "file"      => DxFile(id, container)(this)
+      case "job"       => DxJob(id, container)(this)
+      case "project"   => DxProject(id)(this)
+      case "record"    => DxRecord(id, container)(this)
+      case "workflow"  => DxWorkflow(id, container)(this)
       case _ =>
         throw new IllegalArgumentException(
             s"${id} does not belong to a know DNAnexus object class"
@@ -515,7 +515,7 @@ case class DxApi(logger: Logger = Logger.get,
           case JsArray(results) if results.size == 1 =>
             val result = results(0).asJsObject.fields
             val JsString(id) = result("id")
-            val app = DxApp(this, id)
+            val app = DxApp(id)(this)
             result.get("describe").foreach { descJs =>
               val desc = DxApp.parseDescribeJson(descJs.asJsObject, this)
               app.cacheDescribe(desc)

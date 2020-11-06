@@ -147,7 +147,7 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     InstanceTypeDB(db, pricingInfo)
   }
 
-  private val dxApi: DxApi = DxApi(Logger.Quiet)
+  private val dxApi: DxApi = DxApi()(Logger.Quiet)
   private val dbFull = genTestDB(true)
   private val dbNoPrices = genTestDB(false)
 

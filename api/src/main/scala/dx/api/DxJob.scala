@@ -17,7 +17,7 @@ case class DxJobDescribe(id: String,
                          instanceType: Option[String])
     extends DxObjectDescribe
 
-case class DxJob(dxApi: DxApi, id: String, project: Option[DxProject] = None)
+case class DxJob(id: String, project: Option[DxProject] = None)(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxJobDescribe]
     with DxExecution {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxJobDescribe = {

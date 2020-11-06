@@ -40,7 +40,7 @@ case class DxWorkflowDescribe(project: String,
                               outputs: Option[Vector[IOParameter]] = None)
     extends DxObjectDescribe
 
-case class DxWorkflow(dxApi: DxApi, id: String, project: Option[DxProject])
+case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
     extends DxExecutable
     with DxDataObject {
   private def parseStages(jsv: JsValue): Vector[DxWorkflowStageDesc] = {
