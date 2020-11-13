@@ -16,6 +16,10 @@
 
 ## dxApi
 
+### 0.1.2 (2020-11-13)
+
+* Eliminate indeterminate comparisons by resource in DxInstanceType
+
 ### 0.1.1 (2020-11-06)
 
 * Fix test

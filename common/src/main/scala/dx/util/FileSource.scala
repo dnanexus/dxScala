@@ -431,6 +431,10 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
   private lazy val protocolMap: Map[String, FileAccessProtocol] =
     protocols.flatMap(prot => prot.schemes.map(prefix => prefix -> prot)).toMap
 
+  def canResolve(scheme: String): Boolean = {
+    protocolMap.contains(scheme)
+  }
+
   private[util] def getProtocolForScheme(scheme: String): FileAccessProtocol = {
     protocolMap.get(scheme) match {
       case None        => throw NoSuchProtocolException(scheme)
