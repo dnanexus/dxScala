@@ -2,7 +2,7 @@
 
 ## dxCommon 
 
-### 0.2.2 (2020-11-13)
+### 0.2.2 (2020-11-12)
 
 * Add `canResolve` method to FileSourceResolver
 
@@ -20,7 +20,11 @@
 
 ## dxApi
 
-### 0.1.2 (2020-11-13)
+### 0.1.3 (2020-11-13)
+ 
+* Add `DxInstanceType.matchesOrExceedes function`
+
+### 0.1.2 (2020-11-12)
 
 * Eliminate indeterminate comparisons by resource in DxInstanceType
 
