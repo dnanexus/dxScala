@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.2 (2020-11-13)
+
+* Add `canResolve` method to FileSourceResolver
+
 ### 0.2.1 (2020-11-06)
 
 * Move variable attributes to secondary parameters in `FileSource` subclasses
