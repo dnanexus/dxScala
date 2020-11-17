@@ -20,6 +20,10 @@
 
 ## dxApi
 
+### 0.1.4 (2020-11-16)
+
+* Allow caching file name independenly of `describe()`
+
 ### 0.1.3 (2020-11-13)
  
 * Add `DxInstanceType.matchesOrExceedes function`
@@ -39,6 +43,10 @@
 * First release
 
 ## dxFileAccessProtocols
+
+### 0.1.2 (2020-11-16)
+
+* DxFileSource caches file name when parsing an extended dx:// URI
 
 ### 0.1.1 (2020-11-06)
 

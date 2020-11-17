@@ -40,7 +40,24 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   private var uriToFileSource: Map[String, DxFileSource] = Map.empty
 
   private def resolveFileUri(uri: String): DxFile = {
-    dxApi.resolveFile(uri.split("::")(0))
+    uri.split("::").toVector match {
+      case Vector(uri, fileName) =>
+        val dxFile = dxApi.resolveFile(uri)
+        if (!dxFile.hasCachedDesc) {
+          dxFile.copy()(dxApi = dxApi, name = Some(fileName))
+        } else if (dxFile.describe().name != fileName) {
+          throw new Exception(
+              s"""file ${dxFile} name from file.describe() ${dxFile.describe().name} 
+                 |does not match name from URI ${fileName}""".stripMargin.replaceAll("\n", " ")
+          )
+        } else {
+          dxFile
+        }
+      case Vector(uri) =>
+        dxApi.resolveFile(uri)
+      case _ =>
+        throw new Exception(s"invalid file URI ${uri}")
+    }
   }
 
   override def resolve(uri: String): DxFileSource = {

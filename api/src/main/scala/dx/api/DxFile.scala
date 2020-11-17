@@ -31,7 +31,8 @@ case class DxFileDescribe(project: String,
                           parts: Option[Map[Int, DxFilePart]])
     extends DxObjectDescribe
 
-case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxApi.get)
+case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxApi.get,
+                                                          name: Option[String] = None)
     extends CachingDxObject[DxFileDescribe]
     with DxDataObject {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxFileDescribe = {
@@ -47,6 +48,14 @@ case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxA
     val allFields = fields ++ defaultFields
     val descJs = dxApi.fileDescribe(id, projSpec + ("fields" -> DxObject.requestFields(allFields)))
     DxFile.parseDescribeJson(descJs)
+  }
+
+  def getName: String = {
+    if (!hasCachedDesc && name.isDefined) {
+      name.get
+    } else {
+      describe().name
+    }
   }
 
   def asJson: JsValue = {
