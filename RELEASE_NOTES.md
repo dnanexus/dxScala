@@ -20,6 +20,10 @@
 
 ## dxApi
 
+### 0.1.5
+
+* Fix DxFindDataObjects parsing of workflow results
+
 ### 0.1.4 (2020-11-16)
 
 * Allow caching file name independenly of `describe()`

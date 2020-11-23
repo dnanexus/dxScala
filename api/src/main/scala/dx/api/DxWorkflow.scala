@@ -34,16 +34,14 @@ case class DxWorkflowDescribe(project: String,
                               title: Option[String] = None,
                               summary: Option[String] = None,
                               description: Option[String] = None,
-                              tags: Option[Vector[String]] = None,
+                              tags: Option[Set[String]] = None,
                               types: Option[Vector[String]] = None,
                               inputs: Option[Vector[IOParameter]] = None,
                               outputs: Option[Vector[IOParameter]] = None)
     extends DxObjectDescribe
 
-case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
-    extends DxExecutable
-    with DxDataObject {
-  private def parseStages(jsv: JsValue): Vector[DxWorkflowStageDesc] = {
+object DxWorkflowDescribe {
+  def parseStages(jsv: JsValue): Vector[DxWorkflowStageDesc] = {
     val jsVec = jsv match {
       case JsArray(a) => a
       case other      => throw new Exception(s"Malfored JSON ${other}")
@@ -58,7 +56,11 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
       stage
     }
   }
+}
 
+case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
+    extends DxExecutable
+    with DxDataObject {
   def describe(fields: Set[Field.Value] = Set.empty): DxWorkflowDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
     // TODO: working around an API bug where describing a workflow and requesting inputSpec
@@ -116,12 +118,12 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
     val descFields: Map[String, JsValue] = descJs.fields
     val details = descFields.get("details")
     val props = descFields.get("properties").map(DxObject.parseJsonProperties)
-    val stages = descFields.get("stages").map(parseStages)
+    val stages = descFields.get("stages").map(DxWorkflowDescribe.parseStages)
     val description = descFields.get("description").flatMap(unwrapString)
     val summary = descFields.get("summary").flatMap(unwrapString)
     val title = descFields.get("title").flatMap(unwrapString)
     val types = descFields.get("types").flatMap(unwrapStringArray)
-    val tags = descFields.get("tags").flatMap(unwrapStringArray)
+    val tags = descFields.get("tags").flatMap(unwrapStringArray).map(_.toSet)
     val inputs = descFields.get("inputs") match {
       case Some(JsArray(inps)) => Some(IOParameter.parseIOSpec(dxApi, inps))
       case _                   => None

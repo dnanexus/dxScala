@@ -82,17 +82,19 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
                          outputSpec,
                          tags = tags)
       case _: DxWorkflow =>
-        DxAppletDescribe(dxProject.id,
-                         dxobj.id,
-                         name,
-                         folder,
-                         created,
-                         modified,
-                         Some(properties),
-                         details,
-                         inputSpec,
-                         outputSpec,
-                         tags = tags)
+        val stages = fields.get("stages").map(DxWorkflowDescribe.parseStages)
+        DxWorkflowDescribe(dxProject.id,
+                           dxobj.id,
+                           name,
+                           folder,
+                           created,
+                           modified,
+                           Some(properties),
+                           details,
+                           inputSpec,
+                           outputSpec,
+                           tags = tags,
+                           stages = stages)
       case _: DxFile =>
         val archivalState = fields.get("archivalState") match {
           case Some(JsString(x)) => DxArchivalState.withNameIgnoreCase(x)
@@ -157,6 +159,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
       nameConstraints: Vector[String],
       withInputOutputSpec: Boolean,
       idConstraints: Vector[String],
+      defaultFields: Boolean,
       extraFields: Set[Field.Value]
   ): (Map[DxDataObject, DxObjectDescribe], JsValue) = {
     val requiredDescFields = Set(Field.Name,
@@ -172,10 +175,13 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
       Set.empty
     }
     val requiredFields =
-      Map("visibility" -> JsString("either"),
+      Map(
+          "visibility" -> JsString("either"),
           "describe" -> JsObject(
-              "fields" -> DxObject.requestFields(requiredDescFields ++ ioDescFields)
-          ))
+              "fields" -> DxObject.requestFields(requiredDescFields ++ ioDescFields),
+              "defaultFields" -> JsBoolean(defaultFields)
+          )
+      )
     val projectField = dxProject.map(p => Map("project" -> JsString(p.id))).getOrElse(Map.empty)
     val scopeField = scope.map(s => Map("scope" -> s)).getOrElse(Map.empty)
     val limitField = limit.map(l => Map("limit" -> JsNumber(l))).getOrElse(Map.empty)
@@ -242,6 +248,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
             nameConstraints: Vector[String] = Vector.empty,
             withInputOutputSpec: Boolean,
             idConstraints: Vector[String] = Vector.empty,
+            defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
     val allowedClasses = Set("record", "file", "applet", "workflow")
     val invalidClasses = classRestriction.filterNot(allowedClasses.contains)
@@ -264,6 +271,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
               nameConstraints,
               withInputOutputSpec,
               idConstraints,
+              defaultFields,
               extraFields
           ) match {
             case (Vector(), _)     => None

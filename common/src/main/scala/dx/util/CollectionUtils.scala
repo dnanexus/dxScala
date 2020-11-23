@@ -15,5 +15,11 @@ object CollectionUtils {
     def foldLeftWhile[B](init: B)(where: B => Boolean)(op: (B, A) => B): B = {
       iterableOnce.iterator.foldLeft(init)((acc, next) => if (where(acc)) op(acc, next) else acc)
     }
+
+    def collectFirstDefined[B](mapFunction: A => Option[B]): Option[B] = {
+      iterableOnce.iterator.map(mapFunction).collectFirst {
+        case x if x.isDefined => x.get
+      }
+    }
   }
 }
