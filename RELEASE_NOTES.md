@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.3 (2020-11-25)
+
+* Relocate LocalizationDisambiguator here from wdlTools
+
 ### 0.2.2 (2020-11-12)
 
 * Add `canResolve` method to FileSourceResolver
