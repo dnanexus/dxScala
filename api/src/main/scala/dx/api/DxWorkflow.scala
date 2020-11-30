@@ -82,22 +82,13 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
           + ("fields" -> DxObject.requestFields(allFields))
           + ("defaultFields" -> JsBoolean(true))
     )
-    val desc = descJs.getFields("project",
-                                "id",
-                                "name",
-                                "folder",
-                                "created",
-                                "modified",
-                                "inputSpec",
-                                "outputSpec") match {
+    val desc = descJs.getFields("project", "id", "name", "folder", "created", "modified") match {
       case Seq(JsString(projectId),
                JsString(id),
                JsString(name),
                JsString(folder),
                JsNumber(created),
-               JsNumber(modified),
-               JsArray(inputSpec),
-               JsArray(outputSpec)) =>
+               JsNumber(modified)) =>
         DxWorkflowDescribe(
             projectId,
             id,
@@ -107,8 +98,8 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
             modified.toLong,
             None,
             None,
-            Some(IOParameter.parseIOSpec(dxApi, inputSpec)),
-            Some(IOParameter.parseIOSpec(dxApi, outputSpec)),
+            None,
+            None,
             None
         )
       case _ =>
@@ -124,6 +115,14 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
     val title = descFields.get("title").flatMap(unwrapString)
     val types = descFields.get("types").flatMap(unwrapStringArray)
     val tags = descFields.get("tags").flatMap(unwrapStringArray).map(_.toSet)
+    val inputSpec = descFields.get("inputSpec") match {
+      case Some(JsArray(inps)) => Some(IOParameter.parseIOSpec(dxApi, inps))
+      case _                   => None
+    }
+    val outputSpec = descFields.get("outputSpec") match {
+      case Some(JsArray(outs)) => Some(IOParameter.parseIOSpec(dxApi, outs))
+      case _                   => None
+    }
     val inputs = descFields.get("inputs") match {
       case Some(JsArray(inps)) => Some(IOParameter.parseIOSpec(dxApi, inps))
       case _                   => None
@@ -133,6 +132,8 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
       case _                   => None
     }
     desc.copy(
+        inputSpec = inputSpec,
+        outputSpec = outputSpec,
         details = details,
         properties = props,
         stages = stages,
