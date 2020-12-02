@@ -58,15 +58,19 @@ object ExecutionEnvironment {
   * will not be considered in the query.
   */
 case class InstanceTypeRequest(dxInstanceType: Option[String] = None,
-                               memoryMB: Option[Long] = None,
-                               diskGB: Option[Long] = None,
+                               minMemoryMB: Option[Long] = None,
+                               maxMemoryMB: Option[Long] = None,
+                               minDiskGB: Option[Long] = None,
+                               maxDiskGB: Option[Long] = None,
                                diskType: Option[DiskType.DiskType] = None,
-                               cpu: Option[Long] = None,
+                               minCpu: Option[Long] = None,
+                               maxCpu: Option[Long] = None,
                                gpu: Option[Boolean] = None,
                                os: Option[ExecutionEnvironment] = None) {
   override def toString: String = {
-    s"""memory=${memoryMB} disk=${diskGB} diskType=${diskType} cores=${cpu} gpu=${gpu} 
-       |os=${os} instancetype=${dxInstanceType}""".stripMargin.replaceAll("\n", " ")
+    s"""memory=(${minMemoryMB},${maxMemoryMB}) disk=(${minDiskGB},${maxDiskGB}) diskType=${diskType} 
+       |cores=(${minCpu},${maxCpu}) gpu=${gpu} os=${os} instancetype=${dxInstanceType}""".stripMargin
+      .replaceAll("\n", " ")
   }
 }
 
@@ -95,9 +99,12 @@ case class DxInstanceType(name: String,
     if (query.dxInstanceType.contains(name)) {
       true
     } else {
-      query.memoryMB.forall(_ <= memoryMB) &&
-      query.diskGB.forall(_ <= diskGB) &&
-      query.cpu.forall(_ <= cpu) &&
+      query.minMemoryMB.forall(_ <= memoryMB) &&
+      query.maxMemoryMB.forall(_ >= memoryMB) &&
+      query.minDiskGB.forall(_ <= diskGB) &&
+      query.maxDiskGB.forall(_ >= diskGB) &&
+      query.minCpu.forall(_ <= cpu) &&
+      query.maxCpu.forall(_ >= cpu) &&
       query.gpu.forall(_ == gpu) &&
       query.os.forall(queryOs => os.contains(queryOs))
     }

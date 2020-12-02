@@ -24,6 +24,10 @@
 
 ## dxApi
 
+### 0.1.6
+
+* Handle null inputSpec/outputSpec when parsing workflow/describe
+ 
 ### 0.1.5
 
 * Fix DxFindDataObjects parsing of workflow results

@@ -21,20 +21,20 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
   // solution would be asking the platform for the available instances.
   private val instanceList: String =
     """{
-        "mem2_ssd1_x2":       {"internalName": "m3.large",                          "traits": {"numCores":   2, "totalMemoryMB":    7225, "ephemeralStorageGB":   27}},
-        "mem2_ssd1_x4":       {"internalName": "m3.xlarge",                         "traits": {"numCores":   4, "totalMemoryMB":   14785, "ephemeralStorageGB":   72}},
-        "mem2_ssd1_x8":       {"internalName": "m3.2xlarge",                        "traits": {"numCores":   8, "totalMemoryMB":   29905, "ephemeralStorageGB":  147}},
-        "mem1_ssd1_x2":       {"internalName": "c3.large",                          "traits": {"numCores":   2, "totalMemoryMB":    3766, "ephemeralStorageGB":   28}},
-        "mem1_ssd1_x4":       {"internalName": "c3.xlarge",                         "traits": {"numCores":   4, "totalMemoryMB":    7225, "ephemeralStorageGB":   77}},
-        "mem1_ssd1_x8":       {"internalName": "c3.2xlarge",                        "traits": {"numCores":   8, "totalMemoryMB":   14785, "ephemeralStorageGB":  157}},
-        "mem1_ssd1_x16":      {"internalName": "c3.4xlarge",                        "traits": {"numCores":  16, "totalMemoryMB":   29900, "ephemeralStorageGB":  302}},
-        "mem1_ssd1_x32":      {"internalName": "c3.8xlarge",                        "traits": {"numCores":  32, "totalMemoryMB":   60139, "ephemeralStorageGB":  637}},
-        "mem3_ssd1_x32_gen1": {"internalName": "cr1.8xlarge",                       "traits": {"numCores":  32, "totalMemoryMB":  245751, "ephemeralStorageGB":  237}},
-        "mem3_ssd1_x2":       {"internalName": "r3.large",                          "traits": {"numCores":   2, "totalMemoryMB":   15044, "ephemeralStorageGB":   27}},
-        "mem3_ssd1_x4":       {"internalName": "r3.xlarge",                         "traits": {"numCores":   4, "totalMemoryMB":   30425, "ephemeralStorageGB":   72}},
-        "mem3_ssd1_x8":       {"internalName": "r3.2xlarge",                        "traits": {"numCores":   8, "totalMemoryMB":   61187, "ephemeralStorageGB":  147}},
-        "mem3_ssd1_x16":      {"internalName": "r3.4xlarge",                        "traits": {"numCores":  16, "totalMemoryMB":  122705, "ephemeralStorageGB":  297}},
-        "mem3_ssd1_x32":      {"internalName": "r3.8xlarge",                        "traits": {"numCores":  32, "totalMemoryMB":  245751, "ephemeralStorageGB":  597}}
+        "mem2_ssd1_x2":       {"internalName": "m3.large",                          "traits": {"numCores":   2, "totalminMemoryMB":    7225, "ephemeralStorageGB":   27}},
+        "mem2_ssd1_x4":       {"internalName": "m3.xlarge",                         "traits": {"numCores":   4, "totalminMemoryMB":   14785, "ephemeralStorageGB":   72}},
+        "mem2_ssd1_x8":       {"internalName": "m3.2xlarge",                        "traits": {"numCores":   8, "totalminMemoryMB":   29905, "ephemeralStorageGB":  147}},
+        "mem1_ssd1_x2":       {"internalName": "c3.large",                          "traits": {"numCores":   2, "totalminMemoryMB":    3766, "ephemeralStorageGB":   28}},
+        "mem1_ssd1_x4":       {"internalName": "c3.xlarge",                         "traits": {"numCores":   4, "totalminMemoryMB":    7225, "ephemeralStorageGB":   77}},
+        "mem1_ssd1_x8":       {"internalName": "c3.2xlarge",                        "traits": {"numCores":   8, "totalminMemoryMB":   14785, "ephemeralStorageGB":  157}},
+        "mem1_ssd1_x16":      {"internalName": "c3.4xlarge",                        "traits": {"numCores":  16, "totalminMemoryMB":   29900, "ephemeralStorageGB":  302}},
+        "mem1_ssd1_x32":      {"internalName": "c3.8xlarge",                        "traits": {"numCores":  32, "totalminMemoryMB":   60139, "ephemeralStorageGB":  637}},
+        "mem3_ssd1_x32_gen1": {"internalName": "cr1.8xlarge",                       "traits": {"numCores":  32, "totalminMemoryMB":  245751, "ephemeralStorageGB":  237}},
+        "mem3_ssd1_x2":       {"internalName": "r3.large",                          "traits": {"numCores":   2, "totalminMemoryMB":   15044, "ephemeralStorageGB":   27}},
+        "mem3_ssd1_x4":       {"internalName": "r3.xlarge",                         "traits": {"numCores":   4, "totalminMemoryMB":   30425, "ephemeralStorageGB":   72}},
+        "mem3_ssd1_x8":       {"internalName": "r3.2xlarge",                        "traits": {"numCores":   8, "totalminMemoryMB":   61187, "ephemeralStorageGB":  147}},
+        "mem3_ssd1_x16":      {"internalName": "r3.4xlarge",                        "traits": {"numCores":  16, "totalminMemoryMB":  122705, "ephemeralStorageGB":  297}},
+        "mem3_ssd1_x32":      {"internalName": "r3.8xlarge",                        "traits": {"numCores":  32, "totalminMemoryMB":  245751, "ephemeralStorageGB":  597}}
 }"""
 
   private val awsOnDemandHourlyPrice =
@@ -139,10 +139,17 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
           if (pricingInfo) Some(awsOnDemandHourlyPriceTable(internalName))
           else None
         val traits = fields("traits").asJsObject.fields
-        val memoryMB = intOfJs(traits("totalMemoryMB"))
+        val minMemoryMB = intOfJs(traits("totalminMemoryMB"))
         val diskGB = intOfJs(traits("ephemeralStorageGB"))
         val cpu = intOfJs(traits("numCores"))
-        name -> DxInstanceType(name, memoryMB, diskGB, cpu, gpu = false, Vector.empty, None, price)
+        name -> DxInstanceType(name,
+                               minMemoryMB,
+                               diskGB,
+                               cpu,
+                               gpu = false,
+                               Vector.empty,
+                               None,
+                               price)
     }
     InstanceTypeDB(db, pricingInfo)
   }
@@ -170,7 +177,7 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x2" =>
     }
     dbNoPrices
-      .selectOptimal(InstanceTypeRequest(memoryMB = Some(1000), cpu = Some(3))) should matchPattern {
+      .selectOptimal(InstanceTypeRequest(minMemoryMB = Some(1000), minCpu = Some(3))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x4" =>
     }
   }
@@ -214,12 +221,12 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     )
 
     db.selectOptimal(
-        InstanceTypeRequest(memoryMB = Some(239 * 1024), diskGB = Some(18), cpu = Some(32))
+        InstanceTypeRequest(minMemoryMB = Some(239 * 1024), minDiskGB = Some(18), minCpu = Some(32))
     ) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem3_ssd1_x32" =>
     }
     db.selectOptimal(
-        InstanceTypeRequest(memoryMB = Some(240 * 1024), diskGB = Some(18), cpu = Some(32))
+        InstanceTypeRequest(minMemoryMB = Some(240 * 1024), minDiskGB = Some(18), minCpu = Some(32))
     ) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem4_ssd1_x128" =>
     }
@@ -252,7 +259,7 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
         pricingAvailable = true
     )
 
-    db.selectOptimal(InstanceTypeRequest(cpu = Some(4))) should matchPattern {
+    db.selectOptimal(InstanceTypeRequest(minCpu = Some(4))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_v2_x4" =>
     }
   }
@@ -294,12 +301,12 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
         pricingAvailable = true
     )
 
-    db.selectOptimal(InstanceTypeRequest(cpu = Some(4), gpu = Some(true))) should matchPattern {
+    db.selectOptimal(InstanceTypeRequest(minCpu = Some(4), gpu = Some(true))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem3_ssd1_gpu_x8" =>
     }
 
     // No non-GPU instance has 8 cpus
-    db.selectOptimal(InstanceTypeRequest(cpu = Some(8), gpu = Some(false))) shouldBe None
+    db.selectOptimal(InstanceTypeRequest(minCpu = Some(8), gpu = Some(false))) shouldBe None
   }
 
   // FIXME: This test will not pass on CI/CD as we are using scoped-token.
