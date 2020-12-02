@@ -24,6 +24,10 @@
 
 ## dxApi
 
+### 0.1.7
+
+* Support max requirements in InstanceTypeRequest
+
 ### 0.1.6
 
 * Handle null inputSpec/outputSpec when parsing workflow/describe
