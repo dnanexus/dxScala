@@ -71,7 +71,9 @@ val protocols = project
       settings,
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
-          dependencies.awssdk
+          dependencies.awssdk,
+          dependencies.nettyHandler,
+          dependencies.nettyCodecHttp2
       ),
       assemblyJarName in assembly := "dxFileAccessProtocols.jar"
   )
@@ -86,9 +88,10 @@ lazy val dependencies =
     val scalatestVersion = "3.1.1"
     val jacksonVersion = "2.11.0"
     val guavaVersion = "18.0"
-    val httpClientVersion = "4.5"
+    val httpClientVersion = "4.5.9"
     val logbackVersion = "1.2.3"
     val awsVersion = "2.15.1"
+    val nettyVersion = "4.1.46.Final"
 
     val typesafe = "com.typesafe" % "config" % typesafeVersion
     val spray = "io.spray" %% "spray-json" % sprayVersion
@@ -98,6 +101,9 @@ lazy val dependencies =
     val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
     val awssdk = "software.amazon.awssdk" % "s3" % awsVersion
     val scalatest = "org.scalatest" % "scalatest_2.13" % scalatestVersion
+    // dependencies of dependencies - specified here to resolve version conflicts
+    val nettyHandler = "io.netty" % "netty-handler" % nettyVersion
+    val nettyCodecHttp2 = "io.netty" % "netty-codec-http" % nettyVersion
   }
 
 lazy val commonDependencies = Seq(
