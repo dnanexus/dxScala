@@ -62,7 +62,7 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
   //          "2652f5844803bcf8615bec64abd20959c023d34644104245b905bb9b08667c8d/layer.tar",
   //          ]}
   // ]
-  private[exec] def readManifestGetDockerImageName(buf: String): Option[String] = {
+  private[util] def readManifestGetDockerImageName(buf: String): Option[String] = {
     val jso = buf.parseJson
     val elem = jso match {
       case JsArray(elements) if elements.nonEmpty => elements.head
