@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.4 (2020-12-15)
+
+* Add DockerUtils
+
 ### 0.2.3 (2020-11-25)
 
 * Relocate LocalizationDisambiguator here from wdlTools
