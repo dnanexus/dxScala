@@ -613,21 +613,20 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
                         dxProject: Option[DxProject] = None,
                         dxPathComponents: Option[DxPathComponents] = None): DxDataObject = {
     val components = dxPathComponents.getOrElse(DxPath.parse(dxPath))
-    val proj = dxProject.getOrElse(components.projName match {
+    lazy val proj = dxProject.getOrElse(components.projName match {
       case Some(projName) => resolveProject(projName)
       case None           => currentProject
     })
+
     // peel off objects that have already been resolved
     val found = triagePath(components) match {
-      case Left(alreadyResolved) =>
-        Vector(alreadyResolved)
+      case Left(alreadyResolved) => Vector(alreadyResolved)
       case Right(dxPathsToResolve) =>
         submitResolutionRequest(Vector(dxPathsToResolve), proj).values.toVector
     }
 
     found match {
-      case Vector(result) =>
-        result
+      case Vector(result) => result
       case Vector() =>
         throw new Exception(s"Could not find ${dxPath} in project ${proj.id}")
       case _ =>
@@ -730,8 +729,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
   def resolveFile(uri: String): DxFile = {
     resolveDataObject(uri) match {
-      case dxfile: DxFile =>
-        dxfile
+      case dxfile: DxFile => dxfile
       case other =>
         throw new Exception(s"Found dx:object of the wrong type ${other}")
     }

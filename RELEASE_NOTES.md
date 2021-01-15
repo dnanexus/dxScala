@@ -28,15 +28,19 @@
 
 ## dxApi
 
-### 0.1.7
+### 0.1.8 (dev)
+
+* Support execution priority on app/applet/workflow newRun
+
+### 0.1.7 (2020-12-03)
 
 * Support max requirements in InstanceTypeRequest
 
-### 0.1.6
+### 0.1.6 (2020-11-30)
 
 * Handle null inputSpec/outputSpec when parsing workflow/describe
  
-### 0.1.5
+### 0.1.5 (2020-11-23)
 
 * Fix DxFindDataObjects parsing of workflow results
 

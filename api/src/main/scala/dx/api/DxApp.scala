@@ -29,7 +29,8 @@ case class DxApp(id: String)(dxApi: DxApi = DxApi.get)
              input: JsValue,
              instanceType: Option[String] = None,
              details: Option[JsValue] = None,
-             delayWorkspaceDestruction: Option[Boolean] = None): DxJob = {
+             delayWorkspaceDestruction: Option[Boolean] = None,
+             priority: Option[Priority.Priority] = None): DxJob = {
     val fields = Map(
         "name" -> JsString(name),
         "input" -> input
@@ -53,7 +54,12 @@ case class DxApp(id: String)(dxApi: DxApi = DxApi.get)
       case Some(true) => Map("delayWorkspaceDestruction" -> JsTrue)
       case _          => Map.empty
     }
-    val info = dxApi.appRun(this.id, fields ++ instanceFields ++ detailsFields ++ dwd)
+    val priorityFields = priority match {
+      case Some(priority) => Map("priority" -> JsString(priority.toString.toLowerCase))
+      case None           => Map.empty
+    }
+    val info =
+      dxApi.appRun(this.id, fields ++ instanceFields ++ detailsFields ++ dwd ++ priorityFields)
     val id: String = info.fields.get("id") match {
       case Some(JsString(x)) => x
       case _ =>

@@ -61,7 +61,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   }
 
   override def resolve(uri: String): DxFileSource = {
-    // First search in the fileInfoList. This may save us an API call.
+    // First search in the cache. This may save us an API call.
     uriToFileSource.get(uri) match {
       case Some(src) => src
       case None =>

@@ -105,6 +105,12 @@ trait DxDataObject extends DxObject
 // Objects that can be run on the platform. These are apps, applets, and workflows.
 trait DxExecutable extends DxObject
 
+// execution priority
+object Priority extends Enum {
+  type Priority = Value
+  val Normal, High = Value
+}
+
 // Actual executions on the platform. There are jobs and analyses
 trait DxExecution extends DxObject {
   val id: String
