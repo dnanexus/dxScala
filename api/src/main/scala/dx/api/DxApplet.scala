@@ -154,8 +154,8 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
       case Some(priority) => Map("priority" -> JsString(priority.toString.toLowerCase))
       case None           => Map.empty
     }
-    val info =
-      dxApi.appletRun(id, fields ++ instanceFields ++ detailsFields ++ dwd ++ priorityFields)
+    val allFields = fields ++ instanceFields ++ detailsFields ++ dwd ++ priorityFields
+    val info = dxApi.appletRun(id, allFields)
     val jobId: String = info.fields.get("id") match {
       case Some(JsString(x)) => x
       case _ =>

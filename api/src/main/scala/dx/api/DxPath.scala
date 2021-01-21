@@ -21,23 +21,20 @@ object DxPath {
     // take out the project, if it is specified
     val components = s.split(":").toList
     val (projName, dxObjectPath) = components match {
-      case Nil =>
-        throw new Exception(s"Path ${dxPath} is invalid")
-      case List(objName) =>
-        (None, objName)
+      case Nil           => throw new Exception(s"Path ${dxPath} is invalid")
+      case List(objName) => (None, objName)
       case projName :: tail =>
         val rest = tail.mkString(":")
         (Some(projName), rest)
     }
 
     projName match {
-      case None => ()
-      case Some(proj) =>
-        if (proj.startsWith("file-"))
-          throw new Exception("""|Path ${dxPath} does not look like: dx://PROJECT_NAME:/FILE_PATH
-                                 |For example:
-                                 |   dx://dxWDL_playground:/test_data/fileB
-                                 |""".stripMargin)
+      case Some(proj) if proj.startsWith("file-") =>
+        throw new Exception("""|Path ${dxPath} does not look like: dx://PROJECT_NAME:/FILE_PATH
+                               |For example:
+                               |   dx://dxWDL_playground:/test_data/fileB
+                               |""".stripMargin)
+      case _ => ()
     }
 
     val (folder, name) = dxObjectPath match {
