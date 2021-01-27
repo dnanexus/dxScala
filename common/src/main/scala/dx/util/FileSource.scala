@@ -468,6 +468,14 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
     }
   }
 
+  def localSearchPath: Vector[Path] = {
+    protocols
+      .collectFirst {
+        case LocalFileAccessProtocol(searchPath, _, _) => searchPath
+      }
+      .getOrElse(Vector.empty)
+  }
+
   def addToLocalSearchPath(paths: Vector[Path], append: Boolean = true): FileSourceResolver = {
     val newProtos = protocols.map {
       case LocalFileAccessProtocol(searchPath, logger, encoding) =>

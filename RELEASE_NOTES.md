@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.5 (2021-01-27)
+
+* Add `FileSourceResolver.localSearchPath` accessor
+
 ### 0.2.4 (2020-12-15)
 
 * Add DockerUtils
