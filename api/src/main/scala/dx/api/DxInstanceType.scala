@@ -66,11 +66,12 @@ case class InstanceTypeRequest(dxInstanceType: Option[String] = None,
                                minCpu: Option[Long] = None,
                                maxCpu: Option[Long] = None,
                                gpu: Option[Boolean] = None,
-                               os: Option[ExecutionEnvironment] = None) {
+                               os: Option[ExecutionEnvironment] = None,
+                               optional: Boolean = false) {
   override def toString: String = {
     s"""memory=(${minMemoryMB},${maxMemoryMB}) disk=(${minDiskGB},${maxDiskGB}) diskType=${diskType} 
-       |cores=(${minCpu},${maxCpu}) gpu=${gpu} os=${os} instancetype=${dxInstanceType}""".stripMargin
-      .replaceAll("\n", " ")
+       |cores=(${minCpu},${maxCpu}) gpu=${gpu} os=${os} instancetype=${dxInstanceType}
+       |optional=${optional}""".stripMargin.replaceAll("\n", " ")
   }
 }
 
@@ -317,9 +318,12 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAva
   }
 
   def apply(query: InstanceTypeRequest): DxInstanceType = {
-    get(query).getOrElse(
+    get(query) match {
+      case Some(instanceType: DxInstanceType) => instanceType
+      case None if query.optional             => defaultInstanceType
+      case _ =>
         throw new Exception(s"No instance types found that satisfy query ${query}")
-    )
+    }
   }
 
   // check if instance type A is smaller or equal in requirements to

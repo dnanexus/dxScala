@@ -32,9 +32,10 @@
 
 ## dxApi
 
-### 0.1.8 (dev)
+### 0.1.8 (2020-02-02)
 
 * Support execution priority on app/applet/workflow newRun
+* Allow for optional instance type requests
 
 ### 0.1.7 (2020-12-03)
 

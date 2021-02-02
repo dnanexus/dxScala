@@ -21,5 +21,15 @@ object CollectionUtils {
         case x if x.isDefined => x.get
       }
     }
+
+    def mapWithState[B, C](initialState: C)(mapFunction: (C, A) => (C, B)): Iterator[B] = {
+      iterableOnce.iterator
+        .scanLeft((initialState, Option.empty[B])) {
+          case ((state, _), x) =>
+            val (newState, result) = mapFunction(state, x)
+            (newState, Some(result))
+        }
+        .map(_._2.get)
+    }
   }
 }
