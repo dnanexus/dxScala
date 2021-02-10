@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.6 (2021-02-10)
+
+* Additional JsUtils
+
 ### 0.2.5 (2021-01-27)
 
 * Add `FileSourceResolver.localSearchPath` accessor
