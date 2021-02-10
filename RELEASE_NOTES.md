@@ -32,7 +32,7 @@
 
 ## dxApi
 
-### (dev)
+### (2020-02-10)
 
 * Fix `DxUtils.parseObjectId` to recognize named objects (apps and globalworkflows)
 
