@@ -18,6 +18,9 @@ object DxUtils {
     s"^(${dataObjectClasses.mkString("|")})-([A-Za-z0-9]{24})$$".r
   private val executableIdRegexp =
     s"^(${executableClasses.mkString("|")})-([A-Za-z0-9]{24})$$".r
+  // apps and globalworkflows can be referenced by name
+  private val namedObjectIdRegexp =
+    "^(app|globalworkflow)-([A-Za-z0-9._-]{24})$".r
   // Other entity ID regexps if/when needed:
   //  private val containerIdRegexp = s"^(${containerClasses.mkString("|")})-(\\w{24})$$".r
   //  private val executableIdRegexp = s"^(${executableClasses.mkString("|")})-(\\w{24})$$".r
@@ -27,6 +30,8 @@ object DxUtils {
     dxId match {
       case objectIdRegexp(idType, idHash) =>
         (idType, idHash)
+      case namedObjectIdRegexp(idType, idName) =>
+        (idType, idName)
       case _ =>
         throw new IllegalArgumentException(s"${dxId} is not a valid object ID")
     }

@@ -32,6 +32,10 @@
 
 ## dxApi
 
+### (dev)
+
+* Fix `DxUtils.parseObjectId` to recognize named objects (apps and globalworkflows)
+
 ### 0.1.8 (2020-02-02)
 
 * Support execution priority on app/applet/workflow newRun
