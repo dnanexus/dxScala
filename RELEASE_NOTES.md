@@ -36,7 +36,11 @@
 
 ## dxApi
 
-### (2020-02-10)
+### 0.1.10 (dev)
+
+* Add option to uploadFile to specify a destination
+
+### 0.1.9 (2020-02-10)
 
 * Fix `DxUtils.parseObjectId` to recognize named objects (apps and globalworkflows)
 
