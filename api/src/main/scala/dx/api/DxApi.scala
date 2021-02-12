@@ -871,8 +871,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
     def uploadOneFile(path: Path, counter: Int): Option[String] = {
       try {
-        // shell out to dx upload. We need to quote the path, because it may contain
-        // spaces
+        // shell out to dx upload. We need to quote the path, because it may contain spaces
         val dxUploadCmd = if (destination.isDefined) {
           s"""dx upload "${path.toString}" --destination ${destination.get} --brief"""
         } else {
@@ -902,5 +901,13 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       counter = counter + 1
     }
     throw new Exception(s"Failure to upload file ${path}")
+  }
+
+  def uploadString(content: String, destination: String): DxFile = {
+    // create a temporary file, and write the contents into it.
+    val tempFile: Path = Files.createTempFile("upload", ".tmp")
+    silentFileDelete(tempFile)
+    val path = FileUtils.writeFileContent(tempFile, content)
+    uploadFile(path, Some(destination))
   }
 }
