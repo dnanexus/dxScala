@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### def
+
+* Add `FileUtils.sanitizeFileName`
+
 ### 0.2.6 (2021-02-10)
 
 * Additional JsUtils
@@ -39,6 +43,7 @@
 ### 0.1.10 (dev)
 
 * Add option to uploadFile to specify a destination
+* Add `DxApi.uploadString`
 
 ### 0.1.9 (2020-02-10)
 

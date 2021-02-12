@@ -64,10 +64,16 @@ object FileUtils {
     }
   }
 
+  private val sanitizeRegexp = "[^A-Za-z0-9._-]".r
+
+  def sanitizeFileName(fileName: String): String = {
+    sanitizeRegexp.replaceAllIn(fileName, "_")
+  }
+
   def changeFileExt(fileName: String, dropExt: String = "", addExt: String = ""): String = {
     ((fileName, dropExt) match {
-      case (fn, ext) if fn.length > 0 && fn.endsWith(ext) => fn.dropRight(dropExt.length)
-      case (fn, _)                                        => fn
+      case (fn, ext) if fn.nonEmpty && fn.endsWith(ext) => fn.dropRight(dropExt.length)
+      case (fn, _)                                      => fn
     }) + addExt
   }
 
