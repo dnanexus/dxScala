@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.8 (2021-02-17)
+
+* Change logger to use `Level` rather than `quiet` - add `Logger.apply(quiet, ...)` for backward compatibility
+
 ### 0.2.7 (2021-02-17)
 
 * Add `FileUtils.sanitizeFileName`

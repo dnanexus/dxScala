@@ -3,6 +3,17 @@ package dx.util
 import java.io.PrintStream
 import java.nio.file.Path
 
+object Level {
+  // show messages at least as severe as INFO
+  val Info: Int = 0
+  // show messages at least as severe as INFO
+  val Warning: Int = 1
+  // show messages at least as severe as INFO
+  val Error: Int = 2
+  // do not show any messages
+  val Silent: Int = 3
+}
+
 object TraceLevel {
   // show no trace messages
   val None: Int = 0
@@ -14,17 +25,17 @@ object TraceLevel {
 
 /**
   * Message logger.
-  * @param quiet suppress info and warning messages
+  * @param level the minimum level to log
   * @param traceLevel level of trace detail to show - orthogonal to `quiet`, i.e. you can show trace messages
   *                   but not info/warning
   * @param keywords specific keywords for which to enable tracing
   * @param traceIndenting amount to indent trace messages
   */
-case class Logger(quiet: Boolean,
+case class Logger(level: Int,
                   traceLevel: Int,
-                  keywords: Set[String] = Set.empty,
-                  traceIndenting: Int = 0,
-                  logFile: Option[Path] = None) {
+                  keywords: Set[String],
+                  traceIndenting: Int,
+                  logFile: Option[Path]) {
   private val stream: PrintStream = logFile match {
     case Some(path) =>
       val fileStream = new PrintStream(path.toFile)
@@ -64,21 +75,23 @@ case class Logger(quiet: Boolean,
 
   // print a message with no color - ignored if `quiet` is false
   def info(msg: String): Unit = {
-    if (!quiet) {
+    if (level <= Level.Info) {
       stream.println(msg)
     }
   }
 
   // print a warning message in yellow - ignored if `quiet` is true and `force` is false
   def warning(msg: String, force: Boolean = false, exception: Option[Throwable] = None): Unit = {
-    if (force || !quiet) {
+    if (force || level <= Level.Warning) {
       Logger.warning(msg, exception, stackTrace = isVerbose, stream = stream)
     }
   }
 
   // print an error message in red
   def error(msg: String, exception: Option[Throwable] = None): Unit = {
-    Logger.error(msg, exception, stream = stream)
+    if (level <= Level.Error) {
+      Logger.error(msg, exception, stream = stream)
+    }
   }
 
   private def traceEnabledFor(minLevel: Int, requiredKey: Option[String]): Boolean = {
@@ -135,9 +148,10 @@ case class Logger(quiet: Boolean,
 }
 
 object Logger {
-  lazy val Quiet: Logger = Logger(quiet = true, traceLevel = TraceLevel.None)
-  lazy val Normal: Logger = Logger(quiet = false, traceLevel = TraceLevel.None)
-  lazy val Verbose: Logger = Logger(quiet = false, traceLevel = TraceLevel.Verbose)
+  lazy val Silent: Logger = Logger.create(level = Level.Silent, traceLevel = TraceLevel.None)
+  lazy val Quiet: Logger = Logger.create(level = Level.Error, traceLevel = TraceLevel.None)
+  lazy val Normal: Logger = Logger.create(level = Level.Warning, traceLevel = TraceLevel.None)
+  lazy val Verbose: Logger = Logger.create(level = Level.Info, traceLevel = TraceLevel.Verbose)
   private var instance: Logger = Normal
 
   def get: Logger = instance
@@ -158,6 +172,24 @@ object Logger {
           keywords: Set[String] = Set.empty,
           traceIndenting: Int = 0): Logger = {
     set(Logger(quiet, traceLevel, keywords, traceIndenting))
+  }
+
+  // this function provides backward compatibility
+  def apply(quiet: Boolean,
+            traceLevel: Int,
+            keywords: Set[String] = Set.empty,
+            traceIndenting: Int = 0,
+            logFile: Option[Path] = None): Logger = {
+    val level = if (quiet) Level.Error else Level.Info
+    apply(level = level, traceLevel, keywords, traceIndenting, logFile)
+  }
+
+  def create(level: Int,
+             traceLevel: Int,
+             keywords: Set[String] = Set.empty,
+             traceIndenting: Int = 0,
+             logFile: Option[Path] = None): Logger = {
+    apply(level, traceLevel, keywords, traceIndenting, logFile)
   }
 
   // print a warning message in yellow
