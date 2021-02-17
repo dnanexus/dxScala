@@ -55,13 +55,13 @@ val api = project
       settings,
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
+          dependencies.dxCommon,
           dependencies.jackson,
           dependencies.guava,
           dependencies.commonsHttp
       ),
       assemblyJarName in assembly := "dxApi.jar"
   )
-  .dependsOn(common)
 
 val protocols = project
   .in(file("protocols"))
@@ -71,18 +71,21 @@ val protocols = project
       settings,
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
+          dependencies.dxCommon,
+          dependencies.dxApi,
           dependencies.awssdk,
           dependencies.nettyHandler,
           dependencies.nettyCodecHttp2
       ),
       assemblyJarName in assembly := "dxFileAccessProtocols.jar"
   )
-  .dependsOn(common, api)
 
 // DEPENDENCIES
 
 lazy val dependencies =
   new {
+    val dxCommonVersion = "0.2.7"
+    val dxApiVersion = "0.1.10"
     val typesafeVersion = "1.3.3"
     val sprayVersion = "1.3.5"
     val scalatestVersion = "3.1.1"
@@ -93,6 +96,8 @@ lazy val dependencies =
     val awsVersion = "2.15.1"
     val nettyVersion = "4.1.46.Final"
 
+    val dxCommon = "com.dnanexus" % "dxcommon" % dxCommonVersion
+    val dxApi = "com.dnanexus" % "dxapi" % dxApiVersion
     val typesafe = "com.typesafe" % "config" % typesafeVersion
     val spray = "io.spray" %% "spray-json" % sprayVersion
     val jackson = "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
