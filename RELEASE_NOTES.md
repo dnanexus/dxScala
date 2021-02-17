@@ -2,7 +2,7 @@
 
 ## dxCommon 
 
-### dev
+### 0.2.7 (2021-02-17)
 
 * Add `FileUtils.sanitizeFileName`
 
