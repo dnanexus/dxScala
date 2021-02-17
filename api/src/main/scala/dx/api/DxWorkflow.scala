@@ -169,6 +169,7 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
              input: JsValue,
              details: Option[JsValue] = None,
              delayWorkspaceDestruction: Option[Boolean] = None,
+             folder: Option[String] = None,
              priority: Option[Priority.Priority] = None): DxAnalysis = {
     val req = Map("name" -> JsString(name), "input" -> input.asJsObject)
     val detailsFields = details match {
@@ -179,11 +180,15 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
       case Some(true) => Map("delayWorkspaceDestruction" -> JsTrue)
       case _          => Map.empty
     }
+    val folderFields = folder match {
+      case Some(folder) => Map("folder" -> JsString(folder))
+      case None         => Map.empty
+    }
     val priorityFields = priority match {
       case Some(priority) => Map("priority" -> JsString(priority.toString.toLowerCase))
       case None           => Map.empty
     }
-    val repJs = dxApi.workflowRun(id, req ++ detailsFields ++ dwd ++ priorityFields)
+    val repJs = dxApi.workflowRun(id, req ++ detailsFields ++ dwd ++ folderFields ++ priorityFields)
     repJs.fields.get("id") match {
       case None =>
         throw new Exception("id not returned in response")

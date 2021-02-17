@@ -2,7 +2,7 @@
 
 ## dxCommon 
 
-### def
+### dev
 
 * Add `FileUtils.sanitizeFileName`
 
@@ -44,6 +44,7 @@
 
 * Add option to uploadFile to specify a destination
 * Add `DxApi.uploadString`
+* Add `folder` parameter to `(App|Applet|Workflow).newRun`
 
 ### 0.1.9 (2020-02-10)
 

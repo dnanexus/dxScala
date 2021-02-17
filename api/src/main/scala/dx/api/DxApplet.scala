@@ -126,6 +126,7 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
              instanceType: Option[String] = None,
              details: Option[JsValue] = None,
              delayWorkspaceDestruction: Option[Boolean] = None,
+             folder: Option[String] = None,
              priority: Option[Priority.Priority] = None): DxJob = {
     val fields = Map(
         "name" -> JsString(name),
@@ -150,11 +151,15 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
       case Some(true) => Map("delayWorkspaceDestruction" -> JsTrue)
       case _          => Map.empty
     }
+    val folderFields = folder match {
+      case Some(folder) => Map("folder" -> JsString(folder))
+      case None         => Map.empty
+    }
     val priorityFields = priority match {
       case Some(priority) => Map("priority" -> JsString(priority.toString.toLowerCase))
       case None           => Map.empty
     }
-    val allFields = fields ++ instanceFields ++ detailsFields ++ dwd ++ priorityFields
+    val allFields = fields ++ instanceFields ++ detailsFields ++ dwd ++ folderFields ++ priorityFields
     val info = dxApi.appletRun(id, allFields)
     val jobId: String = info.fields.get("id") match {
       case Some(JsString(x)) => x
