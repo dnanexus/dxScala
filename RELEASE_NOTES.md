@@ -40,7 +40,7 @@
 
 ## dxApi
 
-### 0.1.10 (dev)
+### 0.1.10 (2020-02-16)
 
 * Add option to uploadFile to specify a destination
 * Add `DxApi.uploadString`
