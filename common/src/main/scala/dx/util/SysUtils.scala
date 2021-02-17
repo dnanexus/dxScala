@@ -8,25 +8,40 @@ import scala.concurrent.{Await, Future, TimeoutException, blocking, duration}
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.sys.process.{Process, ProcessLogger}
 
+case class CommandExecError(msg: String,
+                            command: String,
+                            returnCode: Int,
+                            stdout: String,
+                            stderr: String)
+    extends Exception(
+        s"""${msg}
+           |Command: ${command}
+           |Return Code: ${returnCode}
+           |STDOUT: ${stdout}
+           |STDERR: ${stderr}""".stripMargin
+    )
+
+case class CommandTimeout(msg: String, command: String, timeout: Int) extends Exception(msg)
+
 object SysUtils {
   def execScript(script: Path,
                  timeout: Option[Int] = None,
-                 logger: Logger = Logger.Quiet,
                  allowedReturnCodes: Set[Int] = Set(0),
                  exceptionOnFailure: Boolean = true): (Int, String, String) = {
     // sh -c executes the commands in 'script' when the argument is a file
-    execCommand(script.toString, timeout, logger, allowedReturnCodes, exceptionOnFailure)
+    execCommand(script.toString, timeout, allowedReturnCodes, exceptionOnFailure)
   }
 
   /**
     * Runs a child process using `/bin/sh -c`.
     * @param command the command to run
     * @param timeout seconds to wait before killing the process, or None to wait indefinitely
-    * @param logger Logger to use for logging a command failure
+    * @param allowedReturnCodes Set of valid return codes; devaluts to {0}
+    * @param exceptionOnFailure whether to throw an Exception if the command exists with a
+    *                           non-zero return code
     */
   def execCommand(command: String,
                   timeout: Option[Int] = None,
-                  logger: Logger = Logger.Quiet,
                   allowedReturnCodes: Set[Int] = Set(0),
                   exceptionOnFailure: Boolean = true): (Int, String, String) = {
     val cmds = Seq("/bin/sh", "-c", command)
@@ -47,12 +62,8 @@ object SysUtils {
         val retcode = p.exitValue()
         val (stdout, stderr) = getStds
         if (!allowedReturnCodes.contains(retcode)) {
-          logger.error(s"""Execution failed with return code ${retcode}
-                          |Command: ${command}
-                          |STDOUT: ${stdout}
-                          |STDERR: ${stderr}""".stripMargin)
           if (exceptionOnFailure) {
-            throw new Exception(s"Error running command ${command}")
+            throw CommandExecError("Error running command", command, retcode, stdout, stderr)
           }
         }
         (retcode, stdout, stderr)
@@ -65,7 +76,7 @@ object SysUtils {
         } catch {
           case _: TimeoutException =>
             p.destroy()
-            throw new Exception(s"Timeout exceeded (${nSec} seconds)")
+            throw CommandTimeout(s"Timeout exceeded (${nSec} seconds)", command, nSec)
         }
     }
   }

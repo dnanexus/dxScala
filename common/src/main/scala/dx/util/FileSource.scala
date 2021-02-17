@@ -241,7 +241,7 @@ case class LocalFileSource(
         FileUtils.copyDirectory(canonicalPath, file)
       } else {
         logger.trace(s"Unpacking archive ${canonicalPath} to ${file}")
-        FileUtils.unpackArchive(canonicalPath, file, logger = logger)
+        FileUtils.unpackArchive(canonicalPath, file)
       }
     } else {
       logger.trace(s"Copying file ${canonicalPath} to ${file}")

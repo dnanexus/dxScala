@@ -337,8 +337,7 @@ object FileUtils {
   def unpackArchive(archiveFile: Path,
                     targetDir: Path,
                     archiveType: Option[ArchiveType] = None,
-                    overwrite: Boolean = true,
-                    logger: Logger = Logger.Quiet): Unit = {
+                    overwrite: Boolean = true): Unit = {
     if (Files.exists(targetDir)) {
       if (overwrite) {
         deleteRecursive(targetDir)
@@ -355,6 +354,6 @@ object FileUtils {
       case ArchiveType.Zip =>
         s"unzip '${archiveFile}' -d '${targetDir}'"
     }
-    SysUtils.execCommand(command, logger = logger)
+    SysUtils.execCommand(command)
   }
 }
