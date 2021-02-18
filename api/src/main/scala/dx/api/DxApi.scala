@@ -8,6 +8,7 @@ import dx.api.DxPath.DxPathComponents
 import dx.AppInternalException
 import spray.json._
 import dx.util.{FileUtils, Logger, SysUtils, TraceLevel}
+import dx.util.CollectionUtils.IterableOnceExtensions
 
 object DxApi {
   val ResultsPerCallLimit: Int = 1000
@@ -869,38 +870,41 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
 
-    def uploadOneFile(path: Path, counter: Int): Option[String] = {
+    def uploadOneFile(path: Path): Option[String] = {
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
         val dxUploadCmd = if (destination.isDefined) {
-          s"""dx upload "${path.toString}" --destination ${destination.get} --brief"""
+          s"""dx upload "${path.toString}" --destination "${destination.get}" --brief"""
         } else {
           s"""dx upload "${path.toString}" --brief"""
         }
         logger.traceLimited(s"--  ${dxUploadCmd}")
-        val (_, outmsg, _) = SysUtils.execCommand(dxUploadCmd, None)
-        if (!outmsg.startsWith("file-")) {
-          return None
+        SysUtils.execCommand(dxUploadCmd) match {
+          case (_, stdout, _) if stdout.trim.startsWith("file-") =>
+            Some(stdout.trim())
+          case (_, stdout, stderr) =>
+            logger.traceLimited(s"""unexpected response:
+                                   |stdout: ${stdout}
+                                   |stderr: ${stderr}""".stripMargin)
+            None
         }
-        Some(outmsg.trim())
       } catch {
         case e: Throwable =>
-          if (counter < UploadRetryLimit)
-            None
-          else throw e
+          logger.traceLimited(s"error uploading file ${path}", exception = Some(e))
+          None
       }
     }
 
-    var counter = 0
-    while (counter < UploadRetryLimit) {
-      logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
-      uploadOneFile(path, counter) match {
-        case Some(fid) => return file(fid, None)
-        case None      => ()
+    Iterator
+      .range(0, UploadRetryLimit)
+      .collectFirstDefined { counter =>
+        logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
+        uploadOneFile(path) match {
+          case Some(fid) => Some(file(fid, None))
+          case None      => None
+        }
       }
-      counter = counter + 1
-    }
-    throw new Exception(s"Failure to upload file ${path}")
+      .getOrElse(throw new Exception(s"Failure to upload file ${path}"))
   }
 
   def uploadString(content: String, destination: String): DxFile = {
