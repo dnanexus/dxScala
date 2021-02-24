@@ -111,4 +111,35 @@ object DxUtils {
         throw new Exception(s"Cannot create EBOR for execution ${dxExec.id}")
     }
   }
+
+  def isEborJson(jsv: JsValue): Boolean = {
+    jsv match {
+      case JsObject(fields) if fields.keySet == Set(DxUtils.DxLinkKey) =>
+        fields(DxUtils.DxLinkKey) match {
+          case JsObject(fields2) if Set("job", "field").diff(fields2.keySet).isEmpty      => true
+          case JsObject(fields2) if Set("analysis", "field").diff(fields2.keySet).isEmpty => true
+          case _                                                                          => false
+        }
+      case _ => false
+    }
+  }
+
+  def eborToUri(jsv: JsValue): String = {
+    jsv match {
+      case JsObject(fields) if fields.keySet == Set(DxUtils.DxLinkKey) =>
+        val ebor = fields(DxUtils.DxLinkKey) match {
+          case JsObject(ebor) => ebor
+          case _              => throw new Exception(s"not an EBOR ${jsv}")
+        }
+        val project = ebor.get("project").map(p => s"${p}:").getOrElse("")
+        val id = ebor
+          .get("job")
+          .orElse(ebor.get("analysis"))
+          .getOrElse(
+              throw new Exception(s"not an EBOR ${jsv}")
+          )
+        s"${DxPath.DxUriPrefix}${project}${id}::${ebor("field")}"
+      case _ => throw new Exception(s"not an EBOR ${jsv}")
+    }
+  }
 }
