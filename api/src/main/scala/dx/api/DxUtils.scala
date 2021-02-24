@@ -88,6 +88,13 @@ object DxUtils {
     }
   }
 
+  def isLinkJson(jsv: JsValue): Boolean = {
+    jsv match {
+      case JsObject(fields) if fields.keySet == Set(DxLinkKey) => true
+      case _                                                   => false
+    }
+  }
+
   // Create a dx link to a field in an execution. The execution could
   // be a job or an analysis.
   def dxExecutionToEbor(dxExec: DxExecution, fieldName: String): JsValue = {

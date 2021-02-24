@@ -874,7 +874,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
         val dxUploadCmd = if (destination.isDefined) {
-          s"""dx upload "${path.toString}" --destination "${destination.get}" --brief"""
+          s"""dx upload "${path.toString}" --destination "${destination.get}" -p --brief"""
         } else {
           s"""dx upload "${path.toString}" --brief"""
         }

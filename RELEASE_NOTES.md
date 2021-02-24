@@ -45,7 +45,11 @@
 
 ## dxApi
 
-### dev
+### 0.1.12 dev
+
+* bugfixes
+
+### 0.1.11 (2020-02-18)
 
 * bugfixes
 

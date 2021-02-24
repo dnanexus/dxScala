@@ -166,15 +166,24 @@ object DxFile {
 
   def isLinkJson(jsv: JsValue): Boolean = {
     jsv match {
-      case JsObject(fields) if fields.keySet == Set(DxUtils.DxLinkKey) => true
-      case _                                                           => false
+      case JsObject(fields) if fields.keySet == Set(DxUtils.DxLinkKey) =>
+        fields(DxUtils.DxLinkKey) match {
+          case JsString(id) if id.startsWith("file-") => true
+          case JsObject(fields2) =>
+            fields2.get("id") match {
+              case Some(JsString(id)) if id.startsWith("file-") => true
+              case _                                            => false
+            }
+          case _ => false
+        }
+      case _ => false
     }
   }
 
   // Parse a dnanexus file descriptor. Examples:
   //
   // {
-  //   DxUtils.DxLinkKey: {
+  //   "$dnanexus_link": {
   //     "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
   //     "id": "file-BKQGkgQ0b06xG5560GGQ001B"
   //   },
