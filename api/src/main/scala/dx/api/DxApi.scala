@@ -808,14 +808,22 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   //
   // Note: this function assumes that the target path does not exist yet
   def downloadFile(path: Path, dxfile: DxFile): Unit = {
-    def downloadOneFile(path: Path, dxfile: DxFile, counter: Int): Boolean = {
+    def downloadOneFile(path: Path, dxfile: DxFile): Boolean = {
       val fid = dxfile.id
       try {
         // Use dx download. Quote the path, because it may contains spaces.
-        val dxDownloadCmd = s"""dx download ${fid} -o "${path.toString}" """
+        val dxDownloadCmd = s"""dx download ${fid} -o "${path.toString}" --no-progress"""
         logger.traceLimited(s"--  ${dxDownloadCmd}")
-        logger.ignore(SysUtils.execCommand(dxDownloadCmd))
-        true
+        val (_, stdout, stderr) = SysUtils.execCommand(dxDownloadCmd)
+        if (stdout.nonEmpty) {
+          logger.warning(s"unexpected output: ${stdout}")
+          false
+        } else if (stderr.nonEmpty) {
+          logger.warning(s"unexpected error: ${stderr}")
+          false
+        } else {
+          true
+        }
       } catch {
         case e: Throwable =>
           logger.traceLimited(s"error downloading file ${dxfile}", exception = Some(e))
@@ -830,8 +838,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     val success = Iterator
       .range(0, DownloadRetryLimit)
       .exists { counter =>
+        if (counter > 0) {
+          Thread.sleep(1000)
+        }
         logger.traceLimited(s"downloading file ${path.toString} (try=${counter})")
-        downloadOneFile(path, dxfile, counter)
+        downloadOneFile(path, dxfile)
       }
     if (!success) {
       throw new Exception(s"Failure to download file ${path}")
@@ -896,6 +907,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     Iterator
       .range(0, UploadRetryLimit)
       .collectFirstDefined { counter =>
+        if (counter > 0) {
+          Thread.sleep(1000)
+        }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
         uploadOneFile(path) match {
           case Some(fid) => Some(file(fid, None))
