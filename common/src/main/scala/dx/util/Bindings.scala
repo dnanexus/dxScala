@@ -14,6 +14,16 @@ trait Bindings[K, T] {
   protected def copyFrom(values: Map[K, T]): Bindings[K, T]
 
   def update(bindings: Map[K, T]): Bindings[K, T] = {
+    copyFrom(toMap ++ bindings)
+  }
+
+  /**
+    * Add bindings from another Bindings object to this one. Collisions
+    * are not allowed and cause a DuplicateBindingException.
+    * @param bindings other bindings
+    * @return
+    */
+  def addAll(bindings: Map[K, T]): Bindings[K, T] = {
     (keySet & bindings.keySet).toVector match {
       case Vector(name) =>
         throw new DuplicateBindingException(
@@ -25,15 +35,15 @@ trait Bindings[K, T] {
         )
       case _ => ()
     }
-    copyFrom(toMap ++ bindings)
+    update(bindings)
   }
 
-  def update(bindings: Bindings[K, T]): Bindings[K, T] = {
-    update(bindings.toMap)
+  def addAll(bindings: Bindings[K, T]): Bindings[K, T] = {
+    addAll(bindings.toMap)
   }
 
   def add(key: K, value: T): Bindings[K, T] = {
-    update(Map(key -> value))
+    addAll(Map(key -> value))
   }
 
   def apply(key: K): T

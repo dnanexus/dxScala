@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.3.9 (2021-02-25)
+
+* Breaking change: `Bindings.update` renamed to `Bindings.addAll`
+
 ### 0.2.8 (2021-02-17)
 
 * Change logger to use `Level` rather than `quiet` - add `Logger.apply(quiet, ...)` for backward compatibility
