@@ -2,7 +2,7 @@
 
 ## dxCommon 
 
-### 0.3.9 (2021-02-25)
+### dev
 
 * Breaking change: `Bindings.update` renamed to `Bindings.addAll`
 
