@@ -45,6 +45,10 @@
 
 ## dxApi
 
+### dev
+
+* Improves `DxApi.downloadFile`
+
 ### 0.1.12 (2020-02-24)
 
 * Add functions related to EBORs in `DxUtils`

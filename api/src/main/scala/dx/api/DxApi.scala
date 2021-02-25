@@ -813,29 +813,27 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       try {
         // Use dx download. Quote the path, because it may contains spaces.
         val dxDownloadCmd = s"""dx download ${fid} -o "${path.toString}" """
-        logger.ignore(SysUtils.execCommand(dxDownloadCmd, None))
+        logger.traceLimited(s"--  ${dxDownloadCmd}")
+        logger.ignore(SysUtils.execCommand(dxDownloadCmd))
         true
       } catch {
         case e: Throwable =>
-          if (counter < DownloadRetryLimit)
-            false
-          else throw e
+          logger.traceLimited(s"error downloading file ${dxfile}", exception = Some(e))
+          false
       }
     }
 
     val dir = path.getParent
-    if (dir != null) {
-      if (!Files.exists(dir))
-        Files.createDirectories(dir)
+    if (dir != null && !Files.exists(dir)) {
+      Files.createDirectories(dir)
     }
-    var rc = false
-    var counter = 0
-    while (!rc && counter < DownloadRetryLimit) {
-      logger.traceLimited(s"downloading file ${path.toString} (try=${counter})")
-      rc = downloadOneFile(path, dxfile, counter)
-      counter = counter + 1
-    }
-    if (!rc) {
+    val success = Iterator
+      .range(0, DownloadRetryLimit)
+      .exists { counter =>
+        logger.traceLimited(s"downloading file ${path.toString} (try=${counter})")
+        downloadOneFile(path, dxfile, counter)
+      }
+    if (!success) {
       throw new Exception(s"Failure to download file ${path}")
     }
   }
