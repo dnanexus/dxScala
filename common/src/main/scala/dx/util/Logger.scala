@@ -3,7 +3,7 @@ package dx.util
 import java.io.PrintStream
 import java.nio.file.Path
 
-object Level {
+object LogLevel {
   // show messages at least as severe as INFO
   val Info: Int = 0
   // show messages at least as severe as INFO
@@ -75,21 +75,21 @@ case class Logger(level: Int,
 
   // print a message with no color - ignored if `quiet` is false
   def info(msg: String): Unit = {
-    if (level <= Level.Info) {
+    if (level <= LogLevel.Info) {
       stream.println(msg)
     }
   }
 
   // print a warning message in yellow - ignored if `quiet` is true and `force` is false
   def warning(msg: String, force: Boolean = false, exception: Option[Throwable] = None): Unit = {
-    if (force || level <= Level.Warning) {
+    if (force || level <= LogLevel.Warning) {
       Logger.warning(msg, exception, stackTrace = isVerbose, stream = stream)
     }
   }
 
   // print an error message in red
   def error(msg: String, exception: Option[Throwable] = None): Unit = {
-    if (level <= Level.Error) {
+    if (level <= LogLevel.Error) {
       Logger.error(msg, exception, stream = stream)
     }
   }
@@ -148,10 +148,10 @@ case class Logger(level: Int,
 }
 
 object Logger {
-  lazy val Silent: Logger = Logger.create(level = Level.Silent, traceLevel = TraceLevel.None)
-  lazy val Quiet: Logger = Logger.create(level = Level.Error, traceLevel = TraceLevel.None)
-  lazy val Normal: Logger = Logger.create(level = Level.Warning, traceLevel = TraceLevel.None)
-  lazy val Verbose: Logger = Logger.create(level = Level.Info, traceLevel = TraceLevel.Verbose)
+  lazy val Silent: Logger = Logger.create(level = LogLevel.Silent, traceLevel = TraceLevel.None)
+  lazy val Quiet: Logger = Logger.create(level = LogLevel.Error, traceLevel = TraceLevel.None)
+  lazy val Normal: Logger = Logger.create(level = LogLevel.Warning, traceLevel = TraceLevel.None)
+  lazy val Verbose: Logger = Logger.create(level = LogLevel.Info, traceLevel = TraceLevel.Verbose)
   private var instance: Logger = Normal
 
   def get: Logger = instance
@@ -180,7 +180,7 @@ object Logger {
             keywords: Set[String] = Set.empty,
             traceIndenting: Int = 0,
             logFile: Option[Path] = None): Logger = {
-    val level = if (quiet) Level.Error else Level.Info
+    val level = if (quiet) LogLevel.Error else LogLevel.Info
     apply(level = level, traceLevel, keywords, traceIndenting, logFile)
   }
 

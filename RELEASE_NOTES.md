@@ -2,14 +2,14 @@
 
 ## dxCommon 
 
-### dev
+### 0.2.9 (2021-02-25)
 
 * Breaking change: `Bindings.update` renamed to `Bindings.addAll`
 
 ### 0.2.8 (2021-02-17)
 
 * Change logger to use `Level` rather than `quiet` - add `Logger.apply(quiet, ...)` for backward compatibility
-* Remove `logger` parameter from `SysUtils.execCommand` and instead use custom Exception classes
+* Breaking change: remove `logger` parameter from `SysUtils.execCommand` and instead use custom Exception classes
 
 ### 0.2.7 (2021-02-17)
 
@@ -49,7 +49,7 @@
 
 ## dxApi
 
-### dev
+### 0.1.13
 
 * Improves `DxApi.downloadFile`
 
