@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.10 (dev)
+
+* Adds `FileUtils.changeFirstFileExt` with multiple drop extensions
+
 ### 0.2.9 (2021-02-25)
 
 * Breaking change: `Bindings.update` renamed to `Bindings.addAll`
@@ -49,7 +53,11 @@
 
 ## dxApi
 
-### 0.1.13
+### 0.1.14 (dev)
+
+* Add `DxPath.split` function
+
+### 0.1.13 (2020-02-25)
 
 * Improves `DxApi.downloadFile`
 
@@ -112,6 +120,10 @@
 * First release
 
 ## dxFileAccessProtocols
+
+### 0.1.3 (dev)
+
+* DxFileAccessProtocol supports directories
 
 ### 0.1.2 (2020-11-16)
 

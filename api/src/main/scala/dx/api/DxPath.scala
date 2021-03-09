@@ -4,13 +4,7 @@ object DxPath {
   val DxUriPrefix = "dx://"
   private val pathRegex = "(.*)/(.+)".r
 
-  case class DxPathComponents(name: String,
-                              folder: Option[String],
-                              projName: Option[String],
-                              objFullName: String,
-                              sourcePath: String)
-
-  def parse(dxPath: String): DxPathComponents = {
+  def split(dxPath: String): (Option[String], String) = {
     // strip the prefix
     val s = if (dxPath.startsWith(DxUriPrefix)) {
       dxPath.substring(DxUriPrefix.length)
@@ -36,6 +30,18 @@ object DxPath {
                                |""".stripMargin)
       case _ => ()
     }
+
+    (projName, dxObjectPath)
+  }
+
+  case class DxPathComponents(name: String,
+                              folder: Option[String],
+                              projName: Option[String],
+                              objFullName: String,
+                              sourcePath: String)
+
+  def parse(dxPath: String): DxPathComponents = {
+    val (projName, dxObjectPath) = split(dxPath)
 
     val (folder, name) = dxObjectPath match {
       case pathRegex(_, name) if DxUtils.isDataObjectId(name) => (None, name)

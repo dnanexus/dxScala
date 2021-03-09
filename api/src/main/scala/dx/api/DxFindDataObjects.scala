@@ -169,11 +169,12 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
                                  Field.Properties,
                                  Field.Created,
                                  Field.Modified) ++ extraFields
-    val ioDescFields = if (withInputOutputSpec) {
-      Set(Field.InputSpec, Field.OutputSpec)
-    } else {
-      Set.empty
-    }
+    val ioDescFields =
+      if (withInputOutputSpec && klass.forall(Set("applet", "workflow").contains)) {
+        Set(Field.InputSpec, Field.OutputSpec)
+      } else {
+        Set.empty
+      }
     val requiredFields =
       Map(
           "visibility" -> JsString("either"),
@@ -246,7 +247,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
             classRestriction: Option[String] = None,
             withTags: Vector[String] = Vector.empty,
             nameConstraints: Vector[String] = Vector.empty,
-            withInputOutputSpec: Boolean,
+            withInputOutputSpec: Boolean = false,
             idConstraints: Vector[String] = Vector.empty,
             defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
@@ -274,9 +275,9 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
               defaultFields,
               extraFields
           ) match {
-            case (Vector(), _)     => None
-            case (results, JsNull) => Some(results, None)
-            case (results, next)   => Some(results, Some(next))
+            case (results, _) if results.isEmpty => None
+            case (results, JsNull)               => Some(results, None)
+            case (results, next)                 => Some(results, Some(next))
           }
       }
       .flatten
