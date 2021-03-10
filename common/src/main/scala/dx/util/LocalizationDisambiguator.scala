@@ -1,6 +1,8 @@
 package dx.util
 
+import dx.util.CollectionUtils.IterableOnceExtensions
 import java.nio.file.{FileAlreadyExistsException, Files, Path}
+import java.util.UUID
 
 trait LocalizationDisambiguator {
   def getLocalPath(fileSource: AddressableFileSource): Path
@@ -18,6 +20,9 @@ trait LocalizationDisambiguator {
   *                             separate target dirs (true), or to minimize the number of
   *                              dirs used by putting all files in a single directory by default
   *                              but create additional directories to avoid name collision.
+  * @param createDirs whether to create the directories - set to true unless you are just using
+  *                   this class to create unique names for files that will be synced e.g. using
+  *                   a FUSE filesystem.
   * @param subdirPrefix prefix to add to localization dirs
   * @param disambiguationDirLimit max number of disambiguation subdirs that can be created
   */
@@ -25,6 +30,7 @@ case class SafeLocalizationDisambiguator(
     rootDir: Path,
     existingPaths: Set[Path] = Set.empty,
     separateDirsBySource: Boolean = false,
+    createDirs: Boolean = true,
     subdirPrefix: String = "input",
     disambiguationDirLimit: Int = 200
 ) extends LocalizationDisambiguator {
@@ -55,11 +61,27 @@ case class SafeLocalizationDisambiguator(
   }
 
   private def createDisambiguationDir: Path = {
-    val newDir = Files.createTempDirectory(rootDir, subdirPrefix)
-    // we should never get a collision according to the guarantees of
-    // Files.createTempDirectory, but we check anyway
-    if (disambiguationDirs.contains(newDir)) {
-      throw new Exception(s"collision with existing dir ${newDir}")
+    val newDir = if (createDirs) {
+      val newDir = Files.createTempDirectory(rootDir, subdirPrefix)
+      // we should never get a collision according to the guarantees of '
+      // Files.createTempDirectory, but we check anyway
+      if (disambiguationDirs.contains(newDir)) {
+        throw new Exception(s"collision with existing dir ${newDir}")
+      }
+      newDir
+    } else {
+      // try random directory names until we find one that's not used
+      Iterator
+        .continually(UUID.randomUUID)
+        .collectFirstDefined { u =>
+          val newDir = rootDir.resolve(s"${subdirPrefix}${u.toString}")
+          if (disambiguationDirs.contains(newDir)) {
+            None
+          } else {
+            Some(newDir)
+          }
+        }
+        .get
     }
     disambiguationDirs += newDir
     newDir

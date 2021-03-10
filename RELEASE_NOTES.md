@@ -5,6 +5,7 @@
 ### 0.2.10 (dev)
 
 * Adds `FileUtils.changeFirstFileExt` with multiple drop extensions
+* Add option to `LocalizationDisambiguator` to not create directories
 
 ### 0.2.9 (2021-02-25)
 
