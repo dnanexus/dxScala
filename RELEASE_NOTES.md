@@ -2,7 +2,7 @@
 
 ## dxCommon 
 
-### 0.2.10 (dev)
+### 0.2.10 (2021-03-10)
 
 * Adds `FileUtils.changeFirstFileExt` with multiple drop extensions
 * Add option to `LocalizationDisambiguator` to not create directories
