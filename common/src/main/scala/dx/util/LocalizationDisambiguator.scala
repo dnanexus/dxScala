@@ -90,9 +90,7 @@ case class SafeLocalizationDisambiguator(
   // primary dir to use when separateDirsBySource = true
   private val primaryDir = if (separateDirsBySource) Some(createDisambiguationDir) else None
 
-  override def getLocalPath(source: AddressableFileSource): Path = {
-    val sourceFolder = source.folder
-    val name = source.name
+  def getLocalPath(name: String, sourceFolder: String): Path = {
     val localPath = sourceToTarget.get(sourceFolder) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
@@ -100,7 +98,8 @@ case class SafeLocalizationDisambiguator(
         val localPath = parentDir.resolve(name)
         if (exists(localPath)) {
           throw new FileAlreadyExistsException(
-              s"Trying to localize ${source} to ${parentDir} but the file already exists in that directory"
+              s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir} 
+                 |but the file already exists in that directory""".stripMargin
           )
         }
         localPath
@@ -117,14 +116,18 @@ case class SafeLocalizationDisambiguator(
             newDir.resolve(name)
           case _ =>
             throw new Exception(
-                s"""|Trying to localize ${source} to local filesystem at ${rootDir}/*/${name}
-                    |and trying to create a new disambiguation dir, but the limit
-                    |(${disambiguationDirLimit}) has been reached.""".stripMargin
+                s"""|Trying to localize ${name} from ${sourceFolder} to local filesystem 
+                    |at ${rootDir}/*/${name} and trying to create a new disambiguation dir, 
+                    |but the limit (${disambiguationDirLimit}) has been reached.""".stripMargin
                   .replaceAll("\n", " ")
             )
         }
     }
     localizedPaths += localPath
     localPath
+  }
+
+  override def getLocalPath(source: AddressableFileSource): Path = {
+    getLocalPath(source.name, source.folder)
   }
 }

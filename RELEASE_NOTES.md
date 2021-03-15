@@ -2,6 +2,10 @@
 
 ## dxCommon 
 
+### 0.2.11 (dev)
+
+* Fix truncation of trace messages
+
 ### 0.2.10 (2021-03-10)
 
 * Adds `FileUtils.changeFirstFileExt` with multiple drop extensions

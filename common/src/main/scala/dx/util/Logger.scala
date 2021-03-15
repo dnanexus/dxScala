@@ -102,10 +102,9 @@ case class Logger(level: Int,
     stream.println(errorMessage(s"${" " * traceIndenting * 2}${msg}", exception))
   }
 
-  private def truncateMessage(msg: String, maxLength: Int) = {
-    // TODO: truncate long messages
+  private def truncateMessage(msg: String, maxLength: Int): String = {
     if (msg.length > maxLength) {
-      "Message is too long for logging"
+      msg.slice(0, maxLength)
     } else {
       msg
     }
