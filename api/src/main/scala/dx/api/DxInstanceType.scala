@@ -73,6 +73,10 @@ case class InstanceTypeRequest(dxInstanceType: Option[String] = None,
        |cores=(${minCpu},${maxCpu}) gpu=${gpu} os=${os} instancetype=${dxInstanceType}
        |optional=${optional}""".stripMargin.replaceAll("\n", " ")
   }
+
+  def hasMaxBounds: Boolean = {
+    maxMemoryMB.isDefined || maxDiskGB.isDefined || maxCpu.isDefined
+  }
 }
 
 object InstanceTypeRequest {
@@ -96,18 +100,21 @@ case class DxInstanceType(name: String,
     extends Ordered[DxInstanceType] {
 
   // Does this instance satisfy the requirements?
-  def satisfies(query: InstanceTypeRequest): Boolean = {
+  def satisfies(query: InstanceTypeRequest, enforceMaxBounds: Boolean = false): Boolean = {
     if (query.dxInstanceType.contains(name)) {
       true
     } else {
       query.minMemoryMB.forall(_ <= memoryMB) &&
-      query.maxMemoryMB.forall(_ >= memoryMB) &&
       query.minDiskGB.forall(_ <= diskGB) &&
-      query.maxDiskGB.forall(_ >= diskGB) &&
       query.minCpu.forall(_ <= cpu) &&
-      query.maxCpu.forall(_ >= cpu) &&
       query.gpu.forall(_ == gpu) &&
-      query.os.forall(queryOs => os.contains(queryOs))
+      query.os.forall(queryOs => os.contains(queryOs)) && (
+          !enforceMaxBounds || (
+              query.maxMemoryMB.forall(_ >= memoryMB) &&
+              query.maxDiskGB.forall(_ >= diskGB) &&
+              query.maxCpu.forall(_ >= cpu)
+          )
+      )
     }
   }
 
@@ -256,7 +263,8 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAva
       )
   }
 
-  def selectAll(query: InstanceTypeRequest): Iterable[DxInstanceType] = {
+  def selectAll(query: InstanceTypeRequest,
+                enforceMaxBounds: Boolean = false): Iterable[DxInstanceType] = {
     val q = if (query.diskType.contains(DiskType.HDD)) {
       // we are ignoring disk type - only SSD instances are considered usable
       Logger.get.warning(
@@ -266,7 +274,7 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAva
     } else {
       query
     }
-    instanceTypes.values.filter(x => x.satisfies(q))
+    instanceTypes.values.filter(x => x.satisfies(q, enforceMaxBounds))
   }
 
   /**
@@ -274,8 +282,14 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAva
     * optimal one, where optimal is defined as cheapest if the price list is
     * available, otherwise ...
     */
-  def selectOptimal(query: InstanceTypeRequest): Option[DxInstanceType] = {
-    selectMinimalInstanceType(selectAll(query))
+  def selectOptimal(query: InstanceTypeRequest,
+                    enforceMaxBounds: Boolean = false): Option[DxInstanceType] = {
+    val optimal = selectMinimalInstanceType(selectAll(query, enforceMaxBounds = true))
+    if (optimal.isEmpty && !enforceMaxBounds && query.hasMaxBounds) {
+      selectMinimalInstanceType(selectAll(query))
+    } else {
+      optimal
+    }
   }
 
   def selectByName(name: String): Option[DxInstanceType] = {
@@ -299,26 +313,33 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAva
     * by requirements and returns the cheapest instance type that meets all
     * requirements, if any.
     * @param query the query
-    * @param force whether to fall back to querying by requirements if the instance
-    *              type name is set but is not found in the database.
+    * @param enforceName whether to fall back to querying by requirements if the
+    *                    instance type name is set but is not found in the database.
+    * @param enforceMaxBounds whether to return None if there are no instance types
+    *                        that satisfy both the min and max criteria, even if
+    *                        there is one that satisfies only the min criteria.
     * @return
     */
-  def get(query: InstanceTypeRequest, force: Boolean = false): Option[DxInstanceType] = {
+  def get(query: InstanceTypeRequest,
+          enforceName: Boolean = false,
+          enforceMaxBounds: Boolean = false): Option[DxInstanceType] = {
     if (query.dxInstanceType.nonEmpty) {
       selectByName(query.dxInstanceType.get).orElse {
-        if (force) {
-          selectOptimal(query)
-        } else {
+        if (enforceName) {
           None
+        } else {
+          selectOptimal(query, enforceMaxBounds)
         }
       }
     } else {
-      selectOptimal(query)
+      selectOptimal(query, enforceMaxBounds)
     }
   }
 
-  def apply(query: InstanceTypeRequest): DxInstanceType = {
-    get(query) match {
+  def apply(query: InstanceTypeRequest,
+            enforceName: Boolean = false,
+            enforceMaxBounds: Boolean = false): DxInstanceType = {
+    get(query, enforceName, enforceMaxBounds) match {
       case Some(instanceType: DxInstanceType) => instanceType
       case None if query.optional             => defaultInstanceType
       case _ =>
