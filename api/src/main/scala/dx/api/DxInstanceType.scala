@@ -321,7 +321,7 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAva
     * @return
     */
   def get(query: InstanceTypeRequest,
-          enforceName: Boolean = false,
+          enforceName: Boolean = true,
           enforceMaxBounds: Boolean = false): Option[DxInstanceType] = {
     if (query.dxInstanceType.nonEmpty) {
       selectByName(query.dxInstanceType.get).orElse {
