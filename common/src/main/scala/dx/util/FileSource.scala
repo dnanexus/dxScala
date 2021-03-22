@@ -73,6 +73,22 @@ trait AddressableFileSource extends FileSource {
     */
   def folder: String
 
+  /**
+    * Returns an AddressableFileSource that represents this source's
+    * parent directory, or None if this is already the root directory.
+    */
+  def getParent: Option[AddressableFileSource]
+
+  /**
+    * Resolves a path relative to this AddressableFileSource if it
+    * is a directory, or to it's parent if it's a file.
+    * @param path relative path - must end with '/' if it is a directory
+    * @return
+    */
+  def resolve(path: String): AddressableFileSource
+
+  def uri: URI = URI.create(address)
+
   override def toString: String = address
 }
 
@@ -200,6 +216,30 @@ case class LocalFileSource(
 
   override lazy val name: String = canonicalPath.getFileName.toString
   override lazy val folder: String = canonicalPath.getParent.toString
+  override lazy val uri: URI = canonicalPath.toUri
+
+  override def getParent: Option[LocalFileSource] = {
+    canonicalPath.getParent match {
+      case null => None
+      case parent =>
+        Some(LocalFileSource(parent, encoding, isDirectory = true)(parent.toString, parent, logger))
+    }
+  }
+
+  override def resolve(path: String): LocalFileSource = {
+    val parent = if (isDirectory) {
+      canonicalPath
+    } else {
+      canonicalPath.getParent
+    }
+    val newPath = parent.resolve(path)
+    val newIsDirectory = newPath.toFile match {
+      case f if f.exists()         => f.isDirectory
+      case _ if path.endsWith("/") => true
+      case _                       => false
+    }
+    LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString, newPath, logger)
+  }
 
   def checkExists(exists: Boolean): Unit = {
     val existing = Files.exists(canonicalPath)
@@ -301,7 +341,7 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
 }
 
 case class HttpFileSource(
-    uri: URI,
+    override val uri: URI,
     override val encoding: Charset,
     override val isDirectory: Boolean
 )(override val address: String)
@@ -311,6 +351,25 @@ case class HttpFileSource(
   override lazy val name: String = path.getFileName.toString
   override lazy val folder: String = path.getParent.toString
   private var hasBytes: Boolean = false
+
+  override def getParent: Option[HttpFileSource] = {
+    if (path.getParent == null) {
+      None
+    } else {
+      val newUri = if (isDirectory) {
+        uri.resolve("..")
+      } else {
+        uri.resolve(".")
+      }
+      Some(HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString))
+    }
+  }
+
+  override def resolve(path: String): HttpFileSource = {
+    val newUri = uri.resolve(path)
+    val isDirectory = path.endsWith("/")
+    HttpFileSource(newUri, encoding, isDirectory)(newUri.toString)
+  }
 
   // https://stackoverflow.com/questions/12800588/how-to-calculate-a-file-size-from-url-in-java
   override lazy val size: Long = {

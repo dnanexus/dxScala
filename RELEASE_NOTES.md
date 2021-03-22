@@ -5,6 +5,7 @@
 ### 0.2.11 (dev)
 
 * Fix truncation of trace messages
+* Adds `getParent` and `resolve` methods to `AddressableFileSource`
 
 ### 0.2.10 (2021-03-10)
 

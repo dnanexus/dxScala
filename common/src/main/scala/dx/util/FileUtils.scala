@@ -145,7 +145,13 @@ object FileUtils {
     */
   def readFileContent(path: Path,
                       encoding: Charset = DefaultEncoding,
-                      mustExist: Boolean = true): String = {
+                      mustExist: Boolean = true,
+                      maxSize: Option[Long] = None): String = {
+    maxSize.foreach { size =>
+      if (path.toFile.length() > size) {
+        throw new Exception(s"file ${path} is larger than ${maxSize} bytes")
+      }
+    }
     new String(readFileBytes(path, mustExist), encoding)
   }
 
