@@ -880,7 +880,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
   // Upload a local file to the platform, and return a json link.
   // Use 'dx upload' as a separate process.
-  def uploadFile(path: Path, destination: Option[String] = None): DxFile = {
+  def uploadFile(path: Path, destination: Option[String] = None, wait: Boolean = false): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
@@ -888,10 +888,12 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     def uploadOneFile(path: Path): Option[String] = {
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
-        val dxUploadCmd = if (destination.isDefined) {
-          s"""dx upload "${path.toString}" --destination "${destination.get}" -p --brief"""
-        } else {
-          s"""dx upload "${path.toString}" --brief"""
+        var dxUploadCmd = s"""dx upload "${path.toString}" --brief"""
+        if (destination.isDefined) {
+          dxUploadCmd = dxUploadCmd + s""" --destination "${destination.get}" -p"""
+        }
+        if (wait) {
+          dxUploadCmd = dxUploadCmd + " --wait"
         }
         logger.traceLimited(s"--  ${dxUploadCmd}")
         SysUtils.execCommand(dxUploadCmd) match {
