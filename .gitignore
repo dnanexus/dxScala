@@ -5,6 +5,11 @@ target/
 
 *.tmp
 
+# Scala metals
+.bloop/
+.metals/
+metals.sbt
+
 # IntelliJ
 .idea
 
