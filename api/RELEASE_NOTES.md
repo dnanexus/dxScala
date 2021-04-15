@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.1.15 (2020-04-15)
 
 * Adds `ovewrite` option to `DxApi.downloadFile`
 
