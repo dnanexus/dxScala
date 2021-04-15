@@ -59,11 +59,15 @@
 
 ## dxApi
 
-### 0.1.14 (dev)
+### in develop
 
-* bugfixes
+* Adds `ovewrite` option to `DxApi.downloadFile`
+
+### 0.1.14 (2020-03-28)
+
 * Adds `DxPath.split` function
 * Adds option to ignore maximum resource bounds in `InstanceTypeRequest`
+* bugfixes
 
 ### 0.1.13 (2020-02-25)
 
@@ -129,7 +133,11 @@
 
 ## dxFileAccessProtocols
 
-### 0.1.3 (dev)
+### in develop
+
+* Fixes `DxFileAccessProtocol` sources to ovewrite existing paths in `localizeTo`
+
+### 0.1.3 (2020-03-28)
 
 * DxFileAccessProtocol supports directories
 

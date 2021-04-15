@@ -803,17 +803,22 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
   }
 
-  // download a file from the platform to a path on the local disk. Use
-  // 'dx download' as a separate process.
-  //
-  // Note: this function assumes that the target path does not exist yet
-  def downloadFile(path: Path, dxfile: DxFile, overwrite: Boolean=false): Unit = {
+  /**
+    * Downloads a file from the platform to a path on the local disk.
+    * Calls `dx download` as a subprocess.
+    * @param path the target path
+    * @param dxfile the dx file to download
+    * @param overwrite whether to overwrite an existing file - if false, an
+    *                  exception is thrown if the target path already exists
+    */
+  def downloadFile(path: Path, dxfile: DxFile, overwrite: Boolean = false): Unit = {
     def downloadOneFile(path: Path, dxfile: DxFile): Boolean = {
       val fid = dxfile.id
 
       try {
         // Use dx download. Quote the path, because it may contains spaces.
-        val dxDownloadCmd = s"""dx download ${fid} -o "${path.toString}" --no-progress ${if (overwrite) "-f" else ""}"""
+        val dxDownloadCmd =
+          s"""dx download ${fid} -o "${path.toString}" --no-progress ${if (overwrite) "-f" else ""}"""
         logger.traceLimited(s"--  ${dxDownloadCmd}")
         val (_, stdout, stderr) = SysUtils.execCommand(dxDownloadCmd)
         if (stdout.nonEmpty) {

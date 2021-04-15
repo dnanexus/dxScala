@@ -28,6 +28,10 @@ trait FileSource {
     */
   def isDirectory: Boolean
 
+  /**
+    * Localizes this FileSource to the given Path. Implementations assume
+    * that if the file exists it may be overwritten.
+    */
   protected def localizeTo(file: Path): Unit
 
   /**
