@@ -1,6 +1,6 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.1.4 (2021-04-15)
 
 * Fixes `DxFileAccessProtocol` sources to ovewrite existing paths in `localizeTo`
 
