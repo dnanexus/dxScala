@@ -45,7 +45,7 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   }
 
   override protected def localizeTo(file: Path): Unit = {
-    protocol.dxApi.downloadFile(file, dxFile)
+    protocol.dxApi.downloadFile(file, dxFile, overwrite=true)
   }
 }
 
@@ -124,7 +124,7 @@ case class DxFolderSource(dxProject: DxProject, folder: String)(
     listing.foreach {
       case (dxFile, relPath) =>
         val path = dir.resolve(relPath).resolve(dxFile.getName)
-        protocol.dxApi.downloadFile(path, dxFile)
+        protocol.dxApi.downloadFile(path, dxFile, overwrite=true)
     }
   }
 }
