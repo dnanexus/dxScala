@@ -61,6 +61,7 @@
 
 ### 0.1.14 (dev)
 
+* bugfixes
 * Adds `DxPath.split` function
 * Adds option to ignore maximum resource bounds in `InstanceTypeRequest`
 
