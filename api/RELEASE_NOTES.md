@@ -1,39 +1,39 @@
 # dxApi
 
-## 0.1.15 (2020-04-15)
+## 0.1.15 (2021-04-15)
 
 * Adds `ovewrite` option to `DxApi.downloadFile`
 
-## 0.1.14 (2020-03-28)
+## 0.1.14 (2021-03-28)
 
 * Adds `DxPath.split` function
 * Adds option to ignore maximum resource bounds in `InstanceTypeRequest`
 * bugfixes
 
-## 0.1.13 (2020-02-25)
+## 0.1.13 (2021-02-25)
 
 * Improves `DxApi.downloadFile`
 
-## 0.1.12 (2020-02-24)
+## 0.1.12 (2021-02-24)
 
 * Add functions related to EBORs in `DxUtils`
 * bugfixes
 
-## 0.1.11 (2020-02-18)
+## 0.1.11 (2021-02-18)
 
 * bugfixes
 
-## 0.1.10 (2020-02-16)
+## 0.1.10 (2021-02-16)
 
 * Add option to uploadFile to specify a destination
 * Add `DxApi.uploadString`
 * Add `folder` parameter to `(App|Applet|Workflow).newRun`
 
-## 0.1.9 (2020-02-10)
+## 0.1.9 (2021-02-10)
 
 * Fix `DxUtils.parseObjectId` to recognize named objects (apps and globalworkflows)
 
-## 0.1.8 (2020-02-02)
+## 0.1.8 (2021-02-02)
 
 * Support execution priority on app/applet/workflow newRun
 * Allow for optional instance type requests

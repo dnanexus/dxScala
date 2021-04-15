@@ -1,6 +1,6 @@
 # dxCommon
 
-## 0.2.11 (dev)
+## 0.2.11 (2021-03-28)
 
 * Fix truncation of trace messages
 * Adds `getParent` and `resolve` methods to `AddressableFileSource`
