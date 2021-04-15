@@ -2,7 +2,7 @@
 
 ## dxCommon 
 
-### 0.2.11 (dev)
+### 0.2.11 (2020-03-28)
 
 * Fix truncation of trace messages
 * Adds `getParent` and `resolve` methods to `AddressableFileSource`
@@ -59,7 +59,7 @@
 
 ## dxApi
 
-### 0.1.14 (dev)
+### 0.1.14 (2020-03-28)
 
 * Adds `DxPath.split` function
 * Adds option to ignore maximum resource bounds in `InstanceTypeRequest`
@@ -128,7 +128,7 @@
 
 ## dxFileAccessProtocols
 
-### 0.1.3 (dev)
+### 0.1.3 (2020-03-28)
 
 * DxFileAccessProtocol supports directories
 
