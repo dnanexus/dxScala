@@ -9,7 +9,7 @@ import dx.util.Logger
 class DxJobTest extends AnyFlatSpec with Matchers {
   assume(isLoggedIn)
   private val dxApi: DxApi = DxApi()(Logger.Quiet)
-  private val PlaygroundProject = Some(dxApi.project("project-FGpfqjQ0ffPF1Q106JYP2j3v"))
+  private val PlaygroundProject = Some(dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq"))
   private val AppId = "app-Fqy8Xx00zZvZ503g5gJgq3Gb"
   private val AppJobId = "job-Fqy8YF00ffPB148G5f490Y25"
   private val AppletId = "applet-Fqy8Vy80ffP3b1j75bvVFX3Q"
