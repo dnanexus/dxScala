@@ -24,7 +24,7 @@ jobs:
       - name: Assembly
         run: |
           sbt 'project common' assembly
-          mv ./target/dxCommon.jar ./dxCommon-${{ github.event.inputs.release-version }}.jar
+          mv ./common/target/dxCommon.jar ./dxCommon-${{ github.event.inputs.release-version }}.jar
       - name: Scala formatting
         run: |
           sbt 'project common' scalafmtCheckAll

@@ -44,7 +44,7 @@ jobs:
       - name: Assembly
         run: |
           sbt 'project api' assembly
-          mv ./target/dxApi.jar ./dxApi-${{ github.event.inputs.release-version }}.jar
+          mv ./api/target/dxApi.jar ./dxApi-${{ github.event.inputs.release-version }}.jar
       - name: Scala formatting
         run: |
           sbt 'project api' scalafmtCheckAll
