@@ -25,6 +25,10 @@ jobs:
           pip3 install setuptools wheel
           pip3 install termcolor
           pip3 install dxpy
+      - name: Build Dependencies
+        run: |
+          # make sure we have latest dependency versions
+          sbt 'project common' publishLocal
       - name: Unit Tests
         env:
           AUTH_TOKEN: ${{ secrets.DX_STAGING_TOKEN }}
@@ -36,8 +40,6 @@ jobs:
           PROJECT=dxCompiler_playground
           dx select $PROJECT
 
-          # make sure we have latest dependency version
-          sbt 'project common' publishLocal
           sbt 'project api' test
       - name: Assembly
         run: |

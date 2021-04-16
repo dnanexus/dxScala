@@ -18,11 +18,13 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - name: Unit Tests
+      - name: Build Dependencies
         run: |
           # make sure we have latest dependency versions
           sbt 'project common' publishLocal
           sbt 'project api' publishLocal
+      - name: Unit Tests
+        run: |
           sbt 'project protocols' test
       - name: Assembly
         run: |
