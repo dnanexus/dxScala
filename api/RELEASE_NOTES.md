@@ -1,8 +1,8 @@
 # dxApi
 
-## 0.1.15 (2021-04-15)
+## 0.1.15 (2021-04-16)
 
-* Adds `ovewrite` option to `DxApi.downloadFile`
+* Adds `overwrite` option to `DxApi.downloadFile`
 
 ## 0.1.14 (2021-03-28)
 
