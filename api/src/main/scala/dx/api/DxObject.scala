@@ -7,8 +7,8 @@ import dx.util.Enum
 object Field extends Enum {
   type Field = Value
   val Access, Analysis, App, Applet, ArchivalState, AvailableInstanceTypes, BillTo, Categories,
-      Created, Description, Details, DeveloperNotes, Executable, ExecutableName, Folder, Id,
-      IgnoreReuse, Input, Inputs, InputSpec, InstanceType, Modified, Name, Output, Outputs,
+      Created, Description, Details, DependsOn, DeveloperNotes, Executable, ExecutableName, Folder,
+      Id, IgnoreReuse, Input, Inputs, InputSpec, InstanceType, Modified, Name, Output, Outputs,
       OutputSpec, ParentJob, Parts, PricingModelsByRegion, Project, Properties, Region, RunSpec,
       Size, Stages, Summary, Tags, Title, Types, Version = Value
 }
@@ -61,6 +61,7 @@ object DxObject {
       case Field.BillTo                 => "billTo"
       case Field.Categories             => "categories"
       case Field.Created                => "created"
+      case Field.DependsOn              => "dependsOn"
       case Field.Description            => "description"
       case Field.DeveloperNotes         => "developerNotes"
       case Field.Details                => "details"

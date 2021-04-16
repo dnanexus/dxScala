@@ -1,6 +1,6 @@
 package dx.api
 
-import spray.json.{JsNull, JsNumber, JsObject, JsString, JsValue}
+import spray.json._
 
 case class DxAnalysisDescribe(project: String,
                               id: String,
@@ -12,7 +12,8 @@ case class DxAnalysisDescribe(project: String,
                               properties: Option[Map[String, String]],
                               details: Option[JsValue],
                               input: Option[JsValue],
-                              output: Option[JsValue])
+                              output: Option[JsValue],
+                              dependsOn: Option[Vector[String]])
     extends DxObjectDescribe
 
 case class DxAnalysis(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
@@ -55,6 +56,7 @@ object DxAnalysis {
                            None,
                            None,
                            None,
+                           None,
                            None)
       case _ =>
         throw new Exception(s"Malformed JSON ${descJs}")
@@ -70,11 +72,22 @@ object DxAnalysis {
     val props = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
     val input = descJs.fields.get("input")
     val output = descJs.fields.get("output")
+    val dependsOn = descJs.fields.get("dependsOn") match {
+      case Some(JsArray(deps)) =>
+        Some(deps.map {
+          case JsString(dep) => dep
+          case other         => throw new Exception(s"invalid dependsOn item ${other}")
+        })
+      case None => None
+      case other =>
+        throw new Exception(s"invalid dependsOn value ${other}")
+    }
 
     desc.copy(executableName = executableName,
               details = details,
               properties = props,
               input = input,
-              output = output)
+              output = output,
+              dependsOn = dependsOn)
   }
 }
