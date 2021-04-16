@@ -10,10 +10,10 @@ class DxJobTest extends AnyFlatSpec with Matchers {
   assume(isLoggedIn)
   private val dxApi: DxApi = DxApi()(Logger.Quiet)
   private val PlaygroundProject = Some(dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq"))
-  private val AppId = "app-Fqy8Xx00zZvZ503g5gJgq3Gb"
-  private val AppJobId = "job-Fqy8YF00ffPB148G5f490Y25"
-  private val AppletId = "applet-Fqy8Vy80ffP3b1j75bvVFX3Q"
-  private val AppletJobId = "job-Fqy8XV00ffP3b1j75bvVFX3b"
+  private val AppId = "app-FGybxy00k03JX74548Vp63JV"
+  private val AppJobId = "job-G1KzFz00yzZq49Q13zJ7pzX9"
+  private val AppletId = "applet-G1vG4F00yzZb69KX20pp0jVP"
+  private val AppletJobId = "job-G1vG5Kj0yzZjfjk39zfQVpV2"
 
   it should "describe job which ran app" taggedAs ApiTest in {
     val dxAppJob = dxApi.job(AppJobId, PlaygroundProject)
