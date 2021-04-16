@@ -36,6 +36,8 @@ jobs:
           PROJECT=dxCompiler_playground
           dx select $PROJECT
 
+          # make sure we have latest dependency version
+          sbt 'project common' publishLocal
           sbt 'project api' test
       - name: Assembly
         run: |
