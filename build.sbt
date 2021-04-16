@@ -44,9 +44,9 @@ val common = project
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
           dependencies.typesafe
-      )
+      ),
+      assemblyJarName in assembly := "dxCommon.jar"
   )
-  .disablePlugins(AssemblyPlugin)
 
 val api = project
   .in(file("api"))
