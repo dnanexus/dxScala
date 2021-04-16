@@ -2,7 +2,6 @@ package dx.util.protocols
 
 import java.nio.charset.Charset
 import java.nio.file.{Path, Paths}
-
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.core.sync.ResponseTransformer
 import software.amazon.awssdk.regions.Region
@@ -25,18 +24,15 @@ import scala.jdk.CollectionConverters._
 /**
   * Represents a file in an S3 bucket.
   * @param address the original s3 uri
-  * @param client the S3Client
   * @param bucketName the bucket
   * @param objectKey the object key
-  * @param encoding character encoding
   */
 case class S3FileSource(
+    override val address: String,
     bucketName: String,
-    objectKey: String,
-    override val isDirectory: Boolean,
-    override val encoding: Charset
-)(override val address: String, client: S3Client)
-    extends AbstractAddressableFileNode(address, encoding) {
+    objectKey: String
+)(protocol: S3FileAccessProtocol)
+    extends AbstractAddressableFileNode(address, protocol.encoding) {
 
   private lazy val request: GetObjectRequest =
     GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
@@ -49,24 +45,38 @@ case class S3FileSource(
     case path => path.toString
   }
 
+  override def getParent: Option[S3FolderSource] = {
+    if (folder == "") {
+      val newUri = s"s3://${bucketName}/"
+      Some(S3FolderSource(newUri, bucketName, "/")(protocol))
+    } else {
+      val newUri = s"s3://${bucketName}/${folder}"
+      Some(S3FolderSource(newUri, bucketName, folder)(protocol))
+    }
+  }
+
+  override def resolve(path: String): AddressableFileSource = {
+    getParent.get.resolve(path)
+  }
+
   override lazy val size: Long = {
-    client.getObject(request).response().contentLength()
+    protocol.getClient.getObject(request).response().contentLength()
   }
 
   override def readBytes: Array[Byte] = {
-    client.getObject(request, ResponseTransformer.toBytes[GetObjectResponse]()).asByteArray()
+    protocol.getClient
+      .getObject(request, ResponseTransformer.toBytes[GetObjectResponse]())
+      .asByteArray()
   }
 
   override protected def localizeTo(file: Path): Unit = {
-    client.getObject(request, ResponseTransformer.toFile[GetObjectResponse](file))
+    protocol.getClient.getObject(request, ResponseTransformer.toFile[GetObjectResponse](file))
   }
 }
 
-case class S3FolderSource(override val address: String,
-                          client: S3Client,
-                          bucketName: String,
-                          prefix: String)
-    extends AddressableFileSource {
+case class S3FolderSource(override val address: String, bucketName: String, prefix: String)(
+    protocol: S3FileAccessProtocol
+) extends AddressableFileSource {
   private lazy val prefixPath: Path = Paths.get(prefix)
 
   override def name: String = prefixPath.getFileName.toString
@@ -78,6 +88,25 @@ case class S3FolderSource(override val address: String,
 
   override val isDirectory: Boolean = true
 
+  override def getParent: Option[S3FolderSource] = {
+    if (folder == "") {
+      None
+    } else {
+      val newUri = s"s3://${bucketName}/${folder}"
+      Some(S3FolderSource(newUri, bucketName, folder)(protocol))
+    }
+  }
+
+  override def resolve(path: String): AddressableFileSource = {
+    val objectKey = s"${folder}${path}"
+    val newUri = s"s3://${bucketName}/${objectKey}"
+    if (path.endsWith("/")) {
+      S3FolderSource(newUri, bucketName, objectKey)(protocol)
+    } else {
+      S3FileSource(newUri, bucketName, objectKey)(protocol)
+    }
+  }
+
   override protected def localizeTo(dir: Path): Unit = {
     // list objects with the given prefix - s3 doesn't have "folders", so we
     // just assume that all objects with the same prefix are in the same folder
@@ -87,14 +116,15 @@ case class S3FolderSource(override val address: String,
       .prefix(prefix)
       .delimiter("/")
       .build()
-    val response = client.listObjectsV2(listRequest)
+    val response = protocol.getClient.listObjectsV2(listRequest)
     val sourcePath = Paths.get(prefix)
     response.contents().asScala.foreach { s3obj =>
       val objectKey = s3obj.key()
       val relativePath = sourcePath.relativize(Paths.get(objectKey))
       val destPath = dir.resolve(relativePath)
       val downloadRequest = GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
-      client.getObject(downloadRequest, ResponseTransformer.toFile[GetObjectResponse](destPath))
+      protocol.getClient.getObject(downloadRequest,
+                                   ResponseTransformer.toFile[GetObjectResponse](destPath))
     }
   }
 }
@@ -104,7 +134,7 @@ case class S3FileAccessProtocol(region: Region,
                                 encoding: Charset = FileUtils.DefaultEncoding)
     extends FileAccessProtocol {
   private var client: Option[S3Client] = None
-  private def getClient: S3Client = {
+  private[protocols] def getClient: S3Client = {
     if (client.isEmpty) {
       val builder = S3Client.builder().region(region)
       client = Some(credentialsProvider.map(builder.credentialsProvider).getOrElse(builder).build())
@@ -128,7 +158,7 @@ case class S3FileAccessProtocol(region: Region,
   override def resolve(uri: String): S3FileSource = {
     uri match {
       case S3UriRegexp(bucketName, objectKey) if objectKey.nonEmpty && !objectKey.endsWith("/") =>
-        S3FileSource(bucketName, objectKey, isDirectory = false, encoding)(uri, getClient)
+        S3FileSource(uri, bucketName, objectKey)(this)
       case _ =>
         throw new Exception(s"invalid s3 file URI ${uri}")
     }
@@ -143,9 +173,9 @@ case class S3FileAccessProtocol(region: Region,
   override def resolveDirectory(uri: String): S3FolderSource = {
     uri match {
       case S3UriRegexp(bucketName, objectKey) if objectKey.isEmpty =>
-        S3FolderSource(uri, getClient, bucketName, "/")
+        S3FolderSource(uri, bucketName, "/")(this)
       case S3UriRegexp(bucketName, objectKey) if objectKey.endsWith("/") =>
-        S3FolderSource(uri, getClient, bucketName, objectKey)
+        S3FolderSource(uri, bucketName, objectKey)(this)
       case _ =>
         throw new Exception(s"invalid s3 folder URI ${uri}")
     }

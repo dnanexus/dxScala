@@ -1,6 +1,8 @@
 package dx.util
 
+import dx.util.CollectionUtils.IterableOnceExtensions
 import java.nio.file.{FileAlreadyExistsException, Files, Path}
+import java.util.UUID
 
 trait LocalizationDisambiguator {
   def getLocalPath(fileSource: AddressableFileSource): Path
@@ -18,6 +20,9 @@ trait LocalizationDisambiguator {
   *                             separate target dirs (true), or to minimize the number of
   *                              dirs used by putting all files in a single directory by default
   *                              but create additional directories to avoid name collision.
+  * @param createDirs whether to create the directories - set to true unless you are just using
+  *                   this class to create unique names for files that will be synced e.g. using
+  *                   a FUSE filesystem.
   * @param subdirPrefix prefix to add to localization dirs
   * @param disambiguationDirLimit max number of disambiguation subdirs that can be created
   */
@@ -25,6 +30,7 @@ case class SafeLocalizationDisambiguator(
     rootDir: Path,
     existingPaths: Set[Path] = Set.empty,
     separateDirsBySource: Boolean = false,
+    createDirs: Boolean = true,
     subdirPrefix: String = "input",
     disambiguationDirLimit: Int = 200
 ) extends LocalizationDisambiguator {
@@ -55,11 +61,27 @@ case class SafeLocalizationDisambiguator(
   }
 
   private def createDisambiguationDir: Path = {
-    val newDir = Files.createTempDirectory(rootDir, subdirPrefix)
-    // we should never get a collision according to the guarantees of
-    // Files.createTempDirectory, but we check anyway
-    if (disambiguationDirs.contains(newDir)) {
-      throw new Exception(s"collision with existing dir ${newDir}")
+    val newDir = if (createDirs) {
+      val newDir = Files.createTempDirectory(rootDir, subdirPrefix)
+      // we should never get a collision according to the guarantees of '
+      // Files.createTempDirectory, but we check anyway
+      if (disambiguationDirs.contains(newDir)) {
+        throw new Exception(s"collision with existing dir ${newDir}")
+      }
+      newDir
+    } else {
+      // try random directory names until we find one that's not used
+      Iterator
+        .continually(UUID.randomUUID)
+        .collectFirstDefined { u =>
+          val newDir = rootDir.resolve(s"${subdirPrefix}${u.toString}")
+          if (disambiguationDirs.contains(newDir)) {
+            None
+          } else {
+            Some(newDir)
+          }
+        }
+        .get
     }
     disambiguationDirs += newDir
     newDir
@@ -68,9 +90,7 @@ case class SafeLocalizationDisambiguator(
   // primary dir to use when separateDirsBySource = true
   private val primaryDir = if (separateDirsBySource) Some(createDisambiguationDir) else None
 
-  override def getLocalPath(source: AddressableFileSource): Path = {
-    val sourceFolder = source.folder
-    val name = source.name
+  def getLocalPath(name: String, sourceFolder: String): Path = {
     val localPath = sourceToTarget.get(sourceFolder) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
@@ -78,7 +98,8 @@ case class SafeLocalizationDisambiguator(
         val localPath = parentDir.resolve(name)
         if (exists(localPath)) {
           throw new FileAlreadyExistsException(
-              s"Trying to localize ${source} to ${parentDir} but the file already exists in that directory"
+              s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir} 
+                 |but the file already exists in that directory""".stripMargin
           )
         }
         localPath
@@ -95,14 +116,18 @@ case class SafeLocalizationDisambiguator(
             newDir.resolve(name)
           case _ =>
             throw new Exception(
-                s"""|Trying to localize ${source} to local filesystem at ${rootDir}/*/${name}
-                    |and trying to create a new disambiguation dir, but the limit
-                    |(${disambiguationDirLimit}) has been reached.""".stripMargin
+                s"""|Trying to localize ${name} from ${sourceFolder} to local filesystem 
+                    |at ${rootDir}/*/${name} and trying to create a new disambiguation dir, 
+                    |but the limit (${disambiguationDirLimit}) has been reached.""".stripMargin
                   .replaceAll("\n", " ")
             )
         }
     }
     localizedPaths += localPath
     localPath
+  }
+
+  override def getLocalPath(source: AddressableFileSource): Path = {
+    getLocalPath(source.name, source.folder)
   }
 }

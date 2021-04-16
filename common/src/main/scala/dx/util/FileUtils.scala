@@ -72,9 +72,24 @@ object FileUtils {
 
   def changeFileExt(fileName: String, dropExt: String = "", addExt: String = ""): String = {
     ((fileName, dropExt) match {
-      case (fn, ext) if fn.nonEmpty && fn.endsWith(ext) => fn.dropRight(dropExt.length)
-      case (fn, _)                                      => fn
+      case (fn, ext) if ext.nonEmpty && fn.endsWith(ext) =>
+        fn.dropRight(dropExt.length)
+      case (_, ext) if ext.nonEmpty =>
+        throw new Exception(s"${fileName} does not have extension ${dropExt}")
+      case (fn, _) => fn
     }) + addExt
+  }
+
+  def changeFirstFileExt(fileName: String,
+                         dropExts: Vector[String],
+                         addExt: String = ""): String = {
+    dropExts
+      .collectFirst {
+        case ext if fileName.endsWith(ext) => changeFileExt(fileName, ext, addExt)
+      }
+      .getOrElse(
+          throw new Exception(s"${fileName} does not end with any of ${dropExts.mkString(",")}")
+      )
   }
 
   def replaceFileSuffix(path: Path, suffix: String): String = {
@@ -130,7 +145,13 @@ object FileUtils {
     */
   def readFileContent(path: Path,
                       encoding: Charset = DefaultEncoding,
-                      mustExist: Boolean = true): String = {
+                      mustExist: Boolean = true,
+                      maxSize: Option[Long] = None): String = {
+    maxSize.foreach { size =>
+      if (path.toFile.length() > size) {
+        throw new Exception(s"file ${path} is larger than ${maxSize} bytes")
+      }
+    }
     new String(readFileBytes(path, mustExist), encoding)
   }
 
