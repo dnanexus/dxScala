@@ -3,6 +3,7 @@
 ## 0.1.15 (2021-04-16)
 
 * Adds `overwrite` option to `DxApi.downloadFile`
+* Adds `dependsOn` field to `DxAnalysis.describe`
 
 ## 0.1.14 (2021-03-28)
 
