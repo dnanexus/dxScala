@@ -1,5 +1,6 @@
+import Merging.customMergeStrategy
 import sbt.Keys.{maxErrors, _}
-import sbtassembly.AssemblyPlugin.autoImport._
+import sbtassembly.AssemblyPlugin.autoImport.{assemblyMergeStrategy, _}
 import com.typesafe.config._
 
 name := "dxScala"
