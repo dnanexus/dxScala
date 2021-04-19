@@ -895,7 +895,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         if (wait) {
           dxUploadCmd = dxUploadCmd + " --wait"
         }
-        logger.traceLimited(s"--  ${dxUploadCmd}")
+        // TODO REVERT LOG LEVEL
+        // logger.traceLimited(s"CMD: ${dxUploadCmd}")
+        logger.info(s"--> CMD: ${dxUploadCmd}")
         SysUtils.execCommand(dxUploadCmd) match {
           case (_, stdout, _) if stdout.trim.startsWith("file-") =>
             Some(stdout.trim())
