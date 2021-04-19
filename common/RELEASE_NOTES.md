@@ -1,5 +1,9 @@
 # dxCommon
 
+## 0.2.12 (2021-04-19)
+
+* Adds `FileSource.exists` method
+
 ## 0.2.11 (2021-03-28)
 
 * Fix truncation of trace messages

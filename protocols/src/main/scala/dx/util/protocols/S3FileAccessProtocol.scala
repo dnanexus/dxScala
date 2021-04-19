@@ -9,7 +9,10 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{
   GetObjectRequest,
   GetObjectResponse,
-  ListObjectsV2Request
+  ListObjectsV2Request,
+  NoSuchBucketException,
+  NoSuchKeyException,
+  S3Object
 }
 import dx.util.{
   AbstractAddressableFileNode,
@@ -43,6 +46,15 @@ case class S3FileSource(
   override def folder: String = objectPath.getParent match {
     case null => ""
     case path => path.toString
+  }
+
+  override def exists: Boolean = {
+    try {
+      protocol.getClient.getObject(request)
+      true
+    } catch {
+      case _: NoSuchKeyException => false
+    }
   }
 
   override def getParent: Option[S3FolderSource] = {
@@ -88,6 +100,27 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
 
   override val isDirectory: Boolean = true
 
+  private def listPrefix: Vector[S3Object] = {
+    // list objects with the given prefix - s3 doesn't have "folders", so we
+    // just assume that all objects with the same prefix are in the same folder
+    val listRequest = ListObjectsV2Request
+      .builder()
+      .bucket(bucketName)
+      .prefix(prefix)
+      .delimiter("/")
+      .build()
+    val response = protocol.getClient.listObjectsV2(listRequest)
+    response.contents().asScala.toVector
+  }
+
+  override def exists: Boolean = {
+    try {
+      listPrefix.nonEmpty
+    } catch {
+      case _: NoSuchBucketException => false
+    }
+  }
+
   override def getParent: Option[S3FolderSource] = {
     if (folder == "") {
       None
@@ -108,17 +141,8 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
   }
 
   override protected def localizeTo(dir: Path): Unit = {
-    // list objects with the given prefix - s3 doesn't have "folders", so we
-    // just assume that all objects with the same prefix are in the same folder
-    val listRequest = ListObjectsV2Request
-      .builder()
-      .bucket(bucketName)
-      .prefix(prefix)
-      .delimiter("/")
-      .build()
-    val response = protocol.getClient.listObjectsV2(listRequest)
     val sourcePath = Paths.get(prefix)
-    response.contents().asScala.foreach { s3obj =>
+    listPrefix.foreach { s3obj =>
       val objectKey = s3obj.key()
       val relativePath = sourcePath.relativize(Paths.get(objectKey))
       val destPath = dir.resolve(relativePath)

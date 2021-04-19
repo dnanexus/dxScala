@@ -96,6 +96,11 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
                            tags = tags,
                            stages = stages)
       case _: DxFile =>
+        val state = fields.get("state") match {
+          case Some(JsString(x)) => DxState.withNameIgnoreCase(x)
+          case None              => throw new Exception("'state' field is missing")
+          case Some(other)       => throw new Exception(s"malformed state field ${other}")
+        }
         val archivalState = fields.get("archivalState") match {
           case Some(JsString(x)) => DxArchivalState.withNameIgnoreCase(x)
           case None              => throw new Exception("'archivalState' field is missing")
@@ -109,6 +114,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
             created,
             modified,
             size.get,
+            state,
             archivalState,
             Some(properties),
             details,
@@ -165,6 +171,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
     val requiredDescFields = Set(Field.Name,
                                  Field.Folder,
                                  Field.Size,
+                                 Field.State,
                                  Field.ArchivalState,
                                  Field.Properties,
                                  Field.Created,

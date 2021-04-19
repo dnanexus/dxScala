@@ -70,7 +70,7 @@ case class DxProject(id: String)(val dxApi: DxApi = DxApi.get) extends DxDataObj
 
   def listFolder(path: String): FolderContents = {
     val request = Map("folder" -> JsString(path))
-    val repJs = projectType match {
+    val responseJs = projectType match {
       case ProjectType.Project =>
         dxApi.projectListFolder(id, request)
       case ProjectType.Container =>
@@ -80,7 +80,7 @@ case class DxProject(id: String)(val dxApi: DxApi = DxApi.get) extends DxDataObj
     }
 
     // extract object ids
-    val objsJs = repJs.fields("objects") match {
+    val objsJs = responseJs.fields("objects") match {
       case JsArray(a) => a
       case _          => throw new Exception("not an array")
     }
@@ -97,7 +97,7 @@ case class DxProject(id: String)(val dxApi: DxApi = DxApi.get) extends DxDataObj
     }
 
     // extract sub folders
-    val subdirsJs = repJs.fields("folders") match {
+    val subdirsJs = responseJs.fields("folders") match {
       case JsArray(a) => a
       case _          => throw new Exception("not an array")
     }

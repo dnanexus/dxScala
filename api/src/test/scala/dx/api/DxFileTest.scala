@@ -64,6 +64,7 @@ class DxFileTest extends AnyFlatSpec with Matchers {
         0,
         null,
         null,
+        null,
         details.map(_.parseJson),
         null
     )

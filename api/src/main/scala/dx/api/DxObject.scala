@@ -10,7 +10,7 @@ object Field extends Enum {
       Created, Description, Details, DependsOn, DeveloperNotes, Executable, ExecutableName, Folder,
       Id, IgnoreReuse, Input, Inputs, InputSpec, InstanceType, Modified, Name, Output, Outputs,
       OutputSpec, ParentJob, Parts, PricingModelsByRegion, Project, Properties, Region, RunSpec,
-      Size, Stages, Summary, Tags, Title, Types, Version = Value
+      Size, Stages, State, Summary, Tags, Title, Types, Version = Value
 }
 
 trait DxObjectDescribe {
@@ -88,6 +88,7 @@ object DxObject {
       case Field.RunSpec                => "runSpec"
       case Field.Size                   => "size"
       case Field.Stages                 => "stages"
+      case Field.State                  => "state"
       case Field.Summary                => "summary"
       case Field.Tags                   => "tags"
       case Field.Title                  => "title"

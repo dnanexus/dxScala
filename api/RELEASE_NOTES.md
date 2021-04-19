@@ -1,5 +1,9 @@
 # dxApi
 
+## 0.1.16 (2021-04-19)
+
+* Adds 'state' field to `DxFileDescribe`
+
 ## 0.1.15 (2021-04-16)
 
 * Adds `overwrite` option to `DxApi.downloadFile`
