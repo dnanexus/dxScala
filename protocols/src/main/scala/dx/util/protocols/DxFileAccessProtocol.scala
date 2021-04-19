@@ -1,8 +1,10 @@
 package dx.util.protocols
 
+import com.dnanexus.exceptions.ResourceNotFoundException
+
 import java.nio.charset.Charset
 import java.nio.file.{Files, Path, Paths}
-import dx.api.{DxApi, DxFile, DxFileDescCache, DxFindDataObjects, DxPath, DxProject, Field}
+import dx.api.{DxApi, DxFile, DxFileDescCache, DxFindDataObjects, DxPath, DxProject, DxState, Field}
 import dx.util.{
   AbstractAddressableFileNode,
   AddressableFileSource,
@@ -26,6 +28,10 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   def project: DxProject = {
     dxFile.project
       .getOrElse(protocol.dxApi.project(dxFile.describe(Set(Field.Project)).project))
+  }
+
+  override def exists: Boolean = {
+    dxFile.describeNoCache(Set(Field.State)).state == DxState.Closed
   }
 
   override def getParent: Option[DxFolderSource] = {
@@ -60,6 +66,10 @@ case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends Addressable
 
   override def folder: String = dxFileSource.folder
 
+  override def exists: Boolean = {
+    dxFileSource.exists
+  }
+
   override def getParent: Option[AddressableFileSource] = dxFileSource.getParent
 
   override def resolve(path: String): AddressableFileSource = dxFileSource.resolve(path)
@@ -86,6 +96,15 @@ case class DxFolderSource(dxProject: DxProject, folder: String)(
   override def name: String = folder
 
   override def isDirectory: Boolean = true
+
+  override def exists: Boolean = {
+    try {
+      dxProject.listFolder(folder)
+      true
+    } catch {
+      case _: ResourceNotFoundException => false
+    }
+  }
 
   override def getParent: Option[DxFolderSource] = {
     if (folder == "/") {

@@ -4,7 +4,6 @@ import java.io.{ByteArrayOutputStream, FileNotFoundException, FileOutputStream, 
 import java.net.{HttpURLConnection, URI}
 import java.nio.charset.Charset
 import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
-
 import dx.util.FileUtils.{FileScheme, getUriScheme}
 
 import scala.io.Source
@@ -27,6 +26,11 @@ trait FileSource {
     * Whether this FileSource represents a directory.
     */
   def isDirectory: Boolean
+
+  /**
+    * Whether the file described by this FileSource exists.
+    */
+  def exists: Boolean
 
   /**
     * Localizes this FileSource to the given Path. Implementations assume
@@ -222,6 +226,10 @@ case class LocalFileSource(
   override lazy val folder: String = canonicalPath.getParent.toString
   override lazy val uri: URI = canonicalPath.toUri
 
+  override def exists: Boolean = {
+    canonicalPath.toFile.exists()
+  }
+
   override def getParent: Option[LocalFileSource] = {
     canonicalPath.getParent match {
       case null => None
@@ -356,6 +364,29 @@ case class HttpFileSource(
   override lazy val folder: String = path.getParent.toString
   private var hasBytes: Boolean = false
 
+  private def withConnection[T](fn: HttpURLConnection => T): T = {
+    val url = uri.toURL
+    var conn: HttpURLConnection = null
+    try {
+      conn = url.openConnection().asInstanceOf[HttpURLConnection]
+      conn.setRequestMethod("HEAD")
+      fn(conn)
+    } finally {
+      if (conn != null) {
+        conn.disconnect()
+      }
+    }
+  }
+
+  override def exists: Boolean = {
+    try {
+      val rc = withConnection(conn => conn.getResponseCode)
+      rc == HttpURLConnection.HTTP_OK
+    } catch {
+      case _: Throwable => false
+    }
+  }
+
   override def getParent: Option[HttpFileSource] = {
     if (path.getParent == null) {
       None
@@ -377,19 +408,11 @@ case class HttpFileSource(
 
   // https://stackoverflow.com/questions/12800588/how-to-calculate-a-file-size-from-url-in-java
   override lazy val size: Long = {
-    val url = uri.toURL
-    var conn: HttpURLConnection = null
     try {
-      conn = url.openConnection().asInstanceOf[HttpURLConnection]
-      conn.setRequestMethod("HEAD")
-      conn.getContentLengthLong
+      withConnection(conn => conn.getContentLengthLong)
     } catch {
       case t: Throwable =>
-        throw new Exception(s"Error getting size of URL ${url}: ${t.getMessage}")
-    } finally {
-      if (conn != null) {
-        conn.disconnect()
-      }
+        throw new Exception(s"Error getting size of URL ${uri}: ${t.getMessage}")
     }
   }
 
@@ -606,6 +629,11 @@ abstract class AbstractVirtualFileNode(override val name: String,
     extends FileNode {
 
   override lazy val toString: String = name
+
+  /**
+    * Whether the file described by this FileSource exists.
+    */
+  override val exists: Boolean = true
 
   override lazy val readBytes: Array[Byte] = readString.getBytes(encoding)
 

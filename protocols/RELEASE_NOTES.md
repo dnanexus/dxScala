@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## 0.1.5 (2021-04-19)
+
+* Implements `FileSource.exists` for dx and s3 protocols
+
 ## 0.1.4 (2021-04-16)
 
 * Fixes `DxFileAccessProtocol` sources to ovewrite existing paths in `localizeTo`
