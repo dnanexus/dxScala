@@ -1,5 +1,10 @@
 # dxCommon
 
+## 0.2.13 in develop
+
+* Eliminate possibility of file name collisions in `LocalizationDisambiguator` when `separateDirsBySource` is `false`
+* Adds `LocalizationDisambiguator.getLocalPaths`, which can leverage a common disambiguation directory without the chance of collision
+
 ## 0.2.12 (2021-04-19)
 
 * Adds `FileSource.exists` method
