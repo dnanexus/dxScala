@@ -15,7 +15,7 @@ trait LocalizationDisambiguator {
     * Returns a mapping of file source to unique local path.
     * This method is only meant to be called a single time for a given instance.
     */
-  def getLocalPaths(fileSources: Vector[AddressableFileSource]): Map[AddressableFileSource, Path]
+  def getLocalPaths[T <: AddressableFileSource](fileSources: Vector[T]): Map[T, Path]
 }
 
 /**
@@ -152,9 +152,7 @@ case class SafeLocalizationDisambiguator(
     * the file with a collision is placed in a separate dir along with any other
     * files that came from the same source.
     */
-  override def getLocalPaths(
-      fileSources: Vector[AddressableFileSource]
-  ): Map[AddressableFileSource, Path] = {
+  override def getLocalPaths[T <: AddressableFileSource](fileSources: Vector[T]): Map[T, Path] = {
     if (separateDirsBySource) {
       fileSources.map(fs => fs -> getLocalPath(fs)).toMap
     } else {
@@ -166,7 +164,7 @@ case class SafeLocalizationDisambiguator(
         val (separate, common) = fileSources.partition(fs => duplicateFolders.contains(fs.folder))
         (separate.map(fs => fs -> getLocalPath(fs.name, fs.folder)).toMap, common)
       } else {
-        (Map.empty[AddressableFileSource, Path], singletons.values.flatten)
+        (Map.empty[T, Path], singletons.values.flatten)
       }
       val commonDir = Some(createDisambiguationDir)
       val commonSourceToPath =
