@@ -1,5 +1,9 @@
 # dxApi
 
+## 0.1.17
+
+* Adds option to wait for upload to `DxApi.uploadFile`
+
 ## 0.1.16 (2021-04-19)
 
 * Adds 'state' field to `DxFileDescribe`
