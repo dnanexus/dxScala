@@ -17,7 +17,7 @@ jobs:
           java-version: 1.8
       - name: Install other dependencies
         run: |
-          apt update -y && apt install -y jq
+          sudo apt update -y && sudo apt install -y jq
       - name: Check versions
         id: versions
         run: |
