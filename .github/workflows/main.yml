@@ -1,4 +1,4 @@
-name : Main Workflow
+name: Unit Test Workflow
 on:
   push:
     branches:
@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Git Checkout
         uses: actions/checkout@v2
+      - name: Check Scala formatting
+        run: |
+          sbt scalafmtCheckAll
       - name: Install Java
         uses: actions/setup-java@v1
         with:
@@ -48,6 +51,4 @@ jobs:
       - name: Protocols Unit Tests
         run: |
           sbt 'project protocols' test
-      - name: Scala formatting
-        run: |
-          sbt scalafmtCheckAll
+      - name: Publish
