@@ -15,6 +15,9 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      - name: Install other dependencies
+        run: |
+          apt update -y && apt install -y jq
       - name: Check versions
         id: versions
         run: |
@@ -23,37 +26,58 @@ jobs:
             echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
+          common_version_id=`curl \
+            -X POST \
+            -H "Accept: application/vnd.github.package-deletes-preview+json" \
+            -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxcommon\\\"], first:1) { nodes { version(version:\\\"${common_version}\\\") { id } } } } }\" }" | \
+            jq .data.repository.packages.nodes[0].version.id`
           api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf`
           if [ -z "$api_version" ]; then
             echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
+          api_version_id=`curl \
+            -X POST \
+            -H "Accept: application/vnd.github.package-deletes-preview+json" \
+            -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxapi\\\"], first:1) { nodes { version(version:\\\"${api_version}\\\") { id } } } } }\" }" | \
+            jq .data.repository.packages.nodes[0].version.id`
           protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf`
           if [ -z "$protocols_version" ]; then
             echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
-          echo ::set-output name=common_version::"${common_version}"
-          echo ::set-output name=api_version::"${api_version}"
-          echo ::set-output name=protocols_version::"${protocols_version}"
+          protocols_version_id=`curl \
+            -X POST \
+            -H "Accept: application/vnd.github.package-deletes-preview+json" \
+            -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxfileaccessprotocols\\\"], first:1) { nodes { version(version:\\\"${protocols_version}\\\") { id } } } } }\" }" | \
+            jq .data.repository.packages.nodes[0].version.id`
+          echo ::set-output name=common_version_id::"${common_version_id}"
+          echo ::set-output name=api_version_id::"${api_version_id}"
+          echo ::set-output name=protocols_version_id::"${protocols_version_id}"
       - name: Delete existing common snapshot
         uses: actions/delete-package-versions@v1
+        if: ${{ steps.versions.outputs.common_version_id != "" }}
         with:
           repo: dnanexus
           package-name: com.dnanexus.dxcommon
-          package-version-ids: ${{ steps.versions.outputs.common_version }}
+          package-version-ids: ${{ steps.versions.outputs.common_version_id }}
       - name: Delete existing api snapshot
         uses: actions/delete-package-versions@v1
+        if: ${{ steps.versions.outputs.api_version_id != "" }}
         with:
           repo: dnanexus
           package-name: com.dnanexus.dxapi
-          package-version-ids: ${{ steps.versions.outputs.api_version }}
+          package-version-ids: ${{ steps.versions.outputs.api_version_id }}
       - name: Delete existing protocols snapshot
         uses: actions/delete-package-versions@v1
+        if: ${{ steps.versions.outputs.protocols_version_id != "" }}
         with:
           repo: com.dnanexus.dnanexus
           package-name: dxfileaccessprotocols
-          package-version-ids: ${{ steps.versions.outputs.protocols_version }}
+          package-version-ids: ${{ steps.versions.outputs.protocols_version_id }}
       - name: Publish Snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
