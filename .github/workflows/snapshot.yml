@@ -11,27 +11,43 @@ jobs:
     steps:
       - name: Git Checkout
         uses: actions/checkout@v2
-      - name: Version check
-        run: |
-          common_snapshot=`grep -c "SNAPSHOT" ./common/src/main/resources/application.conf`
-          if [ "$common_snapshot" -ne "1" ]; then
-            echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
-            exit 1
-          fi
-          api_snapshot=`grep -c "SNAPSHOT" ./api/src/main/resources/application.conf`
-          if [ "$api_snapshot" -ne "1" ]; then
-            echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
-            exit 1
-          fi
-          protocols_snapshot=`grep -c "SNAPSHOT" ./protocols/src/main/resources/application.conf`
-          if [ "$protocols_snapshot" -ne "1" ]; then
-            echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
-            exit 1
-          fi
       - name: Install Java
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      - name: Delete common
+        run: |
+          common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" common/src/main/resources/application.conf`
+          if [ -z "$common_version" ]; then
+            echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/orgs/dnanexus/packages/maven/dxcommon/versions/$common_version
+      - name: Delete api
+        run: |
+          api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf`
+          if [ -z "$api_version" ]; then
+            echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/orgs/dnanexus/packages/maven/dxapi/versions/$api_version
+      - name: Delete protocols
+        run: |
+          protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf`
+          if [ -z "$protocols_version" ]; then
+            echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/orgs/dnanexus/packages/maven/dxfileaccessprotocols/versions/$protocols_version
       - name: Publish Snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
