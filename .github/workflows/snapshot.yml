@@ -18,7 +18,7 @@ jobs:
       - name: Install other dependencies
         run: |
           sudo apt update -y && sudo apt install -y jq
-      - name: Check versions
+      - name: Get snapshot versions
         id: versions
         run: |
           common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" common/src/main/resources/application.conf`
