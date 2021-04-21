@@ -21,7 +21,10 @@ If you want to make a change to dxScala, do the following:
 3. Make your changes. Test locally using `sbt test`.
 4. When you are done, create a pull request against the `develop` branch.
 
-When a PR is merged into `develop`, SNAPSHOT packages are automatically published to GitHub packages. Although unlikely, it is possible that if two people merge into `develop` at around the same time, the older SNAPSHOT will overwrite the newer one, so you should announce when you are going to merge your PR before doing so.
+When a PR is merged into `develop`, SNAPSHOT packages are automatically published to GitHub packages. When you push to `develop` (including merging a PR), you should announce that you are doing so (e.g. via GChat) for two reasons:
+
+* Publishing a new snapshot requires deleting the existing one. If someone is trying to fetch the snapshot from the repository at the time when the snapshot workflow is running, they will get a "package not found" error.
+* Although unlikely, it is possible that if two people merge into `develop` at around the same time, the older SNAPSHOT will overwrite the newer one.
 
 ## Releasing
 
