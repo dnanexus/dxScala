@@ -33,6 +33,8 @@ jobs:
         with:
           java-version: 1.8
       - name: Publish Snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sbt 'project common' publish
           sbt 'project api' publish
