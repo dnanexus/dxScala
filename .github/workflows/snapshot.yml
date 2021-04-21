@@ -40,18 +40,18 @@ jobs:
         uses: actions/delete-package-versions@v1
         with:
           repo: dnanexus
-          package-name: dxcommon
+          package-name: com.dnanexus.dxcommon
           package-version-ids: ${{ steps.versions.outputs.common_version }}
       - name: Delete existing api snapshot
         uses: actions/delete-package-versions@v1
         with:
           repo: dnanexus
-          package-name: dxapi
+          package-name: com.dnanexus.dxapi
           package-version-ids: ${{ steps.versions.outputs.api_version }}
       - name: Delete existing protocols snapshot
         uses: actions/delete-package-versions@v1
         with:
-          repo: dnanexus
+          repo: com.dnanexus.dnanexus
           package-name: dxfileaccessprotocols
           package-version-ids: ${{ steps.versions.outputs.protocols_version }}
       - name: Publish Snapshot
