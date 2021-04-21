@@ -22,46 +22,47 @@ jobs:
         id: versions
         run: |
           common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" common/src/main/resources/application.conf`
-          echo $common_version
           if [ -z "$common_version" ]; then
             echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
           common_query="{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxcommon\\\"], first:1) { nodes { version(version:\\\"${common_version}\\\") { id } } } } }\" }"
-          echo $common_query
           common_version_json=`curl \
             -X POST \
             -H "Accept: application/vnd.github.package-deletes-preview+json" \
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$common_query" \
             https://api.github.com/graphql`
-          echo $common_version_json
-          common_version_id = `echo $common_version_json | jq .data.repository.packages.nodes[0].version.id`
-          echo $common_version_id
+          common_version_id=`echo $common_version_json | jq .data.repository.packages.nodes[0].version.id`
+
           api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf`
           if [ -z "$api_version" ]; then
             echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
-          api_version_id=`curl \
+          api_query="{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxapi\\\"], first:1) { nodes { version(version:\\\"${api_version}\\\") { id } } } } }\" }"
+          api_version_json=`curl \
             -X POST \
             -H "Accept: application/vnd.github.package-deletes-preview+json" \
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d "{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxapi\\\"], first:1) { nodes { version(version:\\\"${api_version}\\\") { id } } } } }\" }" \
-            https://api.github.com/graphql | \
-            jq .data.repository.packages.nodes[0].version.id`
+            -d "$api_query" \
+            https://api.github.com/graphql`
+          api_version_id=`echo $api_version_json | jq .data.repository.packages.nodes[0].version.id`
+
           protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf`
           if [ -z "$protocols_version" ]; then
             echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
-          protocols_version_id=`curl \
+          protocols_query="{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxfileaccessprotocols\\\"], first:1) { nodes { version(version:\\\"${protocols_version}\\\") { id } } } } }\" }"
+          protocols_version_json=`curl \
             -X POST \
             -H "Accept: application/vnd.github.package-deletes-preview+json" \
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d "{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxfileaccessprotocols\\\"], first:1) { nodes { version(version:\\\"${protocols_version}\\\") { id } } } } }\" }" \
-            https://api.github.com/graphql | \
-            jq .data.repository.packages.nodes[0].version.id`
+            -d "$protocols_query" \
+            https://api.github.com/graphql`
+          protocols_version_id=`echo $protocols_version_json | jq .data.repository.packages.nodes[0].version.id`
+
           echo ::set-output name=common_version_id::"${common_version_id}"
           echo ::set-output name=api_version_id::"${api_version_id}"
           echo ::set-output name=protocols_version_id::"${protocols_version_id}"
