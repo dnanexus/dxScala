@@ -25,6 +25,7 @@ jobs:
           curl \
             -X DELETE \
             -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/orgs/dnanexus/packages/maven/dxcommon/versions/$common_version
       - name: Delete api
         run: |
@@ -36,6 +37,7 @@ jobs:
           curl \
             -X DELETE \
             -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/orgs/dnanexus/packages/maven/dxapi/versions/$api_version
       - name: Delete protocols
         run: |
@@ -47,6 +49,7 @@ jobs:
           curl \
             -X DELETE \
             -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/orgs/dnanexus/packages/maven/dxfileaccessprotocols/versions/$protocols_version
       - name: Publish Snapshot
         env:
