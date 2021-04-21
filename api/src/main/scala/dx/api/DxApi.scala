@@ -814,6 +814,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   def downloadFile(path: Path, dxfile: DxFile, overwrite: Boolean = false): Unit = {
     def downloadOneFile(path: Path, dxfile: DxFile): Boolean = {
       val fid = dxfile.id
+      val fileObj = path.toFile
+      val alreadyExists = fileObj.exists()
 
       try {
         // Use dx download. Quote the path, because it may contains spaces.
@@ -833,6 +835,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       } catch {
         case e: Throwable =>
           logger.traceLimited(s"error downloading file ${dxfile}", exception = Some(e))
+          // the file may have been partially downloaded - delete it before we retry
+          if ((overwrite || !alreadyExists) && fileObj.exists()) {
+            fileObj.delete()
+          }
           false
       }
     }
@@ -841,6 +847,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     if (dir != null && !Files.exists(dir)) {
       Files.createDirectories(dir)
     }
+    // we rely on the fact that exists() exits as soon as it encounters `true`
     val success = Iterator
       .range(0, DownloadRetryLimit)
       .exists { counter =>

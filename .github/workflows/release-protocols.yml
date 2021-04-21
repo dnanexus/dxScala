@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Version check
         run: |
-          protocols_snapshot=`grep -c "SNAPSHOT" ./protocols/src/main/resources/application.conf
+          protocols_snapshot=`grep -c "SNAPSHOT" ./protocols/src/main/resources/application.conf`
           if [ "$protocols_snapshot" -ne "0" ]; then
             echo "dxFileAccessProtocols version contains '-SNAPSHOT'; releases cannot have snapshot versions"
             exit 1
