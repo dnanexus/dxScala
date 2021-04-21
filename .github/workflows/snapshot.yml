@@ -1,0 +1,39 @@
+name: Publish Snapshot Workflow
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  publish:
+    name: Publish Snapshot
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v2
+      - name: Version check
+        run: |
+          common_snapshot=`grep -c "SNAPSHOT" ./common/src/main/resources/application.conf
+          if [ "$common_snapshot" -ne "1" ]; then
+            echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+          api_snapshot=`grep -c "SNAPSHOT" ./api/src/main/resources/application.conf
+          if [ "$api_snapshot" -ne "1" ]; then
+            echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+          protocols_snapshot=`grep -c "SNAPSHOT" ./protocols/src/main/resources/application.conf
+          if [ "$protocols_snapshot" -ne "1" ]; then
+            echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Publish Snapshot
+        run: |
+          sbt 'project common' publish
+          sbt 'project api' publish
+          sbt 'project protocols' publish
