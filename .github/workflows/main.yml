@@ -51,4 +51,3 @@ jobs:
       - name: Protocols Unit Tests
         run: |
           sbt 'project protocols' test
-      - name: Publish
