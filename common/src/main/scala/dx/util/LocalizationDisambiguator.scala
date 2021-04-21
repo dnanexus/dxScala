@@ -15,7 +15,7 @@ trait LocalizationDisambiguator {
     * Returns a mapping of file source to unique local path.
     * This method is only meant to be called a single time for a given instance.
     */
-  def getLocalPaths[T <: AddressableFileSource](fileSources: Vector[T]): Map[T, Path]
+  def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path]
 }
 
 /**
@@ -152,7 +152,7 @@ case class SafeLocalizationDisambiguator(
     * the file with a collision is placed in a separate dir along with any other
     * files that came from the same source.
     */
-  override def getLocalPaths[T <: AddressableFileSource](fileSources: Vector[T]): Map[T, Path] = {
+  override def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path] = {
     if (separateDirsBySource) {
       fileSources.map(fs => fs -> getLocalPath(fs)).toMap
     } else {
