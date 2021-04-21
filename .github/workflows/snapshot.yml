@@ -13,17 +13,17 @@ jobs:
         uses: actions/checkout@v2
       - name: Version check
         run: |
-          common_snapshot=`grep -c "SNAPSHOT" ./common/src/main/resources/application.conf
+          common_snapshot=`grep -c "SNAPSHOT" ./common/src/main/resources/application.conf`
           if [ "$common_snapshot" -ne "1" ]; then
             echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
-          api_snapshot=`grep -c "SNAPSHOT" ./api/src/main/resources/application.conf
+          api_snapshot=`grep -c "SNAPSHOT" ./api/src/main/resources/application.conf`
           if [ "$api_snapshot" -ne "1" ]; then
             echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
           fi
-          protocols_snapshot=`grep -c "SNAPSHOT" ./protocols/src/main/resources/application.conf
+          protocols_snapshot=`grep -c "SNAPSHOT" ./protocols/src/main/resources/application.conf`
           if [ "$protocols_snapshot" -ne "1" ]; then
             echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
