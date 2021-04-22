@@ -32,11 +32,14 @@ jobs:
           pip3 install termcolor
           pip3 install dxpy
       - name: Common Unit Tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sbt 'project common' test
           sbt 'project common' publishLocal
       - name: API Unit Tests
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTH_TOKEN: ${{ secrets.DX_STAGING_TOKEN }}
         run: |
           export PATH="$PATH:$HOME/.local/bin"
@@ -50,5 +53,5 @@ jobs:
           sbt 'project api' publishLocal
       - name: Protocols Unit Tests
         run: |
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           sbt 'project protocols' test
-      - name: Publish
