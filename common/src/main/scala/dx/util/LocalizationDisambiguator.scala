@@ -42,7 +42,8 @@ case class SafeLocalizationDisambiguator(
     separateDirsBySource: Boolean = false,
     createDirs: Boolean = true,
     subdirPrefix: String = "input",
-    disambiguationDirLimit: Int = 200
+    disambiguationDirLimit: Int = 200,
+    logger: Logger = Logger.get
 ) extends LocalizationDisambiguator {
   // mapping from source file parent directories to local directories - this
   // ensures that files that were originally from the same directory are
@@ -100,10 +101,12 @@ case class SafeLocalizationDisambiguator(
   private def getLocalPath(name: String,
                            sourceFolder: String,
                            commonDir: Option[Path] = None): Path = {
+    logger.trace(s"getting local path for ${name} from source folder ${sourceFolder}")
     val localPath = sourceToTarget.get(sourceFolder) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
         // put `source` in that same target directory
+        logger.trace(s"  source folder already seen; localizing to ${parentDir}")
         val localPath = parentDir.resolve(name)
         if (exists(localPath)) {
           throw new FileAlreadyExistsException(
@@ -115,11 +118,13 @@ case class SafeLocalizationDisambiguator(
       case None =>
         commonDir.map(_.resolve(name)) match {
           case Some(localPath) if !exists(localPath) =>
+            logger.trace(s"  localizing to common directory ${commonDir}")
             sourceToTarget += (sourceFolder -> commonDir.get)
             localPath
           case _ if canCreateDisambiguationDir =>
             // create a new disambiguation dir
             val newDir = createDisambiguationDir
+            logger.trace(s"  localizing to new disambiguation directory ${newDir}")
             sourceToTarget += (sourceFolder -> newDir)
             newDir.resolve(name)
           case _ =>
@@ -131,6 +136,7 @@ case class SafeLocalizationDisambiguator(
             )
         }
     }
+    logger.trace(s"  local path: ${localPath}")
     localizedPaths += localPath
     localPath
   }

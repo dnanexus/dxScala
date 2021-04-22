@@ -30,7 +30,7 @@ If you want to make a change to dxScala, do the following:
 
 - Set version name in `<project>/src/main/resources/application.conf` to `X.Y.Z-SNAPSHOT`.
 - Run `sbt publishLocal`, which will [publish to your Ivy local file repository](https://www.scala-sbt.org/1.x/docs/Publishing.html).
-- In the downstream project, set the dependency version in `build.sbt` to `X.Y.Z-SNAPSHOT`.
+- In any downstream project that will depend on the changes you are making, set the dependency version in `build.sbt` to `X.Y.Z-SNAPSHOT`.
 
 ### Merging the PR
 
@@ -43,7 +43,7 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 
 ### Beginning the release
 
-1. Checkout out the develop branch (either HEAD or the specific commit you want to release)
+1. Checkout the develop branch (either HEAD or the specific commit you want to release)
 2. Create a release branch named with the version number, e.g. `release-2.4.2`
 3. Update the version numbers in application.conf files
    - For the libraries you will release, remove "-SNAPSHOT"
