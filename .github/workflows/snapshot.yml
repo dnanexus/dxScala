@@ -68,21 +68,21 @@ jobs:
           echo ::set-output name=protocols_version_id::"${protocols_version_id}"
       - name: Delete existing common snapshot
         uses: actions/delete-package-versions@v1
-        if: ${{ steps.versions.outputs.common_version_id != '' }}
+        if: ${{ steps.versions.outputs.common_version_id != 'null' }}
         with:
           repo: dnanexus
           package-name: com.dnanexus.dxcommon
           package-version-ids: ${{ steps.versions.outputs.common_version_id }}
       - name: Delete existing api snapshot
         uses: actions/delete-package-versions@v1
-        if: ${{ steps.versions.outputs.api_version_id != '' }}
+        if: ${{ steps.versions.outputs.api_version_id != 'null' }}
         with:
           repo: dnanexus
           package-name: com.dnanexus.dxapi
           package-version-ids: ${{ steps.versions.outputs.api_version_id }}
       - name: Delete existing protocols snapshot
         uses: actions/delete-package-versions@v1
-        if: ${{ steps.versions.outputs.protocols_version_id != '' }}
+        if: ${{ steps.versions.outputs.protocols_version_id != 'null' }}
         with:
           repo: com.dnanexus.dnanexus
           package-name: dxfileaccessprotocols
