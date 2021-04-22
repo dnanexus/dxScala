@@ -1,6 +1,6 @@
 # dxApi
 
-## 0.2.0
+## in develop
 
 * Adds option to wait for upload to `DxApi.uploadFile`
 
