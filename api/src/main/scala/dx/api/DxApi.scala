@@ -895,13 +895,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     def uploadOneFile(path: Path): Option[String] = {
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
-        var dxUploadCmd = s"""dx upload "${path.toString}" --brief"""
-        if (destination.isDefined) {
-          dxUploadCmd = dxUploadCmd + s""" --destination "${destination.get}" -p"""
-        }
-        if (wait) {
-          dxUploadCmd = dxUploadCmd + " --wait"
-        }
+        val destOpt = destination.map(d => s"""--destination "${d}" -p""").getOrElse("")
+        val waitOpt = if (wait) "--wait" else ""
+        val dxUploadCmd = s"dx upload ${path.toString} --brief ${destOpt} ${waitOpt}"
         logger.traceLimited(s"CMD: ${dxUploadCmd}")
         SysUtils.execCommand(dxUploadCmd) match {
           case (_, stdout, _) if stdout.trim.startsWith("file-") =>
