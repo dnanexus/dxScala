@@ -26,9 +26,13 @@ jobs:
         with:
           java-version: 1.8
       - name: Unit Tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sbt 'project common' test
       - name: Assembly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sbt 'project common' assembly
           mv ./common/target/dxCommon.jar ./dxCommon-${{ github.event.inputs.release-version }}.jar
