@@ -887,7 +887,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
   // Upload a local file to the platform, and return a json link.
   // Use 'dx upload' as a separate process.
-  def uploadFile(path: Path, destination: Option[String] = None): DxFile = {
+  def uploadFile(path: Path, destination: Option[String] = None, wait: Boolean = false): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
@@ -895,12 +895,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     def uploadOneFile(path: Path): Option[String] = {
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
-        val dxUploadCmd = if (destination.isDefined) {
-          s"""dx upload "${path.toString}" --destination "${destination.get}" -p --brief"""
-        } else {
-          s"""dx upload "${path.toString}" --brief"""
-        }
-        logger.traceLimited(s"--  ${dxUploadCmd}")
+        val destOpt = destination.map(d => s"""--destination "${d}" -p""").getOrElse("")
+        val waitOpt = if (wait) "--wait" else ""
+        val dxUploadCmd = s"dx upload ${path.toString} --brief ${destOpt} ${waitOpt}"
+        logger.traceLimited(s"CMD: ${dxUploadCmd}")
         SysUtils.execCommand(dxUploadCmd) match {
           case (_, stdout, _) if stdout.trim.startsWith("file-") =>
             Some(stdout.trim())
@@ -932,11 +930,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .getOrElse(throw new Exception(s"Failure to upload file ${path}"))
   }
 
-  def uploadString(content: String, destination: String): DxFile = {
+  def uploadString(content: String, destination: String, wait: Boolean = false): DxFile = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile("upload", ".tmp")
     silentFileDelete(tempFile)
     val path = FileUtils.writeFileContent(tempFile, content)
-    uploadFile(path, Some(destination))
+    uploadFile(path, Some(destination), wait = wait)
   }
 }
