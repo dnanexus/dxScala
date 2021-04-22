@@ -930,11 +930,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .getOrElse(throw new Exception(s"Failure to upload file ${path}"))
   }
 
-  def uploadString(content: String, destination: String): DxFile = {
+  def uploadString(content: String, destination: String, wait: Boolean = false): DxFile = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile("upload", ".tmp")
     silentFileDelete(tempFile)
     val path = FileUtils.writeFileContent(tempFile, content)
-    uploadFile(path, Some(destination))
+    uploadFile(path, Some(destination), wait = wait)
   }
 }
