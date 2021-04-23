@@ -1,6 +1,10 @@
 # dxCommon
 
-## 0.2.13 in develop
+## in develop
+
+* Adds assertion in `LocalizationDisambiguator.getLocalPath` that the `FileSource` name is not an absolute path
+
+## 0.2.13
 
 * Eliminate possibility of file name collisions in `LocalizationDisambiguator` when `separateDirsBySource` is `false`
 * Adds `LocalizationDisambiguator.getLocalPaths`, which can leverage a common disambiguation directory without the chance of collision
