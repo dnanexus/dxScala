@@ -1,5 +1,14 @@
 # dxCommon
 
+## 0.2.14 (2021-04-23)
+
+* Adds assertion in `LocalizationDisambiguator.getLocalPath` that the `FileSource` name is not an absolute path
+
+## 0.2.13
+
+* Eliminate possibility of file name collisions in `LocalizationDisambiguator` when `separateDirsBySource` is `false`
+* Adds `LocalizationDisambiguator.getLocalPaths`, which can leverage a common disambiguation directory without the chance of collision
+
 ## 0.2.12 (2021-04-19)
 
 * Adds `FileSource.exists` method

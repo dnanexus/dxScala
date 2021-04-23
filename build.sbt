@@ -2,6 +2,7 @@ import Merging.customMergeStrategy
 import sbt.Keys.{maxErrors, _}
 import sbtassembly.AssemblyPlugin.autoImport.{assemblyMergeStrategy, _}
 import com.typesafe.config._
+import sbt.ThisBuild
 
 name := "dxScala"
 
@@ -85,8 +86,8 @@ val protocols = project
 
 lazy val dependencies =
   new {
-    val dxCommonVersion = "0.2.12"
-    val dxApiVersion = "0.1.16"
+    val dxCommonVersion = "0.2.14"
+    val dxApiVersion = "0.2.0"
     val typesafeVersion = "1.3.3"
     val sprayVersion = "1.3.5"
     val scalatestVersion = "3.1.1"
@@ -120,6 +121,9 @@ lazy val commonDependencies = Seq(
 
 // SETTINGS
 
+val githubResolver = Resolver.githubPackages("dnanexus", "dxScala")
+resolvers += githubResolver
+
 lazy val settings = Seq(
     scalacOptions ++= compilerOptions,
     // javac
@@ -132,15 +136,18 @@ lazy val settings = Seq(
     // disable publish with scala version, otherwise artifact name will include scala version
     // e.g dxScala_2.11
     crossPaths := false,
-    // add sonatype repository settings
-    // snapshot versions publish to sonatype snapshot repository
-    // other versions publish to sonatype staging repository
+    // add repository settings
+    // snapshot versions publish to GitHub repository
+    // release versions publish to sonatype staging repository
     publishTo := Some(
-        if (isSnapshot.value)
-          Opts.resolver.sonatypeSnapshots
-        else
+        if (isSnapshot.value) {
+          githubResolver
+        } else {
           Opts.resolver.sonatypeStaging
+        }
     ),
+    githubOwner := "dnanexus",
+    githubRepository := "dxScala",
     publishMavenStyle := true,
     // Tests
     // If an exception is thrown during tests, show the full

@@ -1,4 +1,4 @@
-name : Main Workflow
+name: Unit Test Workflow
 on:
   push:
     branches:
@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Git Checkout
         uses: actions/checkout@v2
+      - name: Check Scala formatting
+        run: |
+          sbt scalafmtCheckAll
       - name: Install Java
         uses: actions/setup-java@v1
         with:
@@ -29,11 +32,14 @@ jobs:
           pip3 install termcolor
           pip3 install dxpy
       - name: Common Unit Tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sbt 'project common' test
           sbt 'project common' publishLocal
       - name: API Unit Tests
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTH_TOKEN: ${{ secrets.DX_STAGING_TOKEN }}
         run: |
           export PATH="$PATH:$HOME/.local/bin"
@@ -46,8 +52,7 @@ jobs:
           sbt 'project api' test
           sbt 'project api' publishLocal
       - name: Protocols Unit Tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sbt 'project protocols' test
-      - name: Scala formatting
-        run: |
-          sbt scalafmtCheckAll

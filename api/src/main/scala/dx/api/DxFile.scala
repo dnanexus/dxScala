@@ -45,7 +45,8 @@ case class DxFileDescribe(project: String,
     extends DxObjectDescribe
 
 case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxApi.get,
-                                                          name: Option[String] = None)
+                                                          name: Option[String] = None,
+                                                          folder: Option[String] = None)
     extends CachingDxObject[DxFileDescribe]
     with DxDataObject {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxFileDescribe = {
@@ -69,6 +70,14 @@ case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxA
       name.get
     } else {
       describe().name
+    }
+  }
+
+  def getFolder: String = {
+    if (!hasCachedDesc && folder.isDefined) {
+      folder.get
+    } else {
+      describe().folder
     }
   }
 

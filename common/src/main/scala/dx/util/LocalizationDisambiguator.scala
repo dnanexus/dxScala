@@ -1,11 +1,22 @@
 package dx.util
 
 import dx.util.CollectionUtils.IterableOnceExtensions
-import java.nio.file.{FileAlreadyExistsException, Files, Path}
+
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.util.UUID
 
 trait LocalizationDisambiguator {
+
+  /**
+    * Returns a unique local path for a single source file.
+    */
   def getLocalPath(fileSource: AddressableFileSource): Path
+
+  /**
+    * Returns a mapping of file source to unique local path.
+    * This method is only meant to be called a single time for a given instance.
+    */
+  def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path]
 }
 
 /**
@@ -32,7 +43,8 @@ case class SafeLocalizationDisambiguator(
     separateDirsBySource: Boolean = false,
     createDirs: Boolean = true,
     subdirPrefix: String = "input",
-    disambiguationDirLimit: Int = 200
+    disambiguationDirLimit: Int = 200,
+    logger: Logger = Logger.get
 ) extends LocalizationDisambiguator {
   // mapping from source file parent directories to local directories - this
   // ensures that files that were originally from the same directory are
@@ -87,33 +99,39 @@ case class SafeLocalizationDisambiguator(
     newDir
   }
 
-  // primary dir to use when separateDirsBySource = true
-  private val primaryDir = if (separateDirsBySource) Some(createDisambiguationDir) else None
-
-  def getLocalPath(name: String, sourceFolder: String): Path = {
+  private def getLocalPath(name: String,
+                           sourceFolder: String,
+                           commonDir: Option[Path] = None): Path = {
+    logger.trace(s"getting local path for ${name} from source folder ${sourceFolder}")
+    val namePath = Paths.get(name)
+    if (namePath.isAbsolute) {
+      throw new Exception(s"expected ${name} to be a file name")
+    }
     val localPath = sourceToTarget.get(sourceFolder) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
         // put `source` in that same target directory
-        val localPath = parentDir.resolve(name)
+        logger.trace(s"  source folder already seen; localizing to ${parentDir}")
+        val localPath = parentDir.resolve(namePath)
         if (exists(localPath)) {
           throw new FileAlreadyExistsException(
-              s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir} 
+              s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir}
                  |but the file already exists in that directory""".stripMargin
           )
         }
         localPath
       case None =>
-        primaryDir.map(_.resolve(name)) match {
+        commonDir.map(_.resolve(namePath)) match {
           case Some(localPath) if !exists(localPath) =>
-            sourceToTarget += (sourceFolder -> primaryDir.get)
+            logger.trace(s"  localizing to common directory ${commonDir}")
+            sourceToTarget += (sourceFolder -> commonDir.get)
             localPath
           case _ if canCreateDisambiguationDir =>
-            // either we're not using a primaryDir or there is a name collision
-            // in primaryDir - create a new dir
+            // create a new disambiguation dir
             val newDir = createDisambiguationDir
+            logger.trace(s"  localizing to new disambiguation directory ${newDir}")
             sourceToTarget += (sourceFolder -> newDir)
-            newDir.resolve(name)
+            newDir.resolve(namePath)
           case _ =>
             throw new Exception(
                 s"""|Trying to localize ${name} from ${sourceFolder} to local filesystem 
@@ -123,11 +141,48 @@ case class SafeLocalizationDisambiguator(
             )
         }
     }
+    logger.trace(s"  local path: ${localPath}")
     localizedPaths += localPath
     localPath
   }
 
+  /**
+    * Because we have to keep together files from the same source folder,
+    * and there's no way to know in advance if there will be another file
+    * from the same source folder as this file and whether it will have a
+    * name collision, a separate disambiguation dir is created for each
+    * source folder regardless of the value of `separateDirsBySource`.
+    */
   override def getLocalPath(source: AddressableFileSource): Path = {
     getLocalPath(source.name, source.folder)
+  }
+
+  /**
+    * If `separateDirsBySource` is `false`, then we use a common disambiguation
+    * directory for all files unless there is a naming collision, in which case
+    * the file with a collision is placed in a separate dir along with any other
+    * files that came from the same source.
+    */
+  override def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path] = {
+    if (separateDirsBySource) {
+      fileSources.map(fs => fs -> getLocalPath(fs)).toMap
+    } else {
+      val (duplicates, singletons) = fileSources.groupBy(_.name).partition {
+        case (_, sources) => sources.size > 1
+      }
+      val (separateSourceToPath, addToCommon) = if (duplicates.nonEmpty) {
+        val duplicateFolders = duplicates.values.flatten.map(_.folder).toSet
+        val (separate, common) = fileSources.partition(fs => duplicateFolders.contains(fs.folder))
+        (separate.map(fs => fs -> getLocalPath(fs.name, fs.folder)).toMap, common)
+      } else {
+        (Map.empty[T, Path], singletons.values.flatten)
+      }
+      val commonDir = Some(createDisambiguationDir)
+      val commonSourceToPath =
+        addToCommon.map { fs =>
+          fs -> getLocalPath(fs.name, fs.folder, commonDir)
+        }.toMap
+      commonSourceToPath ++ separateSourceToPath
+    }
   }
 }
