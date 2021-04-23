@@ -48,7 +48,8 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 3. Update the version numbers in application.conf files
    - For the libraries you will release, remove "-SNAPSHOT"
    - For the libraries not being released, reset the version to the current release version
-4. Update the release notes
+4. Also update the version numbers in the dependency section of build.sbt
+5. Update the release notes for each library being released
    - Change the top header from "in develop" to "<version> (<date>)"
 
 ### Releasing to GitHub
@@ -61,7 +62,8 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 
 Note: this process is currently coordinated by John Didion - please request from him a release of the updated library(ies).
 
-1. From the release branch, run `sbt publishSigned`. You will need to have the SonaType PGP private key on your machine, and you will need the password.
+1. From the release branch, run `sbt 'project <name>' publishSigned` for each library being released.
+   - You will need to have the SonaType PGP private key on your machine, and you will need the password.
 2. Go to [nexus repository manager](https://oss.sonatype.org/#stagingRepositories), log in, and go to "Staging Repositories".
 3. Check the repository(ies) to release; there should only be one, but if there are more check the contents to find yours.
 4. Click the "Close" button. After a few minutes, hit "Refresh". The "Release" button should become un-grayed. If not, wait a few more minutes and referesh again.
