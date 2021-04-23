@@ -1,7 +1,8 @@
 package dx.util
 
 import dx.util.CollectionUtils.IterableOnceExtensions
-import java.nio.file.{FileAlreadyExistsException, Files, Path}
+
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.util.UUID
 
 trait LocalizationDisambiguator {
@@ -102,12 +103,16 @@ case class SafeLocalizationDisambiguator(
                            sourceFolder: String,
                            commonDir: Option[Path] = None): Path = {
     logger.trace(s"getting local path for ${name} from source folder ${sourceFolder}")
+    val namePath = Paths.get(name)
+    if (namePath.isAbsolute) {
+      throw new Exception(s"expected ${name} to be a file name")
+    }
     val localPath = sourceToTarget.get(sourceFolder) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
         // put `source` in that same target directory
         logger.trace(s"  source folder already seen; localizing to ${parentDir}")
-        val localPath = parentDir.resolve(name)
+        val localPath = parentDir.resolve(namePath)
         if (exists(localPath)) {
           throw new FileAlreadyExistsException(
               s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir}
@@ -116,7 +121,7 @@ case class SafeLocalizationDisambiguator(
         }
         localPath
       case None =>
-        commonDir.map(_.resolve(name)) match {
+        commonDir.map(_.resolve(namePath)) match {
           case Some(localPath) if !exists(localPath) =>
             logger.trace(s"  localizing to common directory ${commonDir}")
             sourceToTarget += (sourceFolder -> commonDir.get)
@@ -126,7 +131,7 @@ case class SafeLocalizationDisambiguator(
             val newDir = createDisambiguationDir
             logger.trace(s"  localizing to new disambiguation directory ${newDir}")
             sourceToTarget += (sourceFolder -> newDir)
-            newDir.resolve(name)
+            newDir.resolve(namePath)
           case _ =>
             throw new Exception(
                 s"""|Trying to localize ${name} from ${sourceFolder} to local filesystem 

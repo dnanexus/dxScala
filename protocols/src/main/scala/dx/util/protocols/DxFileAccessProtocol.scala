@@ -165,14 +165,20 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
 
   private def resolveFileUri(uri: String): DxFile = {
     uri.split("::").toVector match {
-      case Vector(uri, fileName) =>
+      case Vector(uri, pathStr) =>
         val dxFile = dxApi.resolveFile(uri)
+        val (name, folder) = Paths.get(pathStr) match {
+          case p if p.getNameCount == 1 && !p.isAbsolute =>
+            (p.getFileName.toString, None)
+          case p =>
+            (p.getFileName.toString, Some(p.getParent.toString))
+        }
         if (!dxFile.hasCachedDesc) {
-          dxFile.copy()(dxApi = dxApi, name = Some(fileName))
-        } else if (dxFile.describe().name != fileName) {
+          dxFile.copy()(dxApi = dxApi, name = Some(name), folder = folder)
+        } else if (dxFile.describe().name != name) {
           throw new Exception(
               s"""file ${dxFile} name from file.describe() ${dxFile.describe().name} 
-                 |does not match name from URI ${fileName}""".stripMargin.replaceAll("\n", " ")
+                 |does not match name from URI ${name}""".stripMargin.replaceAll("\n", " ")
           )
         } else {
           dxFile
