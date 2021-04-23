@@ -20,11 +20,11 @@ If you want to make a change to dxScala, do the following:
 2. Create a new branch with your changes. Name it something meaningful, like `APPS-123-download-bug`.
 3. If the current snapshot version matches the release version, increment the snapshot version.
    - For example, if the current release is `1.0.0` and the current snapshot version is `1.0.0-SNAPSHOT`, increment the snapshot version to `1.0.1-SNAPSHOT`.
-3. Make your changes. Test locally using `sbt test`.
-4. Update the release notes under the top-most header (which should be "in develop").
-5. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.
+4. Make your changes. Test locally using `sbt test`.
+5. Update the release notes under the top-most header (which should be "in develop").
+6. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.
    - For example, when you first created the branch you set the version to `1.0.1-SNAPSHOT`, but then you realized you needed to add a new function to the public API, change the version to `1.1.0-SNAPSHOT`. 
-6. When you are done, create a pull request against the `develop` branch.
+7. When you are done, create a pull request against the `develop` branch.
 
 ### Building a local version for testing
 

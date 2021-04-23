@@ -99,9 +99,7 @@ case class SafeLocalizationDisambiguator(
     newDir
   }
 
-  private def getLocalPath(name: String,
-                           sourceFolder: String,
-                           commonDir: Option[Path] = None): Path = {
+  def getLocalPath(name: String, sourceFolder: String, commonDir: Option[Path] = None): Path = {
     logger.trace(s"getting local path for ${name} from source folder ${sourceFolder}")
     val namePath = Paths.get(name)
     if (namePath.isAbsolute) {
