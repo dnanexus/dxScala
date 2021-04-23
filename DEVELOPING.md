@@ -48,7 +48,8 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 3. Update the version numbers in application.conf files
    - For the libraries you will release, remove "-SNAPSHOT"
    - For the libraries not being released, reset the version to the current release version
-4. Update the release notes
+4. Also update the version numbers in the dependency section of build.sbt
+5. Update the release notes for each library being released
    - Change the top header from "in develop" to "<version> (<date>)"
 
 ### Releasing to GitHub

@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## 0.1.6 (2021-04-23)
+
+* Fixes parsing of dx:// URIs that include a file path
+
 ## 0.1.5 (2021-04-19)
 
 * Implements `FileSource.exists` for dx and s3 protocols
