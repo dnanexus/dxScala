@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.2.14 (2021-04-23)
 
 * Adds assertion in `LocalizationDisambiguator.getLocalPath` that the `FileSource` name is not an absolute path
 

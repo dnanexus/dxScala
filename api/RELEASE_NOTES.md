@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.2.0 (2021-04-23)
 
 * Adds option to wait for upload to `DxApi.uploadFile`
 * Allow caching file folder independenly of `describe()`
