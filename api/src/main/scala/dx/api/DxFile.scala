@@ -1,8 +1,12 @@
 package dx.api
 
 import dx.AppInternalException
+import dx.api.DxPath.DxScheme
 import spray.json._
 import dx.util.Enum
+
+import java.net.URI
+import java.nio.file.Paths
 
 case class DxFilePart(state: String, size: Long, md5: String)
 
@@ -112,18 +116,21 @@ case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxA
   //
   def asUri: String = {
     val desc = describe()
-    val logicalName = s"${desc.folder}/${desc.name}"
-    project match {
-      case None =>
-        s"${DxPath.DxUriPrefix}${id}::${logicalName}"
-      case Some(proj) =>
-        val projId = proj.id
-        s"${DxPath.DxUriPrefix}${projId}:${id}::${logicalName}"
-    }
+    DxFile.format(id, desc.folder, desc.name, project.map(_.id))
   }
 }
 
 object DxFile {
+
+  /**
+    * Formats a file ID and path with optional project to a dx:// URI.
+    */
+  def format(fileId: String, folder: String, name: String, project: Option[String]): String = {
+    val authority = project.map(proj => s"${proj}:${fileId}::").getOrElse(s"${fileId}::")
+    val path = Paths.get(folder).resolve(name).toString
+    new URI(DxScheme, authority, path, null, null).toString
+  }
+
   // Parse a JSON description of a file received from the platform
   def parseDescribeJson(descJs: JsObject): DxFileDescribe = {
     val desc =
