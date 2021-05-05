@@ -1,6 +1,9 @@
 package dx.api
 
+import dx.api.DxPath.DxScheme
 import spray.json._
+
+import java.net.URI
 
 object DxUtils {
   val DxLinkKey = "$dnanexus_link"
@@ -124,6 +127,15 @@ object DxUtils {
     }
   }
 
+  /**
+    * Formats a file ID and path with optional project to a dx:// URI.
+    */
+  def formatEbor(executableId: String, field: String, project: Option[String]): String = {
+    val authority =
+      project.map(proj => s"${proj}:${executableId}::").getOrElse(s"${executableId}::")
+    new URI(DxScheme, authority, field, null, null).toString
+  }
+
   def eborToUri(jsv: JsValue): String = {
     jsv match {
       case JsObject(fields) if fields.keySet == Set(DxUtils.DxLinkKey) =>
@@ -131,14 +143,19 @@ object DxUtils {
           case JsObject(ebor) => ebor
           case _              => throw new Exception(s"not an EBOR ${jsv}")
         }
-        val project = ebor.get("project").map(p => s"${p}:").getOrElse("")
-        val id = ebor
+        val JsString(id) = ebor
           .get("job")
           .orElse(ebor.get("analysis"))
           .getOrElse(
               throw new Exception(s"not an EBOR ${jsv}")
           )
-        s"${DxPath.DxUriPrefix}${project}${id}::${ebor("field")}"
+        val JsString(field) = ebor("field")
+        val project = ebor.get("project").map {
+          case JsString(proj) => proj
+          case other =>
+            throw new Exception(s"invalid project value ${other}")
+        }
+        formatEbor(id, field, project)
       case _ => throw new Exception(s"not an EBOR ${jsv}")
     }
   }

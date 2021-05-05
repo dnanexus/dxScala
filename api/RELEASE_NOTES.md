@@ -1,5 +1,10 @@
 # dxApi
 
+## in develop
+
+* Adds functions to create `dx://` URIs from components
+* URL-encodes project names, paths, and file names when creating `dx://` URIs, and decodes them when parsing 
+
 ## 0.2.0 (2021-04-23)
 
 * Adds option to wait for upload to `DxApi.uploadFile`
