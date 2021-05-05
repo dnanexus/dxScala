@@ -968,8 +968,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
     private var uploadedFiles = Vector.empty[DxFile]
 
-    def result: (String, String, Vector[DxFile]) = {
-      (projectId.getOrElse(currentProject.id), folder, uploadedFiles)
+    def result: (Option[String], String, Vector[DxFile]) = {
+      (projectId, folder, uploadedFiles)
     }
 
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
@@ -989,7 +989,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   def uploadDirectory(path: Path,
                       destination: Option[String] = None,
                       recursive: Boolean = true,
-                      wait: Boolean = false): (String, String, Vector[DxFile]) = {
+                      wait: Boolean = false): (Option[String], String, Vector[DxFile]) = {
     val visitor = UploadFileVisitor(path, destination, wait)
     val maxDepth = if (recursive) Integer.MAX_VALUE else 0
     Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
