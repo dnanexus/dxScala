@@ -951,30 +951,31 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       if (path.endsWith("/")) path else s"${path}/"
     }
 
-    val (dxProject: DxProject, folder: String) = destination
+    val (projectId: Option[String], folder: String) = destination
       .map { dest =>
         dest.split(":").toVector match {
           case Vector(projectId) if projectId.startsWith("project-") =>
-            (project(projectId), "/")
+            (Some(projectId), "/")
           case Vector(folder) =>
-            (currentProject, ensureEndsWithSlash(folder))
+            (None, ensureEndsWithSlash(folder))
           case Vector(projectId, folder) =>
-            (project(projectId), ensureEndsWithSlash(folder))
+            (Some(projectId), ensureEndsWithSlash(folder))
           case _ =>
             throw new Exception(s"invalid destination ${dest}")
         }
       }
-      .getOrElse((currentProject, "/"))
+      .getOrElse((None, "/"))
 
     private var uploadedFiles = Vector.empty[DxFile]
 
     def result: (String, String, Vector[DxFile]) = {
-      (dxProject.id, folder, uploadedFiles)
+      (projectId.getOrElse(currentProject.id), folder, uploadedFiles)
     }
 
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
       val fileRelPath = sourceDir.relativize(file)
-      val fileDest = s"${dxProject.id}:${folder}${fileRelPath}"
+      val fileDestPath = s"${folder}${fileRelPath}"
+      val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
       val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
       uploadedFiles :+= dxFile
       FileVisitResult.CONTINUE
