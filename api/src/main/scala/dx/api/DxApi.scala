@@ -59,6 +59,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private lazy val objMapper: ObjectMapper = new ObjectMapper()
   private val DownloadRetryLimit = 3
   private val UploadRetryLimit = 3
+  private val UploadWaitMillis = 1000
 
   // We are expecting string like:
   //    record-FgG51b00xF63k86F13pqFv57
@@ -919,7 +920,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .range(0, UploadRetryLimit)
       .collectFirstDefined { counter =>
         if (counter > 0) {
-          Thread.sleep(1000)
+          Thread.sleep(UploadWaitMillis * scala.math.pow(2, counter).toLong)
         }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
         uploadOneFile(path) match {
