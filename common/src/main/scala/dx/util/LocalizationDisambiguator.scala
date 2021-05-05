@@ -157,7 +157,7 @@ case class SafeLocalizationDisambiguator(
     * source folder regardless of the value of `separateDirsBySource`.
     */
   override def getLocalPath(source: AddressableFileSource): Path = {
-    getLocalPath(source.name, source.folder)
+    getLocalPath(source.name, source.folder, source.scheme, source.domain)
   }
 
   /**
