@@ -99,13 +99,18 @@ case class SafeLocalizationDisambiguator(
     newDir
   }
 
-  def getLocalPath(name: String, sourceFolder: String, commonDir: Option[Path] = None): Path = {
-    logger.trace(s"getting local path for ${name} from source folder ${sourceFolder}")
+  def getLocalPath(name: String,
+                   sourceFolder: String,
+                   scheme: String = "file",
+                   domain: String = "/",
+                   commonDir: Option[Path] = None): Path = {
+    val sourceLocation = s"${scheme}:${domain}:${sourceFolder}"
+    logger.trace(s"getting local path for '${name}' from source location '${sourceLocation}''")
     val namePath = Paths.get(name)
     if (namePath.isAbsolute) {
       throw new Exception(s"expected ${name} to be a file name")
     }
-    val localPath = sourceToTarget.get(sourceFolder) match {
+    val localPath = sourceToTarget.get(sourceLocation) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
         // put `source` in that same target directory
@@ -113,7 +118,7 @@ case class SafeLocalizationDisambiguator(
         val localPath = parentDir.resolve(namePath)
         if (exists(localPath)) {
           throw new FileAlreadyExistsException(
-              s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir}
+              s"""Trying to localize ${name} from ${sourceLocation} to ${parentDir}
                  |but the file already exists in that directory""".stripMargin
           )
         }
@@ -122,17 +127,17 @@ case class SafeLocalizationDisambiguator(
         commonDir.map(_.resolve(namePath)) match {
           case Some(localPath) if !exists(localPath) =>
             logger.trace(s"  localizing to common directory ${commonDir}")
-            sourceToTarget += (sourceFolder -> commonDir.get)
+            sourceToTarget += (sourceLocation -> commonDir.get)
             localPath
           case _ if canCreateDisambiguationDir =>
             // create a new disambiguation dir
             val newDir = createDisambiguationDir
             logger.trace(s"  localizing to new disambiguation directory ${newDir}")
-            sourceToTarget += (sourceFolder -> newDir)
+            sourceToTarget += (sourceLocation -> newDir)
             newDir.resolve(namePath)
           case _ =>
             throw new Exception(
-                s"""|Trying to localize ${name} from ${sourceFolder} to local filesystem 
+                s"""|Trying to localize ${name} from ${sourceLocation} to local filesystem 
                     |at ${rootDir}/*/${name} and trying to create a new disambiguation dir, 
                     |but the limit (${disambiguationDirLimit}) has been reached.""".stripMargin
                   .replaceAll("\n", " ")
@@ -178,7 +183,7 @@ case class SafeLocalizationDisambiguator(
       val commonDir = Some(createDisambiguationDir)
       val commonSourceToPath =
         addToCommon.map { fs =>
-          fs -> getLocalPath(fs.name, fs.folder, commonDir)
+          fs -> getLocalPath(fs.name, fs.folder, fs.scheme, fs.domain, commonDir)
         }.toMap
       commonSourceToPath ++ separateSourceToPath
     }

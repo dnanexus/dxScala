@@ -77,7 +77,23 @@ trait AddressableFileSource extends FileSource {
   def address: String
 
   /**
-    * The parent of this FileSource.
+    * The URI scheme for this FileSource.
+    */
+  def scheme: String
+
+  /**
+    * A unique identifier for the originating system of this FileSource,
+    * such as 'C' for a local drive on a Windows machine, or 'foo.com'
+    * for an http file source. Disambiguates two `FileSource`s with the
+    * same scheme, folder, and name.
+    * @return
+    */
+  def domain: String
+
+  /**
+    * The parent of this FileSource. The value will be `""` in
+    * the case that `isDirectory` is `true` and this
+    * AddressableFileSource represents a root folder.
     */
   def folder: String
 
@@ -222,8 +238,17 @@ case class LocalFileSource(
 )(override val address: String, val originalPath: Path, logger: Logger)
     extends AbstractAddressableFileNode(address, encoding) {
 
+  override val scheme = "file"
+
+  override lazy val domain: String = canonicalPath.getRoot.toString
+
   override lazy val name: String = canonicalPath.getFileName.toString
-  override lazy val folder: String = canonicalPath.getParent.toString
+
+  override lazy val folder: String = canonicalPath.getParent match {
+    case null   => ""
+    case parent => parent.toString
+  }
+
   override lazy val uri: URI = canonicalPath.toUri
 
   override def exists: Boolean = {
@@ -359,9 +384,19 @@ case class HttpFileSource(
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
+  override def scheme: String = uri.getScheme
+
   private lazy val path = Paths.get(uri.getPath)
+
+  override lazy val domain: String = uri.getHost
+
   override lazy val name: String = path.getFileName.toString
-  override lazy val folder: String = path.getParent.toString
+
+  override lazy val folder: String = path.getParent match {
+    case null   => ""
+    case parent => parent.toString
+  }
+
   private var hasBytes: Boolean = false
 
   private def withConnection[T](fn: HttpURLConnection => T): T = {
@@ -667,6 +702,7 @@ case class LinesFileNode(override val readLines: Vector[String],
                          lineSeparator: String = "\n",
                          trailingNewline: Boolean = true)
     extends AbstractVirtualFileNode(name, encoding) {
+
   override def readString: String =
     FileUtils.linesToString(readLines, lineSeparator, trailingNewline)
 }

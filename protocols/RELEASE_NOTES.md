@@ -1,5 +1,10 @@
 # dxFileAccessProtocols
 
+## in develop
+
+* Fixes handling of `DxFolderSource` for root folders
+* Implements `scheme` and `domain` fields for dx and S3 protocols
+
 ## 0.1.6 (2021-04-23)
 
 * Fixes parsing of dx:// URIs that include a file path

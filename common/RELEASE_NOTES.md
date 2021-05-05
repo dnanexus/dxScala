@@ -1,5 +1,11 @@
 # dxCommon
 
+## in develop
+
+* Fixes implementations of `AddressableFileSource.folder` for cases where the file source represents a root directory
+* Adds `domain` and `scheme` fields to `AddressableFileSource`
+* Updates `LocalizationDisambiguator` to use `scheme` and `domain` for disambiguation of identical paths in different systems
+
 ## 0.2.14 (2021-04-23)
 
 * Adds assertion in `LocalizationDisambiguator.getLocalPath` that the `FileSource` name is not an absolute path
