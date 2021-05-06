@@ -127,9 +127,9 @@ case class SafeLocalizationDisambiguator(
     }
     val localPath = sourceToTarget.get((sourceContainer, None)) match {
       case Some(parentDir) =>
-        // if we already saw another file from the same source folder as `source`, try to
-        // put `source` in that same target directory
-        logger.trace(s"  source folder already seen; localizing to ${parentDir}")
+        // if we already saw another file from the same source folder, try to
+        // put this file in the same target directory
+        logger.trace(s"  source folder already seen; trying to localize to ${parentDir}")
         val localPath = parentDir.resolve(namePath)
         if (!exists(localPath)) {
           // the local path doesn't exist yet - we can use it for this file/directory
@@ -137,22 +137,29 @@ case class SafeLocalizationDisambiguator(
         } else if (version.isDefined) {
           // duplicate file - if there is a version, we place it in a subfolder named
           // after the version
-          sourceToTarget.get((sourceContainer, version)) match {
+          logger.trace(
+              s"  target file ${localPath} already exists; trying to localize using version ${version.get}"
+          )
+          val versionDir = sourceToTarget.get((sourceContainer, version)) match {
             case Some(versionDir) =>
-            // we have already seen this version - create the file in the existing dir
-
+              // we have already seen this version - create the file in the existing dir
+              logger.trace(s"  version already seen; localizing to ${versionDir}")
+              versionDir
             case None =>
               // this is the first time we've seen this version
               val versionDir = parentDir.resolve(FileUtils.sanitizeFileName(version.get))
-              val versionLocalPath = versionDir.resolve(namePath)
-              if (exists(localPath)) {
-                throw new FileAlreadyExistsException(
-                    s"""Trying to localize ${name} (version ${version.get}) from ${sourceContainer}
-                       |to ${parentDir} but the file already exists in that directory""".stripMargin
-                )
-              }
-              localPath
+              logger.trace(s"  localizing to new version directory ${versionDir}")
+              sourceToTarget += ((sourceContainer, version) -> versionDir)
+              versionDir
           }
+          val versionLocalPath = versionDir.resolve(namePath)
+          if (exists(versionLocalPath)) {
+            throw new FileAlreadyExistsException(
+                s"""Trying to localize ${name} (version ${version.get}) from ${sourceContainer}
+                   |to ${versionDir} but the file already exists in that directory""".stripMargin
+            )
+          }
+          versionLocalPath
         } else {
           throw new FileAlreadyExistsException(
               s"""Trying to localize ${name} from ${sourceContainer} to ${parentDir}
