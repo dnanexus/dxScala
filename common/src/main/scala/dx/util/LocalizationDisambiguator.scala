@@ -49,7 +49,7 @@ case class SafeLocalizationDisambiguator(
   // mapping from source file containers to local directories - this
   // ensures that files that were originally from the same directory are
   // localized to the same target directory
-  private var containerToTarget: Map[String, Path] = Map.empty
+  private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty
   // keep track of which disambiguation dirs we've created
   private var disambiguationDirs: Set[Path] = Set.empty
   // keep track of which Paths we've returned so we can detect collisions
@@ -105,8 +105,10 @@ case class SafeLocalizationDisambiguator(
     * @param sourceContainer the source container of the file/directory (e.g. the
     *                        directory/folder it is coming from) - this must be
     *                        globally unique, to disambiguate between two identically
-    *                        named folders in different file systems.
-    * @param version the file version, in the case that the source file system
+    *                        named folders in different file systems. All files from
+    *                        from the same source container will be localized to the
+    *                        same directory.
+    * @param version an optional file version, in the case that the source file system
     *                uses versioning
     * @param commonDir the common directory where files should be placed unless
     *                  they name-collide with another file in the common directory;
@@ -123,30 +125,51 @@ case class SafeLocalizationDisambiguator(
     if (namePath.isAbsolute) {
       throw new Exception(s"expected ${name} to be a file name")
     }
-    val localPath = containerToTarget.get(sourceContainer) match {
+    val localPath = sourceToTarget.get((sourceContainer, None)) match {
       case Some(parentDir) =>
         // if we already saw another file from the same source folder as `source`, try to
         // put `source` in that same target directory
         logger.trace(s"  source folder already seen; localizing to ${parentDir}")
         val localPath = parentDir.resolve(namePath)
-        if (exists(localPath)) {
+        if (!exists(localPath)) {
+          // the local path doesn't exist yet - we can use it for this file/directory
+          localPath
+        } else if (version.isDefined) {
+          // duplicate file - if there is a version, we place it in a subfolder named
+          // after the version
+          sourceToTarget.get((sourceContainer, version)) match {
+            case Some(versionDir) =>
+            // we have already seen this version - create the file in the existing dir
+
+            case None =>
+              // this is the first time we've seen this version
+              val versionDir = parentDir.resolve(FileUtils.sanitizeFileName(version.get))
+              val versionLocalPath = versionDir.resolve(namePath)
+              if (exists(localPath)) {
+                throw new FileAlreadyExistsException(
+                    s"""Trying to localize ${name} (version ${version.get}) from ${sourceContainer}
+                       |to ${parentDir} but the file already exists in that directory""".stripMargin
+                )
+              }
+              localPath
+          }
+        } else {
           throw new FileAlreadyExistsException(
               s"""Trying to localize ${name} from ${sourceContainer} to ${parentDir}
                  |but the file already exists in that directory""".stripMargin
           )
         }
-        localPath
       case None =>
         commonDir.map(_.resolve(namePath)) match {
           case Some(localPath) if !exists(localPath) =>
             logger.trace(s"  localizing to common directory ${commonDir}")
-            containerToTarget += (sourceContainer -> commonDir.get)
+            sourceToTarget += ((sourceContainer, None) -> commonDir.get)
             localPath
           case _ if canCreateDisambiguationDir =>
             // create a new disambiguation dir
             val newDir = createDisambiguationDir
             logger.trace(s"  localizing to new disambiguation directory ${newDir}")
-            containerToTarget += (sourceContainer -> newDir)
+            sourceToTarget += ((sourceContainer, None) -> newDir)
             newDir.resolve(namePath)
           case _ =>
             throw new Exception(
