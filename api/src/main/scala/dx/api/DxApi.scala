@@ -485,8 +485,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
   // system calls
 
-  def whoami(): String = {
-    call(DXAPI.systemWhoami[JsonNode]) match {
+  def whoami(id: Boolean = false): String = {
+    val username = call(DXAPI.systemWhoami[JsonNode]) match {
       case JsObject(fields) =>
         fields.get("id") match {
           case Some(JsString(id)) => id
@@ -495,6 +495,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         }
       case other =>
         throw new Exception(s"unexpected whoami result ${other}")
+    }
+    if (id) {
+      s"user-${username}"
+    } else {
+      username
     }
   }
 
