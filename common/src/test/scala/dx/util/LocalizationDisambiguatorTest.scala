@@ -33,6 +33,18 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     localPaths(fs3).getParent should equal(localPaths(fs4).getParent)
   }
 
+  it should "place files from the same source container in the same target directory" in {
+    val root = Files.createTempDirectory("root")
+    root.toFile.deleteOnExit()
+    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val fileResolver = FileSourceResolver.get
+    val p1 = Paths.get("/foo/bar.txt")
+    val f1 = disambiguator.getLocalPath(fileResolver.fromPath(p1))
+    val p2 = Paths.get("/foo/baz.txt")
+    val f2 = disambiguator.getLocalPath(fileResolver.fromPath(p2))
+    f1.getParent shouldBe f2.getParent
+  }
+
   it should "disambiguate the same file with different versions" in {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
@@ -43,5 +55,12 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     val v2Path = disambiguator.getLocalPath("foo.txt", "container", Some("1.1"))
     // the second file should have a version specifier
     v2Path.getParent.getFileName.toString shouldBe "1.1"
+    // a third file with a different name bug same version should be in the same version directory
+    val v3Path = disambiguator.getLocalPath("bar.txt", "container", Some("1.1"))
+    v2Path.getParent shouldBe v3Path.getParent
+    // an exact name and version collision should throw an error
+    assertThrows[Exception] {
+      disambiguator.getLocalPath("bar.txt", "container", Some("1.1"))
+    }
   }
 }
