@@ -3,7 +3,7 @@
 ## in develop
 
 * Fixes handling of `DxFolderSource` for root folders
-* Implements `scheme` and `domain` fields for dx and S3 protocols
+* Implements `container` and `version` fields for dx and S3 protocols
 
 ## 0.1.6 (2021-04-23)
 

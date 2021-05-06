@@ -46,7 +46,7 @@ case class SafeLocalizationDisambiguator(
     disambiguationDirLimit: Int = 200,
     logger: Logger = Logger.get
 ) extends LocalizationDisambiguator {
-  // mapping from source file containers to local directories - this
+  // mapping from source file container and version to local directory - this
   // ensures that files that were originally from the same directory are
   // localized to the same target directory
   private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty
