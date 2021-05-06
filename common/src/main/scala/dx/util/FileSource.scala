@@ -6,6 +6,7 @@ import java.nio.charset.Charset
 import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import dx.util.FileUtils.{FileScheme, getUriScheme}
 
+import scala.collection.immutable.ArraySeq
 import scala.io.Source
 import scala.reflect.ClassTag
 
@@ -64,6 +65,12 @@ trait FileSource {
   def localizeToDir(dir: Path, overwrite: Boolean = false): Path = {
     localize(dir.resolve(name), overwrite)
   }
+
+  /**
+    * If `isDirectory=true`, returns a Vector of all the files/directories
+    * in this directory; otherwise throws NotImplemented.
+    */
+  def listing: Vector[FileSource] = ???
 }
 
 /**
@@ -327,6 +334,54 @@ case class LocalFileSource(
       Files.copy(canonicalPath, file)
     }
   }
+
+  /**
+    * If `isDirectory=true`, returns a Vector of all the files/directories
+    * in this directory; otherwise throws NotImplemented.
+    */
+  override def listing: Vector[FileSource] = {
+    if (isDirectory) {
+      val dir = canonicalPath.toFile
+      if (dir.exists()) {
+        ArraySeq.unsafeWrapArray(dir.listFiles()).toVector.map { file =>
+          val path = file.toPath
+          LocalFileSource(LocalFileSource.resolve(path), encoding, isDirectory = file.isDirectory)(
+              path.toUri.toString,
+              path,
+              logger
+          )
+        }
+      } else {
+        throw new Exception(s"directory ${canonicalPath} does not exist")
+      }
+    } else {
+      throw new UnsupportedOperationException()
+    }
+  }
+}
+
+object LocalFileSource {
+  // search for a relative path in the directories of `searchPath`
+  private def findInPath(relPath: String, searchPath: Vector[Path]): Option[Path] = {
+    searchPath
+      .map(d => d.resolve(relPath))
+      .collectFirst {
+        case fp if Files.exists(fp) => fp.toRealPath()
+      }
+  }
+
+  def resolve(path: Path, searchPath: Vector[Path] = Vector.empty): Path = {
+    if (Files.exists(path)) {
+      path.toRealPath()
+    } else if (path.isAbsolute) {
+      path
+    } else {
+      findInPath(path.toString, searchPath).getOrElse(
+          // it's a non-existant relative path - localize it to current working dir
+          FileUtils.absolutePath(path)
+      )
+    }
+  }
 }
 
 case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
@@ -344,28 +399,10 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
     }
   }
 
-  // search for a relative path in the directories of `searchPath`
-  private def findInPath(relPath: String): Option[Path] = {
-    searchPath
-      .map(d => d.resolve(relPath))
-      .collectFirst {
-        case fp if Files.exists(fp) => fp.toRealPath()
-      }
-  }
-
   def resolvePath(path: Path,
                   value: Option[String] = None,
                   isDirectory: Boolean = false): LocalFileSource = {
-    val resolved: Path = if (Files.exists(path)) {
-      path.toRealPath()
-    } else if (path.isAbsolute) {
-      path
-    } else {
-      findInPath(path.toString).getOrElse(
-          // it's a non-existant relative path - localize it to current working dir
-          FileUtils.absolutePath(path)
-      )
-    }
+    val resolved = LocalFileSource.resolve(path, searchPath)
     LocalFileSource(resolved, encoding, isDirectory)(value.getOrElse(path.toString), path, logger)
   }
 
@@ -531,6 +568,12 @@ case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
     resolve(URI.create(address), Some(address))
   }
 
+  // TODO: currently the only way to specify an http directory is as an
+  //  archive file that will be unpacked when localized.
+  //  HTTP does not have the concept of directory listings; though they
+  //  may be supported by some serevers, there is no standard response
+  //  unless the server supports WebDAV. Handling those results is
+  //  probably outside the scope of this package.
   override def resolveDirectory(address: String): HttpFileSource = {
     HttpFileSource(URI.create(address), encoding, isDirectory = true)(address)
   }

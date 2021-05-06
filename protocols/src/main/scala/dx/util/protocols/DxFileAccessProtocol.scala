@@ -136,10 +136,7 @@ case class DxFolderSource(dxProject: DxProject)(
     if (folder == "") {
       None
     } else {
-      val parent = folder match {
-        case p if p.endsWith("/") => p
-        case p                    => s"${p}/"
-      }
+      val parent = DxFolderSource.ensureEndsWithSlash(folder)
       Some(DxFolderSource(dxProject)(parent, protocol))
     }
   }
@@ -153,23 +150,53 @@ case class DxFolderSource(dxProject: DxProject)(
     }
   }
 
-  lazy val listing: Vector[(DxFile, Path)] = {
+  private lazy val deepListing: Vector[(DxFile, Path)] = {
     val results =
       DxFindDataObjects(protocol.dxApi)
         .apply(Some(dxProject), Some(target), recurse = true, Some("file"))
+    val targetPath = Paths.get(target)
     results.map {
       case (f: DxFile, _) =>
-        val relPath = Paths.get(target).relativize(Paths.get(f.describe().folder))
+        val relPath = targetPath.relativize(Paths.get(f.describe().folder))
         (f, relPath)
       case other => throw new Exception(s"unexpected result ${other}")
     }.toVector
   }
 
   override protected def localizeTo(dir: Path): Unit = {
-    listing.foreach {
+    deepListing.foreach {
       case (dxFile, relPath) =>
         val path = dir.resolve(relPath).resolve(dxFile.getName)
         protocol.dxApi.downloadFile(path, dxFile, overwrite = true)
+    }
+  }
+
+  override def listing: Vector[FileSource] = {
+    val filesByFolder = deepListing.groupBy {
+      case (dxFile, _) => DxFolderSource.ensureEndsWithSlash(dxFile.describe().folder)
+    }
+    val files = filesByFolder
+      .get(target)
+      .map { paths =>
+        paths.map {
+          case (dxFile, _) => DxFileSource(dxFile, protocol.encoding)(dxFile.asUri, protocol)
+        }
+      }
+      .getOrElse(Vector.empty)
+    val targetPath = Paths.get(target)
+    val folders = filesByFolder.keys.collect {
+      case folder if targetPath.relativize(Paths.get(folder)).getNameCount == 1 =>
+        DxFolderSource(dxProject)(folder, protocol)
+    }
+    files ++ folders
+  }
+}
+
+object DxFolderSource {
+  def ensureEndsWithSlash(folder: String): String = {
+    folder match {
+      case p if p.endsWith("/") => p
+      case p                    => s"${p}/"
     }
   }
 }

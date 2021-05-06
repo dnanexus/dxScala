@@ -3,7 +3,8 @@
 ## in develop
 
 * Fixes implementations of `AddressableFileSource.folder` for cases where the file source represents a root directory
-* Adds `container` and `version` fields to `AddressableFileSource`
+* Adds `listing` method to `FileSource`
+* Adds `container` and `version` fields to `AddressableFileSource` 
 * Updates `LocalizationDisambiguator` to use `container` and `version` for disambiguation of identical paths in different systems
 
 ## 0.2.14 (2021-04-23)
