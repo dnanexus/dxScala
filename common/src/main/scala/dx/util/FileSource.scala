@@ -77,20 +77,6 @@ trait AddressableFileSource extends FileSource {
   def address: String
 
   /**
-    * The URI scheme for this FileSource.
-    */
-  def scheme: String
-
-  /**
-    * A unique identifier for the originating system of this FileSource,
-    * such as 'C' for a local drive on a Windows machine, or 'foo.com'
-    * for an http file source. Disambiguates two `FileSource`s with the
-    * same scheme, folder, and name.
-    * @return
-    */
-  def domain: String
-
-  /**
     * The parent of this FileSource. The value will be `""` in
     * the case that `isDirectory` is `true` and this
     * AddressableFileSource represents a root folder.
@@ -102,6 +88,20 @@ trait AddressableFileSource extends FileSource {
     * parent directory, or None if this is already the root directory.
     */
   def getParent: Option[AddressableFileSource]
+
+  /**
+    * A unique identifier for the location where this file
+    * is contained that differentiates two folders with the
+    * same name.
+    */
+  def container: String
+
+  /**
+    * A file version, in the case of versioning file systems. Versions
+    * must be in lexicographic order, such that earlier versions come
+    * before later versions when a Vector of versions is naturally sorted.
+    */
+  def version: Option[String] = None
 
   /**
     * Resolves a path relative to this AddressableFileSource if it
@@ -238,16 +238,17 @@ case class LocalFileSource(
 )(override val address: String, val originalPath: Path, logger: Logger)
     extends AbstractAddressableFileNode(address, encoding) {
 
-  override val scheme = "file"
-
-  override lazy val domain: String = canonicalPath.getRoot.toString
-
   override lazy val name: String = canonicalPath.getFileName.toString
 
   override lazy val folder: String = canonicalPath.getParent match {
     case null   => ""
     case parent => parent.toString
   }
+
+  override def container: String = s"file:${canonicalPath.getRoot.toString}:${folder}"
+
+  // TODO: handle versioning file systems
+  override def version: Option[String] = None
 
   override lazy val uri: URI = canonicalPath.toUri
 
@@ -384,11 +385,7 @@ case class HttpFileSource(
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
-  override def scheme: String = uri.getScheme
-
   private lazy val path = Paths.get(uri.getPath)
-
-  override lazy val domain: String = uri.getHost
 
   override lazy val name: String = path.getFileName.toString
 
@@ -396,6 +393,8 @@ case class HttpFileSource(
     case null   => ""
     case parent => parent.toString
   }
+
+  override def container: String = s"${uri.getScheme}:${uri.getHost}:${folder}"
 
   private var hasBytes: Boolean = false
 

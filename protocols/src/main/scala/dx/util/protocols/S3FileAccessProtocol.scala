@@ -48,9 +48,10 @@ case class S3FileSource(
     case path => path.toString
   }
 
-  override def scheme: String = S3FileAccessProtocol.S3Scheme
+  override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
-  override def domain: String = bucketName
+  // TODO: handle version
+  override def version: Option[String] = None
 
   override def exists: Boolean = {
     try {
@@ -102,9 +103,7 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     case path => path.toString
   }
 
-  override def scheme: String = S3FileAccessProtocol.S3Scheme
-
-  override def domain: String = bucketName
+  override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
   override val isDirectory: Boolean = true
 
@@ -178,6 +177,8 @@ case class S3FileAccessProtocol(region: Region,
 
   override val supportsDirectories: Boolean = true
 
+  // TODO: handle version
+  //  how is version specified (I think there is a ?version=<version>)
   private val S3UriRegexp = "s3://(.+?)/(.*)".r
 
   /**

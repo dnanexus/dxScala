@@ -25,21 +25,21 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
 
   override def folder: String = dxFile.describe().folder
 
-  def project: DxProject = {
+  def dxProject: DxProject = {
     dxFile.project
       .getOrElse(protocol.dxApi.project(dxFile.describe(Set(Field.Project)).project))
   }
 
-  override def scheme: String = DxFileAccessProtocol.DxUriScheme
+  override def container: String = s"${DxFileAccessProtocol.DxUriScheme}:${dxProject.id}:${folder}"
 
-  override def domain: String = project.id
+  override def version: Option[String] = Some(dxFile.id)
 
   override def exists: Boolean = {
     dxFile.describeNoCache(Set(Field.State)).state == DxState.Closed
   }
 
   override def getParent: Option[DxFolderSource] = {
-    Some(DxFolderSource(project)(folder, protocol))
+    Some(DxFolderSource(dxProject)(folder, protocol))
   }
 
   override def resolve(path: String): AddressableFileSource = {
@@ -70,9 +70,9 @@ case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends Addressable
 
   override def folder: String = dxFileSource.folder
 
-  override def scheme: String = dxFileSource.scheme
+  override def container: String = dxFileSource.container
 
-  override def domain: String = dxFileSource.domain
+  override def version: Option[String] = dxFileSource.version
 
   override def exists: Boolean = {
     dxFileSource.exists
@@ -119,9 +119,7 @@ case class DxFolderSource(dxProject: DxProject)(
     case parent => parent.toString
   }
 
-  override def scheme: String = DxFileAccessProtocol.DxUriScheme
-
-  override def domain: String = dxProject.id
+  override def container: String = s"${DxFileAccessProtocol.DxUriScheme}:${dxProject.id}:${folder}"
 
   override def isDirectory: Boolean = true
 
