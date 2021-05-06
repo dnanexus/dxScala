@@ -173,7 +173,7 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
           sourcePath.resolve(relPath.getParent).toString
       }
       .toSet
-      .map { folder =>
+      .map { folder: String =>
         S3FolderSource(s"s3://${bucketName}/${folder}", bucketName, folder)(protocol)
       }
     files ++ folders.toVector
