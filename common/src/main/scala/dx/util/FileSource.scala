@@ -77,7 +77,9 @@ trait AddressableFileSource extends FileSource {
   def address: String
 
   /**
-    * The parent of this FileSource.
+    * The parent of this FileSource. The value will be `""` in
+    * the case that `isDirectory` is `true` and this
+    * AddressableFileSource represents a root folder.
     */
   def folder: String
 
@@ -86,6 +88,20 @@ trait AddressableFileSource extends FileSource {
     * parent directory, or None if this is already the root directory.
     */
   def getParent: Option[AddressableFileSource]
+
+  /**
+    * A unique identifier for the location where this file
+    * is contained that differentiates two folders with the
+    * same name.
+    */
+  def container: String
+
+  /**
+    * A file version, in the case of versioning file systems. Versions
+    * must be in lexicographic order, such that earlier versions come
+    * before later versions when a Vector of versions is naturally sorted.
+    */
+  def version: Option[String] = None
 
   /**
     * Resolves a path relative to this AddressableFileSource if it
@@ -223,7 +239,17 @@ case class LocalFileSource(
     extends AbstractAddressableFileNode(address, encoding) {
 
   override lazy val name: String = canonicalPath.getFileName.toString
-  override lazy val folder: String = canonicalPath.getParent.toString
+
+  override lazy val folder: String = canonicalPath.getParent match {
+    case null   => ""
+    case parent => parent.toString
+  }
+
+  override def container: String = s"file:${canonicalPath.getRoot.toString}:${folder}"
+
+  // TODO: handle versioning file systems
+  override def version: Option[String] = None
+
   override lazy val uri: URI = canonicalPath.toUri
 
   override def exists: Boolean = {
@@ -360,8 +386,16 @@ case class HttpFileSource(
     extends AbstractAddressableFileNode(address, encoding) {
 
   private lazy val path = Paths.get(uri.getPath)
+
   override lazy val name: String = path.getFileName.toString
-  override lazy val folder: String = path.getParent.toString
+
+  override lazy val folder: String = path.getParent match {
+    case null   => ""
+    case parent => parent.toString
+  }
+
+  override def container: String = s"${uri.getScheme}:${uri.getHost}:${folder}"
+
   private var hasBytes: Boolean = false
 
   private def withConnection[T](fn: HttpURLConnection => T): T = {
@@ -667,6 +701,7 @@ case class LinesFileNode(override val readLines: Vector[String],
                          lineSeparator: String = "\n",
                          trailingNewline: Boolean = true)
     extends AbstractVirtualFileNode(name, encoding) {
+
   override def readString: String =
     FileUtils.linesToString(readLines, lineSeparator, trailingNewline)
 }

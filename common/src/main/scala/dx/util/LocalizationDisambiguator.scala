@@ -46,10 +46,10 @@ case class SafeLocalizationDisambiguator(
     disambiguationDirLimit: Int = 200,
     logger: Logger = Logger.get
 ) extends LocalizationDisambiguator {
-  // mapping from source file parent directories to local directories - this
+  // mapping from source file container and version to local directory - this
   // ensures that files that were originally from the same directory are
   // localized to the same target directory
-  private var sourceToTarget: Map[String, Path] = Map.empty
+  private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty
   // keep track of which disambiguation dirs we've created
   private var disambiguationDirs: Set[Path] = Set.empty
   // keep track of which Paths we've returned so we can detect collisions
@@ -75,7 +75,7 @@ case class SafeLocalizationDisambiguator(
   private def createDisambiguationDir: Path = {
     val newDir = if (createDirs) {
       val newDir = Files.createTempDirectory(rootDir, subdirPrefix)
-      // we should never get a collision according to the guarantees of '
+      // we should never get a collision according to the guarantees of
       // Files.createTempDirectory, but we check anyway
       if (disambiguationDirs.contains(newDir)) {
         throw new Exception(s"collision with existing dir ${newDir}")
@@ -99,46 +99,104 @@ case class SafeLocalizationDisambiguator(
     newDir
   }
 
-  def getLocalPath(name: String, sourceFolder: String, commonDir: Option[Path] = None): Path = {
-    logger.trace(s"getting local path for ${name} from source folder ${sourceFolder}")
+  /**
+    * Returns a unique local path for the given file/directory.
+    * @param name the file/directory name
+    * @param sourceContainer the source container of the file/directory (e.g. the
+    *                        directory/folder it is coming from) - this must be
+    *                        globally unique, to disambiguate between two identically
+    *                        named folders in different file systems. All files from
+    *                        from the same source container will be localized to the
+    *                        same directory.
+    * @param version an optional file version, in the case that the source file system
+    *                uses versioning
+    * @param commonDir the common directory where files should be placed unless
+    *                  they name-collide with another file in the common directory;
+    *                  if None, each sourceContainer will map to a separate
+    *                  local directory.
+    * @return the local path
+    */
+  def getLocalPath(name: String,
+                   sourceContainer: String,
+                   version: Option[String] = None,
+                   commonDir: Option[Path] = None): Path = {
+    logger.trace(s"getting local path for '${name}' from source container '${sourceContainer}''")
     val namePath = Paths.get(name)
     if (namePath.isAbsolute) {
       throw new Exception(s"expected ${name} to be a file name")
     }
-    val localPath = sourceToTarget.get(sourceFolder) match {
-      case Some(parentDir) =>
-        // if we already saw another file from the same source folder as `source`, try to
-        // put `source` in that same target directory
-        logger.trace(s"  source folder already seen; localizing to ${parentDir}")
-        val localPath = parentDir.resolve(namePath)
-        if (exists(localPath)) {
+    val localPath =
+      if (version.isDefined && sourceToTarget.contains((sourceContainer, version))) {
+        // we have already seen this version - create the file in the existing dir
+        val versionDir = sourceToTarget((sourceContainer, version))
+        logger.trace(s"  version already seen; localizing to ${versionDir}")
+        val versionLocalPath = versionDir.resolve(namePath)
+        if (exists(versionLocalPath)) {
           throw new FileAlreadyExistsException(
-              s"""Trying to localize ${name} from ${sourceFolder} to ${parentDir}
-                 |but the file already exists in that directory""".stripMargin
+              s"""Trying to localize ${name} (version ${version.get}) from ${sourceContainer}
+                 |to ${versionDir} but the file already exists in that directory""".stripMargin
           )
         }
-        localPath
-      case None =>
-        commonDir.map(_.resolve(namePath)) match {
-          case Some(localPath) if !exists(localPath) =>
-            logger.trace(s"  localizing to common directory ${commonDir}")
-            sourceToTarget += (sourceFolder -> commonDir.get)
-            localPath
-          case _ if canCreateDisambiguationDir =>
-            // create a new disambiguation dir
-            val newDir = createDisambiguationDir
-            logger.trace(s"  localizing to new disambiguation directory ${newDir}")
-            sourceToTarget += (sourceFolder -> newDir)
-            newDir.resolve(namePath)
-          case _ =>
-            throw new Exception(
-                s"""|Trying to localize ${name} from ${sourceFolder} to local filesystem 
-                    |at ${rootDir}/*/${name} and trying to create a new disambiguation dir, 
-                    |but the limit (${disambiguationDirLimit}) has been reached.""".stripMargin
-                  .replaceAll("\n", " ")
-            )
+        versionLocalPath
+      } else {
+        // first try to place the file without using version; fall back to versioned
+        // dir if version is defined
+        sourceToTarget.get((sourceContainer, None)) match {
+          case Some(parentDir) =>
+            // if we already saw another file from the same source folder, try to
+            // put this file in the same target directory
+            logger.trace(s"  source folder already seen; trying to localize to ${parentDir}")
+            val localPath = parentDir.resolve(namePath)
+            if (!exists(localPath)) {
+              // the local path doesn't exist yet - we can use it for this file/directory
+              localPath
+            } else if (version.isDefined) {
+              // duplicate file - if there is a version, we place it in a subfolder named
+              // after the version
+              val versionDir = parentDir.resolve(FileUtils.sanitizeFileName(version.get))
+              sourceToTarget += ((sourceContainer, version) -> versionDir)
+              logger.trace(
+                  s"""  target file ${localPath} already exists; trying to localize using version 
+                    ${version.get} to ${versionDir}""".stripMargin.replaceAll("\n", " ")
+              )
+              val versionLocalPath = versionDir.resolve(namePath)
+              if (exists(versionLocalPath)) {
+                throw new FileAlreadyExistsException(
+                    s"""Trying to localize ${name} (version ${version.get}) from ${sourceContainer}
+                       |to ${versionDir} but the file already exists in that directory""".stripMargin
+                )
+              }
+              versionLocalPath
+            } else {
+              throw new FileAlreadyExistsException(
+                  s"""Trying to localize ${name} from ${sourceContainer} to ${parentDir}
+                     |but the file already exists in that directory""".stripMargin
+              )
+            }
+          case None =>
+            // we have not seen the source container before - place the file in
+            // the common dir if possible, otherwise a disambiguating subdir
+            commonDir.map(_.resolve(namePath)) match {
+              case Some(localPath) if !exists(localPath) =>
+                logger.trace(s"  localizing to common directory ${commonDir}")
+                sourceToTarget += ((sourceContainer, None) -> commonDir.get)
+                localPath
+              case _ if canCreateDisambiguationDir =>
+                // create a new disambiguation dir
+                val newDir = createDisambiguationDir
+                logger.trace(s"  localizing to new disambiguation directory ${newDir}")
+                sourceToTarget += ((sourceContainer, None) -> newDir)
+                newDir.resolve(namePath)
+              case _ =>
+                throw new Exception(
+                    s"""|Trying to localize ${name} from ${sourceContainer} to local filesystem 
+                        |at ${rootDir}/*/${name} and trying to create a new disambiguation dir, 
+                        |but the limit (${disambiguationDirLimit}) has been reached.""".stripMargin
+                      .replaceAll("\n", " ")
+                )
+            }
         }
-    }
+      }
     logger.trace(s"  local path: ${localPath}")
     localizedPaths += localPath
     localPath
@@ -152,7 +210,7 @@ case class SafeLocalizationDisambiguator(
     * source folder regardless of the value of `separateDirsBySource`.
     */
   override def getLocalPath(source: AddressableFileSource): Path = {
-    getLocalPath(source.name, source.folder)
+    getLocalPath(source.name, source.container, source.version)
   }
 
   /**
@@ -178,7 +236,7 @@ case class SafeLocalizationDisambiguator(
       val commonDir = Some(createDisambiguationDir)
       val commonSourceToPath =
         addToCommon.map { fs =>
-          fs -> getLocalPath(fs.name, fs.folder, commonDir)
+          fs -> getLocalPath(fs.name, fs.container, fs.version, commonDir)
         }.toMap
       commonSourceToPath ++ separateSourceToPath
     }

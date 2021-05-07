@@ -77,6 +77,14 @@ case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxA
     }
   }
 
+  def getProject: String = {
+    if (!hasCachedDesc && project.isDefined) {
+      project.get.id
+    } else {
+      describe().project
+    }
+  }
+
   def getFolder: String = {
     if (!hasCachedDesc && folder.isDefined) {
       folder.get

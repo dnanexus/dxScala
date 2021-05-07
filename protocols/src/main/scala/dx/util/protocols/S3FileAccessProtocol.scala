@@ -48,6 +48,11 @@ case class S3FileSource(
     case path => path.toString
   }
 
+  override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
+
+  // TODO: handle version
+  override def version: Option[String] = None
+
   override def exists: Boolean = {
     try {
       protocol.getClient.getObject(request)
@@ -97,6 +102,8 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     case null => ""
     case path => path.toString
   }
+
+  override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
   override val isDirectory: Boolean = true
 
@@ -166,10 +173,12 @@ case class S3FileAccessProtocol(region: Region,
     client.get
   }
 
-  override val schemes: Vector[String] = Vector("s3")
+  override val schemes: Vector[String] = Vector(S3FileAccessProtocol.S3Scheme)
 
   override val supportsDirectories: Boolean = true
 
+  // TODO: handle version
+  //  how is version specified (I think there is a ?version=<version>)
   private val S3UriRegexp = "s3://(.+?)/(.*)".r
 
   /**
@@ -221,6 +230,7 @@ case class S3FileAccessProtocol(region: Region,
 }
 
 object S3FileAccessProtocol {
+  val S3Scheme = "s3"
 
   /**
     * Creates a S3FileAccessProtocol for the AWS region corresponding to the given
