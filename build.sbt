@@ -124,6 +124,8 @@ lazy val commonDependencies = Seq(
 val githubResolver = Resolver.githubPackages("dnanexus", "dxScala")
 resolvers += githubResolver
 
+val releaseTarget = Option(System.getProperty("releaseTarget")).getOrElse("github")
+
 lazy val settings = Seq(
     scalacOptions ++= compilerOptions,
     // javac
@@ -140,7 +142,7 @@ lazy val settings = Seq(
     // snapshot versions publish to GitHub repository
     // release versions publish to sonatype staging repository
     publishTo := Some(
-        if (isSnapshot.value) {
+        if (isSnapshot.value || releaseTarget == "github") {
           githubResolver
         } else {
           Opts.resolver.sonatypeStaging
