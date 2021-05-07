@@ -60,9 +60,9 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 
 ### Releasing to Maven
 
-Note: this process is currently coordinated by John Didion - please request from him a release of the updated library(ies).
+Note: this process is currently coordinated by John Didion - please request from him a release of the updated project(s).
 
-1. From the release branch, run `sbt 'project <name>' publishSigned` for each library being released.
+1. From the release branch, run `sbt 'project <name>' publishSigned` for each project being released.
    - You will need to have the SonaType PGP private key on your machine, and you will need the password.
 2. Go to [nexus repository manager](https://oss.sonatype.org/#stagingRepositories), log in, and go to "Staging Repositories".
 3. Check the repository(ies) to release; there should only be one, but if there are more check the contents to find yours.
