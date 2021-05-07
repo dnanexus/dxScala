@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.3.0 (2021-05-07)
 
 * Fixes implementations of `AddressableFileSource.folder` for cases where the file source represents a root directory
 * Adds `listing` method to `FileSource`
