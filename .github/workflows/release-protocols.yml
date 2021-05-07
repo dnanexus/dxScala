@@ -67,14 +67,14 @@ jobs:
               "./protocols/src/main/resources/application.conf"
           ]'
           push: false
-          tag: ${{ github.event.inputs.release-version }}
+          tag: protocols-${{ github.event.inputs.release-version }}
       - name: Create release entry
         id: create-release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.event.inputs.release-version }}
+          tag_name: protocols-${{ github.event.inputs.release-version }}
           release_name: dxFileAccessProtocols ${{ github.event.inputs.release-version }}
           body_path: ${{ steps.update-release.outputs.release-notes-path }}
           draft: true
@@ -98,13 +98,18 @@ jobs:
         run: |
           git pull
           git push origin HEAD:${{ github.ref }}
-          git push origin HEAD:${{ github.event.inputs.release-version }}
+          git push origin HEAD:protocols-${{ github.event.inputs.release-version }}
+      - name: Publish package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sbt 'project protocols' publish
       - name: Rollback release if unsuccessfull
         if: ${{ cancelled() || failure() }}
         uses: author/action-rollback@stable
         with:
           release_id: ${{ steps.create-release.outputs.id }}
-          tag: ${{ github.event.inputs.release-version }}
+          tag: protocols-${{ github.event.inputs.release-version }}
           delete_orphan_tag: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

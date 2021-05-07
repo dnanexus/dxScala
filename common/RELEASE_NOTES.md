@@ -1,5 +1,12 @@
 # dxCommon
 
+## 0.3.0 (2021-05-07)
+
+* Fixes implementations of `AddressableFileSource.folder` for cases where the file source represents a root directory
+* Adds `listing` method to `FileSource`
+* Adds `container` and `version` fields to `AddressableFileSource` 
+* Updates `LocalizationDisambiguator` to use `container` and `version` for disambiguation of identical paths in different systems
+
 ## 0.2.14 (2021-04-23)
 
 * Adds assertion in `LocalizationDisambiguator.getLocalPath` that the `FileSource` name is not an absolute path

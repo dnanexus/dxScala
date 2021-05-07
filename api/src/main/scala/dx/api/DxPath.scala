@@ -1,7 +1,13 @@
 package dx.api
 
+import dx.util.FileUtils
+
+import java.net.{URI, URLDecoder}
+import java.nio.file.Paths
+
 object DxPath {
-  val DxUriPrefix = "dx://"
+  val DxScheme = "dx"
+  val DxUriPrefix = s"${DxScheme}://"
   private val pathRegex = "(.*)/(.+)".r
 
   def split(dxPath: String): (Option[String], String) = {
@@ -41,7 +47,8 @@ object DxPath {
                               sourcePath: String)
 
   def parse(dxPath: String): DxPathComponents = {
-    val (projName, dxObjectPath) = split(dxPath)
+    val enc = FileUtils.DefaultEncoding.name
+    val (projName, dxObjectPath) = split(URLDecoder.decode(dxPath, enc))
 
     val (folder, name) = dxObjectPath match {
       case pathRegex(_, name) if DxUtils.isDataObjectId(name) => (None, name)
@@ -52,5 +59,22 @@ object DxPath {
     }
 
     DxPathComponents(name, folder, projName, dxObjectPath, dxPath)
+  }
+
+  /**
+    * Formats a file ID with optional project name or ID as a dx:// URI.
+    */
+  def format(fileId: String, project: Option[String]): String = {
+    project
+      .map(proj => new URI(DxScheme, s"${proj}:${fileId}", null, null, null).toString)
+      .getOrElse(s"${DxUriPrefix}${fileId}")
+  }
+
+  /**
+    * Formats a project and file path to a dx:// URI.
+    */
+  def format(project: String, folder: String, name: String): String = {
+    val path = Paths.get(folder).resolve(name).toString
+    new URI(DxScheme, s"${project}:", path, null, null).toString
   }
 }

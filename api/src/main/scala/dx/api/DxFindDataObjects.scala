@@ -165,6 +165,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
       nameConstraints: Vector[String],
       withInputOutputSpec: Boolean,
       idConstraints: Vector[String],
+      state: Option[DxState.DxState],
       defaultFields: Boolean,
       extraFields: Set[Field.Value]
   ): (Map[DxDataObject, DxObjectDescribe], JsValue) = {
@@ -218,8 +219,10 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
       case v if v.nonEmpty => Map("id" -> JsArray(v.map(x => JsString(x))))
       case _               => Map.empty
     }
+    val stateField =
+      state.map(s => Map("state" -> JsString(s.toString.toLowerCase))).getOrElse(Map.empty)
     val request = requiredFields ++ projectField ++ scopeField ++ cursorField ++ limitField ++ classField ++
-      tagsField ++ nameField ++ idField
+      tagsField ++ nameField ++ idField ++ stateField
     val responseJs = dxApi.findDataObjects(request)
     val next: JsValue = responseJs.fields.get("next") match {
       case None | Some(JsNull) => JsNull
@@ -256,6 +259,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
             nameConstraints: Vector[String] = Vector.empty,
             withInputOutputSpec: Boolean = false,
             idConstraints: Vector[String] = Vector.empty,
+            state: Option[DxState.DxState] = None,
             defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
     val allowedClasses = Set("record", "file", "applet", "workflow")
@@ -279,6 +283,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
               nameConstraints,
               withInputOutputSpec,
               idConstraints,
+              state,
               defaultFields,
               extraFields
           ) match {

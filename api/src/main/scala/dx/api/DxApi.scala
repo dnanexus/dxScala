@@ -1,14 +1,16 @@
 package dx.api
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, SimpleFileVisitor}
+import java.nio.file.attribute.BasicFileAttributes
+import java.{util => javautil}
 
 import com.dnanexus.{DXAPI, DXEnvironment}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import dx.api.DxPath.DxPathComponents
 import dx.AppInternalException
-import spray.json._
 import dx.util.{FileUtils, Logger, SysUtils, TraceLevel}
 import dx.util.CollectionUtils.IterableOnceExtensions
+import spray.json._
 
 object DxApi {
   val ResultsPerCallLimit: Int = 1000
@@ -59,6 +61,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private lazy val objMapper: ObjectMapper = new ObjectMapper()
   private val DownloadRetryLimit = 3
   private val UploadRetryLimit = 3
+  private val UploadWaitMillis = 1000
 
   // We are expecting string like:
   //    record-FgG51b00xF63k86F13pqFv57
@@ -885,8 +888,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     content
   }
 
-  // Upload a local file to the platform, and return a json link.
-  // Use 'dx upload' as a separate process.
+  /**
+    * Uploads a local file to the platform, and returns a DxFile.
+    * Calls `dx upload` in a subprocess.
+    */
   def uploadFile(path: Path, destination: Option[String] = None, wait: Boolean = false): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
@@ -919,7 +924,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .range(0, UploadRetryLimit)
       .collectFirstDefined { counter =>
         if (counter > 0) {
-          Thread.sleep(1000)
+          Thread.sleep(UploadWaitMillis * scala.math.pow(2, counter).toLong)
         }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
         uploadOneFile(path) match {
@@ -936,5 +941,58 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     silentFileDelete(tempFile)
     val path = FileUtils.writeFileContent(tempFile, content)
     uploadFile(path, Some(destination), wait = wait)
+  }
+
+  private case class UploadFileVisitor(sourceDir: Path,
+                                       destination: Option[String],
+                                       waitOnUpload: Boolean)
+      extends SimpleFileVisitor[Path] {
+    private def ensureEndsWithSlash(path: String): String = {
+      if (path.endsWith("/")) path else s"${path}/"
+    }
+
+    val (projectId: Option[String], folder: String) = destination
+      .map { dest =>
+        dest.split(":").toVector match {
+          case Vector(projectId) if projectId.startsWith("project-") =>
+            (Some(projectId), "/")
+          case Vector(folder) =>
+            (None, ensureEndsWithSlash(folder))
+          case Vector(projectId, folder) =>
+            (Some(projectId), ensureEndsWithSlash(folder))
+          case _ =>
+            throw new Exception(s"invalid destination ${dest}")
+        }
+      }
+      .getOrElse((None, "/"))
+
+    private var uploadedFiles = Vector.empty[DxFile]
+
+    def result: (Option[String], String, Vector[DxFile]) = {
+      (projectId, folder, uploadedFiles)
+    }
+
+    override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
+      val fileRelPath = sourceDir.relativize(file)
+      val fileDestPath = s"${folder}${fileRelPath}"
+      val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
+      val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
+      uploadedFiles :+= dxFile
+      FileVisitResult.CONTINUE
+    }
+  }
+
+  /**
+    * Uploads all the files in a directory, and - if `recursive=true` - all
+    * files in subfolders as well. Returns (projectId, folder, files).
+    */
+  def uploadDirectory(path: Path,
+                      destination: Option[String] = None,
+                      recursive: Boolean = true,
+                      wait: Boolean = false): (Option[String], String, Vector[DxFile]) = {
+    val visitor = UploadFileVisitor(path, destination, wait)
+    val maxDepth = if (recursive) Integer.MAX_VALUE else 0
+    Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
+    visitor.result
   }
 }

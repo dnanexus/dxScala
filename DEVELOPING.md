@@ -20,11 +20,11 @@ If you want to make a change to dxScala, do the following:
 2. Create a new branch with your changes. Name it something meaningful, like `APPS-123-download-bug`.
 3. If the current snapshot version matches the release version, increment the snapshot version.
    - For example, if the current release is `1.0.0` and the current snapshot version is `1.0.0-SNAPSHOT`, increment the snapshot version to `1.0.1-SNAPSHOT`.
-3. Make your changes. Test locally using `sbt test`.
-4. Update the release notes under the top-most header (which should be "in develop").
-5. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.
+4. Make your changes. Test locally using `sbt test`.
+5. Update the release notes under the top-most header (which should be "in develop").
+6. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.
    - For example, when you first created the branch you set the version to `1.0.1-SNAPSHOT`, but then you realized you needed to add a new function to the public API, change the version to `1.1.0-SNAPSHOT`. 
-6. When you are done, create a pull request against the `develop` branch.
+7. When you are done, create a pull request against the `develop` branch.
 
 ### Building a local version for testing
 
@@ -44,12 +44,12 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 ### Beginning the release
 
 1. Checkout the develop branch (either HEAD or the specific commit you want to release)
-2. Create a release branch named with the version number, e.g. `release-2.4.2`
+2. Create a release branch named with the version number, e.g. `release-2.4.2`, or if you are releasing multiple projects with different versions, with the current date, e.g. `release-2021-05.07`
 3. Update the version numbers in application.conf files
-   - For the libraries you will release, remove "-SNAPSHOT"
-   - For the libraries not being released, reset the version to the current release version
+   - For the projects you will release, remove "-SNAPSHOT"
+   - For the projects not being released, reset the version to the current release version
 4. Also update the version numbers in the dependency section of build.sbt
-5. Update the release notes for each library being released
+5. Update the release notes for each projects being released
    - Change the top header from "in develop" to "<version> (<date>)"
 
 ### Releasing to GitHub
@@ -60,9 +60,9 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 
 ### Releasing to Maven
 
-Note: this process is currently coordinated by John Didion - please request from him a release of the updated library(ies).
+Note: this process is currently coordinated by John Didion - please request from him a release of the updated project(s).
 
-1. From the release branch, run `sbt 'project <name>' publishSigned` for each library being released.
+1. From the release branch, run `sbt 'project <name>' publishSigned -DreleaseTarget=sonatype` for each project being released.
    - You will need to have the SonaType PGP private key on your machine, and you will need the password.
 2. Go to [nexus repository manager](https://oss.sonatype.org/#stagingRepositories), log in, and go to "Staging Repositories".
 3. Check the repository(ies) to release; there should only be one, but if there are more check the contents to find yours.

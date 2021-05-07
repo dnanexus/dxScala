@@ -86,8 +86,8 @@ val protocols = project
 
 lazy val dependencies =
   new {
-    val dxCommonVersion = "0.2.14"
-    val dxApiVersion = "0.2.0"
+    val dxCommonVersion = "0.3.0"
+    val dxApiVersion = "0.3.0"
     val typesafeVersion = "1.3.3"
     val sprayVersion = "1.3.5"
     val scalatestVersion = "3.1.1"
@@ -124,6 +124,8 @@ lazy val commonDependencies = Seq(
 val githubResolver = Resolver.githubPackages("dnanexus", "dxScala")
 resolvers += githubResolver
 
+val releaseTarget = Option(System.getProperty("releaseTarget")).getOrElse("github")
+
 lazy val settings = Seq(
     scalacOptions ++= compilerOptions,
     // javac
@@ -140,7 +142,7 @@ lazy val settings = Seq(
     // snapshot versions publish to GitHub repository
     // release versions publish to sonatype staging repository
     publishTo := Some(
-        if (isSnapshot.value) {
+        if (isSnapshot.value || releaseTarget == "github") {
           githubResolver
         } else {
           Opts.resolver.sonatypeStaging
