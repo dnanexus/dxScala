@@ -46,6 +46,10 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
     getParent.get.resolve(path)
   }
 
+  override def relativize(fileSource: AddressableFileSource): String = {
+    getParent.get.relativize(fileSource)
+  }
+
   override def uri: URI = URI.create(dxFile.asUri)
 
   override lazy val size: Long = dxFile.describe().size
@@ -81,6 +85,9 @@ case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends Addressable
   override def getParent: Option[AddressableFileSource] = dxFileSource.getParent
 
   override def resolve(path: String): AddressableFileSource = dxFileSource.resolve(path)
+
+  override def relativize(fileSource: AddressableFileSource): String =
+    dxFileSource.relativize(fileSource)
 
   override def uri: URI = dxFileSource.uri
 
@@ -147,6 +154,19 @@ case class DxFolderSource(dxProject: DxProject)(
     } else {
       val uri = s"dx://${dxProject.id}:${target}${path}"
       protocol.resolve(uri)
+    }
+  }
+
+  override def relativize(fileSource: AddressableFileSource): String = {
+    fileSource match {
+      case fs: DxFileSource =>
+        targetPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
+      case fs: DxArchiveFolderSource =>
+        targetPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
+      case fs: DxFolderSource =>
+        targetPath.relativize(fs.targetPath).toString
+      case _ =>
+        throw new Exception(s"not a DxFileSource: ${fileSource}")
     }
   }
 

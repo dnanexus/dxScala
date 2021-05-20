@@ -118,6 +118,15 @@ trait AddressableFileSource extends FileSource {
     */
   def resolve(path: String): AddressableFileSource
 
+  /**
+    * Returns the path of `fileSource` relative to this one, if this is a
+    * directory, or to the parent, if this is a file. Throws an exception
+    * if this is not an ancestor of `fileSource`.
+    * @param fileSource the child AddressableFileSource
+    * @return
+    */
+  def relativize(fileSource: AddressableFileSource): String
+
   def uri: URI = URI.create(address)
 
   override def toString: String = address
@@ -284,6 +293,14 @@ case class LocalFileSource(
       case _                       => false
     }
     LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString, newPath, logger)
+  }
+
+  override def relativize(fileSource: AddressableFileSource): String = {
+    fileSource match {
+      case fs: LocalFileSource => canonicalPath.relativize(fs.canonicalPath).toString
+      case _ =>
+        throw new Exception(s"not a LocalFileSource: ${fileSource}")
+    }
   }
 
   def checkExists(exists: Boolean): Unit = {
@@ -472,9 +489,20 @@ case class HttpFileSource(
   }
 
   override def resolve(path: String): HttpFileSource = {
-    val newUri = uri.resolve(path)
-    val isDirectory = path.endsWith("/")
-    HttpFileSource(newUri, encoding, isDirectory)(newUri.toString)
+    val newUri = if (isDirectory) {
+      uri.resolve(path)
+    } else {
+      uri.resolve(".").resolve(path)
+    }
+    HttpFileSource(newUri, encoding, path.endsWith("/"))(newUri.toString)
+  }
+
+  override def relativize(fileSource: AddressableFileSource): String = {
+    fileSource match {
+      case fs: HttpFileSource => uri.relativize(fs.uri).getPath
+      case _ =>
+        throw new Exception(s"not a HttpFileSource: ${fileSource}")
+    }
   }
 
   // https://stackoverflow.com/questions/12800588/how-to-calculate-a-file-size-from-url-in-java
