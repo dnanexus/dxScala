@@ -2,6 +2,10 @@
 
 ## in develop
 
+* Adds `relativize` method to `AddressableFileSource`
+
+## 0.3.0 (2021-05-07)
+
 * Fixes implementations of `AddressableFileSource.folder` for cases where the file source represents a root directory
 * Adds `listing` method to `FileSource`
 * Adds `container` and `version` fields to `AddressableFileSource` 

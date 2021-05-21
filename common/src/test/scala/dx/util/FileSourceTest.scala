@@ -11,7 +11,7 @@ class FileSourceTest extends AnyFlatSpec with Matchers {
   private val resolver = FileSourceResolver.create(userProtocols = Vector(DxProtocol))
 
   def getProtocol(uriOrPath: String): FileAccessProtocol = {
-    val scheme = resolver.getScheme(uriOrPath)
+    val scheme = FileSourceResolver.getScheme(uriOrPath)
     resolver.getProtocolForScheme(scheme)
   }
 

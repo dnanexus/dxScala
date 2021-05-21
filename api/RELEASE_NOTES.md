@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.3.0 (2021-05-07)
 
 * Adds functions to create `dx://` URIs from components
 * URL-encodes project names, paths, and file names when creating `dx://` URIs, and decodes them when parsing 

@@ -40,7 +40,7 @@ case class S3FileSource(
 
   private lazy val request: GetObjectRequest =
     GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
-  private lazy val objectPath: Path = Paths.get(objectKey)
+  private[protocols] lazy val objectPath: Path = Paths.get(objectKey)
 
   override def name: String = objectPath.getFileName.toString
 
@@ -75,6 +75,10 @@ case class S3FileSource(
 
   override def resolve(path: String): AddressableFileSource = {
     getParent.get.resolve(path)
+  }
+
+  override def relativize(fileSource: AddressableFileSource): String = {
+    getParent.get.relativize(fileSource)
   }
 
   override lazy val size: Long = {
@@ -145,6 +149,17 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
       S3FolderSource(newUri, bucketName, objectKey)(protocol)
     } else {
       S3FileSource(newUri, bucketName, objectKey)(protocol)
+    }
+  }
+
+  override def relativize(fileSource: AddressableFileSource): String = {
+    fileSource match {
+      case fs: S3FileSource =>
+        prefixPath.relativize(fs.objectPath).toString
+      case fs: S3FolderSource =>
+        prefixPath.relativize(fs.prefixPath).toString
+      case _ =>
+        throw new Exception(s"not an S3FileSource: ${fileSource}")
     }
   }
 
