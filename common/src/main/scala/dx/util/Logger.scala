@@ -175,8 +175,10 @@ object Logger {
   def set(quiet: Boolean = false,
           traceLevel: Int = TraceLevel.None,
           keywords: Set[String] = Set.empty,
-          traceIndenting: Int = 0): Logger = {
-    set(Logger(quiet, traceLevel, keywords, traceIndenting))
+          traceIndenting: Int = 0,
+          logFile: Option[Path] = None,
+          hideStackTraces: Option[Boolean] = None): Logger = {
+    set(Logger(quiet, traceLevel, keywords, traceIndenting, logFile, hideStackTraces))
   }
 
   // this function provides backward compatibility
