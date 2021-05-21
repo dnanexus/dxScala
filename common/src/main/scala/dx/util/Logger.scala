@@ -39,7 +39,7 @@ case class Logger(level: Int,
                   keywords: Set[String],
                   traceIndenting: Int,
                   logFile: Option[Path],
-                  hideStackTraces: Option[Boolean] = None) {
+                  hideStackTraces: Option[Boolean]) {
   private val stream: PrintStream = logFile match {
     case Some(path) =>
       val fileStream = new PrintStream(path.toFile)
@@ -184,17 +184,19 @@ object Logger {
             traceLevel: Int,
             keywords: Set[String] = Set.empty,
             traceIndenting: Int = 0,
-            logFile: Option[Path] = None): Logger = {
+            logFile: Option[Path] = None,
+            hideStackTraces: Option[Boolean] = None): Logger = {
     val level = if (quiet) LogLevel.Error else LogLevel.Info
-    apply(level = level, traceLevel, keywords, traceIndenting, logFile)
+    apply(level = level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces)
   }
 
   def create(level: Int,
              traceLevel: Int,
              keywords: Set[String] = Set.empty,
              traceIndenting: Int = 0,
-             logFile: Option[Path] = None): Logger = {
-    apply(level, traceLevel, keywords, traceIndenting, logFile)
+             logFile: Option[Path] = None,
+             hideStackTraces: Option[Boolean] = None): Logger = {
+    apply(level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces)
   }
 
   // print a warning message in yellow
