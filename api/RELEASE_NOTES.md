@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Adds `tags` and `properties` parameters to the `DxApi.upload*` functions.
+
 ## 0.3.0 (2021-05-07)
 
 * Adds functions to create `dx://` URIs from components
