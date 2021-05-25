@@ -31,8 +31,8 @@ object TraceLevel {
   * @param keywords specific keywords for which to enable tracing
   * @param traceIndenting amount to indent trace messages
   * @param logFile file where log messages are written; defaults to stderr
-  * @param hideStackTraces whether to hide stack traces for errors; defaults to true if traceLevel >= verbose,
-  *                        otherwise false
+  * @param hideStackTraces whether to hide stack traces for errors; defaults to false if traceLevel >= verbose,
+  *                        otherwise true
   */
 case class Logger(level: Int,
                   traceLevel: Int,
