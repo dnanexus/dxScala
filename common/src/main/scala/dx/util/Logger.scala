@@ -30,12 +30,16 @@ object TraceLevel {
   *                   but not info/warning
   * @param keywords specific keywords for which to enable tracing
   * @param traceIndenting amount to indent trace messages
+  * @param logFile file where log messages are written; defaults to stderr
+  * @param hideStackTraces whether to hide stack traces for errors; defaults to false if traceLevel >= verbose,
+  *                        otherwise true
   */
 case class Logger(level: Int,
                   traceLevel: Int,
                   keywords: Set[String],
                   traceIndenting: Int,
-                  logFile: Option[Path]) {
+                  logFile: Option[Path],
+                  hideStackTraces: Option[Boolean]) {
   private val stream: PrintStream = logFile match {
     case Some(path) =>
       val fileStream = new PrintStream(path.toFile)
@@ -51,6 +55,8 @@ case class Logger(level: Int,
   private lazy val keywordsLower: Set[String] = keywords.map(_.toLowerCase)
 
   lazy val isVerbose: Boolean = traceLevel >= TraceLevel.Verbose
+
+  lazy val showStackTrace: Boolean = hideStackTraces.map(!_).getOrElse(isVerbose)
 
   // check in a case insensitive fashion
   def containsKey(word: String): Boolean = {
@@ -83,14 +89,14 @@ case class Logger(level: Int,
   // print a warning message in yellow - ignored if `quiet` is true and `force` is false
   def warning(msg: String, force: Boolean = false, exception: Option[Throwable] = None): Unit = {
     if (force || level <= LogLevel.Warning) {
-      Logger.warning(msg, exception, stackTrace = isVerbose, stream = stream)
+      Logger.warning(msg, exception, showStackTrace, stream)
     }
   }
 
   // print an error message in red
   def error(msg: String, exception: Option[Throwable] = None): Unit = {
     if (level <= LogLevel.Error) {
-      Logger.error(msg, exception, stream = stream)
+      Logger.error(msg, exception, showStackTrace, stream)
     }
   }
 
@@ -169,8 +175,10 @@ object Logger {
   def set(quiet: Boolean = false,
           traceLevel: Int = TraceLevel.None,
           keywords: Set[String] = Set.empty,
-          traceIndenting: Int = 0): Logger = {
-    set(Logger(quiet, traceLevel, keywords, traceIndenting))
+          traceIndenting: Int = 0,
+          logFile: Option[Path] = None,
+          hideStackTraces: Option[Boolean] = None): Logger = {
+    set(Logger(quiet, traceLevel, keywords, traceIndenting, logFile, hideStackTraces))
   }
 
   // this function provides backward compatibility
@@ -178,17 +186,19 @@ object Logger {
             traceLevel: Int,
             keywords: Set[String] = Set.empty,
             traceIndenting: Int = 0,
-            logFile: Option[Path] = None): Logger = {
+            logFile: Option[Path] = None,
+            hideStackTraces: Option[Boolean] = None): Logger = {
     val level = if (quiet) LogLevel.Error else LogLevel.Info
-    apply(level = level, traceLevel, keywords, traceIndenting, logFile)
+    apply(level = level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces)
   }
 
   def create(level: Int,
              traceLevel: Int,
              keywords: Set[String] = Set.empty,
              traceIndenting: Int = 0,
-             logFile: Option[Path] = None): Logger = {
-    apply(level, traceLevel, keywords, traceIndenting, logFile)
+             logFile: Option[Path] = None,
+             hideStackTraces: Option[Boolean] = None): Logger = {
+    apply(level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces)
   }
 
   // print a warning message in yellow

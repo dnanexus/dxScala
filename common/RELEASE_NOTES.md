@@ -3,6 +3,7 @@
 ## in develop
 
 * Adds `relativize` method to `AddressableFileSource`
+* Adds `Logger.hideStackTraces` parameter, which controls whether stack traces are shown for warning/error messages, and defaults to false unless `traceLevel >= Verbose`
 
 ## 0.3.0 (2021-05-07)
 
