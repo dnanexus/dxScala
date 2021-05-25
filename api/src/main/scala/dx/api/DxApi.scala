@@ -907,9 +907,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         val destOpt = destination.map(d => s""" --destination "${d}" -p""").getOrElse("")
         val waitOpt = if (wait) " --wait" else ""
         val tagsOpt = tags.map(tag => s" --tag ${tag}").mkString("")
-        val propertiesOpt = properties.map {
-          case (key, value) => s" --property ${key}=${value}".mkString("")
-        }
+        val propertiesOpt = properties
+          .map {
+            case (key, value) => s" --property ${key}=${value}"
+          }
+          .mkString("")
         val dxUploadCmd =
           s"""dx upload "${path.toString}" --brief${destOpt}${waitOpt}${tagsOpt}${propertiesOpt}"""
         logger.traceLimited(s"CMD: ${dxUploadCmd}")
