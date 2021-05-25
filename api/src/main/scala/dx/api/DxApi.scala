@@ -892,7 +892,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     * Uploads a local file to the platform, and returns a DxFile.
     * Calls `dx upload` in a subprocess.
     */
-  def uploadFile(path: Path, destination: Option[String] = None, wait: Boolean = false): DxFile = {
+  def uploadFile(path: Path,
+                 destination: Option[String] = None,
+                 wait: Boolean = false,
+                 tags: Set[String] = Set.empty,
+                 properties: Map[String, String] = Map.empty): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
@@ -900,9 +904,14 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     def uploadOneFile(path: Path): Option[String] = {
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
-        val destOpt = destination.map(d => s"""--destination "${d}" -p""").getOrElse("")
-        val waitOpt = if (wait) "--wait" else ""
-        val dxUploadCmd = s"""dx upload "${path.toString}" --brief ${destOpt} ${waitOpt}"""
+        val destOpt = destination.map(d => s""" --destination "${d}" -p""").getOrElse("")
+        val waitOpt = if (wait) " --wait" else ""
+        val tagsOpt = tags.map(tag => s" --tag ${tag}").mkString("")
+        val propertiesOpt = properties.map {
+          case (key, value) => s" --property ${key}=${value}".mkString("")
+        }
+        val dxUploadCmd =
+          s"""dx upload "${path.toString}" --brief${destOpt}${waitOpt}${tagsOpt}${propertiesOpt}"""
         logger.traceLimited(s"CMD: ${dxUploadCmd}")
         SysUtils.execCommand(dxUploadCmd) match {
           case (_, stdout, _) if stdout.trim.startsWith("file-") =>
@@ -935,12 +944,16 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .getOrElse(throw new Exception(s"Failure to upload file ${path}"))
   }
 
-  def uploadString(content: String, destination: String, wait: Boolean = false): DxFile = {
+  def uploadString(content: String,
+                   destination: String,
+                   wait: Boolean = false,
+                   tags: Set[String] = Set.empty,
+                   properties: Map[String, String] = Map.empty): DxFile = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile("upload", ".tmp")
     silentFileDelete(tempFile)
     val path = FileUtils.writeFileContent(tempFile, content)
-    uploadFile(path, Some(destination), wait = wait)
+    uploadFile(path, Some(destination), wait = wait, tags = tags, properties = properties)
   }
 
   private case class UploadFileVisitor(sourceDir: Path,
