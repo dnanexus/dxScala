@@ -3,7 +3,11 @@ package dx
 package object util {
   def exceptionToString(e: Throwable, brief: Boolean = false): String = {
     if (brief) {
-      Iterator.iterate(e)(t => t.getCause).map(_.getMessage).mkString("\n  caused by: ")
+      Iterator
+        .iterate(e)(t => t.getCause)
+        .takeWhile(_ != null)
+        .map(_.getMessage)
+        .mkString("\n  caused by: ")
     } else {
       val sw = new java.io.StringWriter
       e.printStackTrace(new java.io.PrintWriter(sw))
