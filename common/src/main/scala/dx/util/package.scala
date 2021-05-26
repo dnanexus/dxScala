@@ -1,10 +1,18 @@
 package dx
 
 package object util {
-  def exceptionToString(e: Throwable): String = {
-    val sw = new java.io.StringWriter
-    e.printStackTrace(new java.io.PrintWriter(sw))
-    sw.toString
+  def exceptionToString(e: Throwable, brief: Boolean = false): String = {
+    if (brief) {
+      Iterator
+        .iterate(e)(t => t.getCause)
+        .takeWhile(_ != null)
+        .map(_.getMessage)
+        .mkString("\n  caused by: ")
+    } else {
+      val sw = new java.io.StringWriter
+      e.printStackTrace(new java.io.PrintWriter(sw))
+      sw.toString
+    }
   }
 
   def errorMessage(message: String,
@@ -12,9 +20,9 @@ package object util {
                    stackTrace: Boolean = true): String = {
     (message, exception) match {
       case (s, Some(e)) if s.nonEmpty && stackTrace => s"${s}\n${exceptionToString(e)}"
-      case (s, Some(e)) if s.nonEmpty               => s"${s}: ${e.getMessage}"
+      case (s, Some(e)) if s.nonEmpty               => s"${s}: ${exceptionToString(e, brief = true)}"
       case ("", Some(e)) if stackTrace              => exceptionToString(e)
-      case ("", Some(e))                            => e.getMessage
+      case ("", Some(e))                            => exceptionToString(e, brief = true)
       case (s, None)                                => s
     }
   }

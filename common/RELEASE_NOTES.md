@@ -1,5 +1,10 @@
 # dxCommon
 
+## 0.4.0 (2021-05-26)
+
+* Adds `relativize` method to `AddressableFileSource`
+* Adds `Logger.hideStackTraces` parameter, which controls whether stack traces are shown for warning/error messages, and defaults to false unless `traceLevel >= Verbose`
+
 ## 0.3.0 (2021-05-07)
 
 * Fixes implementations of `AddressableFileSource.folder` for cases where the file source represents a root directory
@@ -11,7 +16,7 @@
 
 * Adds assertion in `LocalizationDisambiguator.getLocalPath` that the `FileSource` name is not an absolute path
 
-## 0.2.13
+## 0.2.13 (2021-04-20)
 
 * Eliminate possibility of file name collisions in `LocalizationDisambiguator` when `separateDirsBySource` is `false`
 * Adds `LocalizationDisambiguator.getLocalPaths`, which can leverage a common disambiguation directory without the chance of collision

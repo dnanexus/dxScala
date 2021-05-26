@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## 0.3.0 (2021-05-26)
+
+* Implements `listing` and `relativize` methods for dx and S3 protocols
+
 ## 0.2.0 (2021-05-07)
 
 * Fixes handling of `DxFolderSource` for root folders
