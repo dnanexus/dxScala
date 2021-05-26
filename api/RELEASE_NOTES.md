@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.4.0 (2021-05-26)
 
 * Adds `tags` and `properties` parameters to the `DxApi.upload*` functions.
 
