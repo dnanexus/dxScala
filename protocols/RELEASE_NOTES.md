@@ -1,6 +1,6 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.3.0 (2021-05-26)
 
 * Implements `listing` and `relativize` methods for dx and S3 protocols
 

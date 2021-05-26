@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.4.0 (2021-05-26)
 
 * Adds `relativize` method to `AddressableFileSource`
 * Adds `Logger.hideStackTraces` parameter, which controls whether stack traces are shown for warning/error messages, and defaults to false unless `traceLevel >= Verbose`
