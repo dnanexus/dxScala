@@ -297,7 +297,10 @@ case class LocalFileSource(
 
   override def relativize(fileSource: AddressableFileSource): String = {
     fileSource match {
-      case fs: LocalFileSource => canonicalPath.relativize(fs.canonicalPath).toString
+      case fs: LocalFileSource if isDirectory =>
+        canonicalPath.relativize(fs.canonicalPath).toString
+      case fs: LocalFileSource =>
+        canonicalPath.getParent.relativize(fs.canonicalPath).toString
       case _ =>
         throw new Exception(s"not a LocalFileSource: ${fileSource}")
     }
@@ -499,7 +502,10 @@ case class HttpFileSource(
 
   override def relativize(fileSource: AddressableFileSource): String = {
     fileSource match {
-      case fs: HttpFileSource => uri.relativize(fs.uri).getPath
+      case fs: HttpFileSource if isDirectory =>
+        path.relativize(fs.path).toString
+      case fs: HttpFileSource =>
+        path.getParent.relativize(fs.path).toString
       case _ =>
         throw new Exception(s"not a HttpFileSource: ${fileSource}")
     }
