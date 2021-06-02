@@ -22,7 +22,10 @@ ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICEN
 
 lazy val root = project.in(file("."))
 lazy val global = root
-  .settings(settings)
+  .settings(
+      globalSettings,
+      skip in publish := true
+  )
   .disablePlugins(AssemblyPlugin)
   .aggregate(
       common,
@@ -41,7 +44,8 @@ val common = project
   .settings(
       name := "dxCommon",
       version := getVersion("common", "dxCommon"),
-      settings,
+      globalSettings,
+      publishSettings,
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
           dependencies.typesafe
@@ -54,7 +58,8 @@ val api = project
   .settings(
       name := "dxApi",
       version := getVersion("api", "dxApi"),
-      settings,
+      globalSettings,
+      publishSettings,
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
           dependencies.dxCommon,
@@ -70,7 +75,8 @@ val protocols = project
   .settings(
       name := "dxFileAccessProtocols",
       version := getVersion("protocols", "dxFileAccessProtocols"),
-      settings,
+      globalSettings,
+      publishSettings,
       assemblySettings,
       libraryDependencies ++= commonDependencies ++ Seq(
           dependencies.dxCommon,
@@ -126,7 +132,7 @@ resolvers += githubResolver
 
 val releaseTarget = Option(System.getProperty("releaseTarget")).getOrElse("github")
 
-lazy val settings = Seq(
+lazy val globalSettings = Seq(
     scalacOptions ++= compilerOptions,
     // javac
     javacOptions ++= Seq("-Xlint:deprecation"),
@@ -138,19 +144,6 @@ lazy val settings = Seq(
     // disable publish with scala version, otherwise artifact name will include scala version
     // e.g dxScala_2.11
     crossPaths := false,
-    // add repository settings
-    // snapshot versions publish to GitHub repository
-    // release versions publish to sonatype staging repository
-    publishTo := Some(
-        if (isSnapshot.value || releaseTarget == "github") {
-          githubResolver
-        } else {
-          Opts.resolver.sonatypeStaging
-        }
-    ),
-    githubOwner := "dnanexus",
-    githubRepository := "dxScala",
-    publishMavenStyle := true,
     // Tests
     // If an exception is thrown during tests, show the full
     // stack trace, by adding the "-oF" option to the list.
@@ -165,6 +158,21 @@ lazy val settings = Seq(
     // Ignore code parts that cannot be checked in the unit
     // test environment
     //coverageExcludedPackages := "dxScala.Main"
+)
+
+lazy val publishSettings = Seq(
+    // snapshot versions publish to GitHub repository
+    // release versions publish to sonatype staging repository
+    publishTo := Some(
+        if (isSnapshot.value || releaseTarget == "github") {
+          githubResolver
+        } else {
+          Opts.resolver.sonatypeStaging
+        }
+    ),
+    githubOwner := "dnanexus",
+    githubRepository := "dxScala",
+    publishMavenStyle := true
 )
 
 // Show deprecation warnings
