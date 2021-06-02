@@ -247,9 +247,9 @@ object FileUtils {
       }
     }
     var parent: Path = dir
-    var subdirs: Vector[String] = Vector.empty
+    var subdirs: List[String] = List.empty
     while (parent != null && !Files.exists(parent)) {
-      subdirs = subdirs :+ parent.getFileName.toString
+      subdirs = parent.getFileName.toString :: subdirs
       parent = parent.getParent
     }
     if (parent == null) {
