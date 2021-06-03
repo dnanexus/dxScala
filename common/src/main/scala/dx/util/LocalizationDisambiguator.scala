@@ -45,15 +45,33 @@ case class SafeLocalizationDisambiguator(
     subdirPrefix: String = "input",
     disambiguationDirLimit: Int = 200,
     logger: Logger = Logger.get
+)(
+    // mapping from source file container and version to local directory - this
+    // ensures that files that were originally from the same directory are
+    // localized to the same target directory
+    private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty,
+    // keep track of which disambiguation dirs we've created
+    private var disambiguationDirs: Set[Path] = Set.empty,
+    // keep track of which Paths we've returned so we can detect collisions
+    private var localizedPaths: Set[Path] = existingPaths
 ) extends LocalizationDisambiguator {
-  // mapping from source file container and version to local directory - this
-  // ensures that files that were originally from the same directory are
-  // localized to the same target directory
-  private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty
-  // keep track of which disambiguation dirs we've created
-  private var disambiguationDirs: Set[Path] = Set.empty
-  // keep track of which Paths we've returned so we can detect collisions
-  private var localizedPaths: Set[Path] = existingPaths
+
+  /**
+    * Derive a new `SafeLocalizationDisambiguator` with `createDirs` and/or
+    * `disambiguationDirLimit` changed. Note: the resulting object is not
+    * thread-safe, as it writes to the same variables as the original object.
+    * @param createDirs new value for createDirs
+    * @param disambiguationDirLimit new value for disambiguationDirLimit
+    * @return
+    */
+  def derive(createDirs: Boolean = createDirs,
+             disambiguationDirLimit: Int = 200): SafeLocalizationDisambiguator = {
+    copy(createDirs = createDirs, disambiguationDirLimit = disambiguationDirLimit)(
+        sourceToTarget,
+        disambiguationDirs,
+        localizedPaths
+    )
+  }
 
   def getLocalizedPaths: Set[Path] = localizedPaths
 
