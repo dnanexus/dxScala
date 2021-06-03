@@ -19,6 +19,23 @@ trait LocalizationDisambiguator {
   def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path]
 }
 
+object SafeLocalizationDisambiguator {
+  def create(rootDir: Path,
+             existingPaths: Set[Path] = Set.empty,
+             separateDirsBySource: Boolean = false,
+             createDirs: Boolean = true,
+             subdirPrefix: String = "input",
+             disambiguationDirLimit: Int = 200,
+             logger: Logger = Logger.get): SafeLocalizationDisambiguator = {
+    SafeLocalizationDisambiguator(rootDir,
+                                  separateDirsBySource,
+                                  createDirs,
+                                  subdirPrefix,
+                                  disambiguationDirLimit,
+                                  logger)(localizedPaths = existingPaths)
+  }
+}
+
 /**
   * Localizes a file according to the rules in the spec:
   * https://github.com/openwdl/wdl/blob/main/versions/development/SPEC.md#task-input-localization.
@@ -26,7 +43,6 @@ trait LocalizationDisambiguator {
   * - two input files that originated in the same storage directory must also be localized into
   *   the same directory for task execution
   * @param rootDir the root dir - files are localize to subdirectories under this directory
-  * @param existingPaths optional Set of paths that should be assumed to already exist locally
   * @param separateDirsBySource whether to always separate files from each source dir into
   *                             separate target dirs (true), or to minimize the number of
   *                              dirs used by putting all files in a single directory by default
@@ -39,7 +55,6 @@ trait LocalizationDisambiguator {
   */
 case class SafeLocalizationDisambiguator(
     rootDir: Path,
-    existingPaths: Set[Path] = Set.empty,
     separateDirsBySource: Boolean = false,
     createDirs: Boolean = true,
     subdirPrefix: String = "input",
@@ -53,7 +68,7 @@ case class SafeLocalizationDisambiguator(
     // keep track of which disambiguation dirs we've created
     private var disambiguationDirs: Set[Path] = Set.empty,
     // keep track of which Paths we've returned so we can detect collisions
-    private var localizedPaths: Set[Path] = existingPaths
+    private var localizedPaths: Set[Path] = Set.empty
 ) extends LocalizationDisambiguator {
 
   /**
