@@ -115,7 +115,7 @@ case class DxFolderSource(dxProject: DxProject)(
     protocol: DxFileAccessProtocol
 ) extends AddressableFileSource {
   private val targetPath = Paths.get(target)
-  assert(targetPath.isAbsolute)
+  assert(targetPath.isAbsolute, s"not an absolute path: ${targetPath}")
 
   override def address: String = s"dx://${dxProject.id}:${target}"
 
