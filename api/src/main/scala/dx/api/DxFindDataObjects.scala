@@ -1,8 +1,11 @@
 package dx.api
 
+import dx.util.Logger
 import spray.json._
 
-case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None) {
+case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
+                             limit: Option[Int] = None,
+                             logger: Logger = Logger.get) {
   private def parseDescribe(jsv: JsValue,
                             dxobj: DxDataObject,
                             dxProject: DxProject): DxObjectDescribe = {
@@ -269,7 +272,15 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get, limit: Option[Int] = None
           s"invalid class limitation ${invalidClasses.mkString(",")}; must be one of {record, file, applet, workflow}"
       )
     }
-    val scope: Option[JsValue] = dxProject.map(p => createScope(p, folder, recurse))
+    val scope: Option[JsValue] = dxProject match {
+      case Some(proj) => Some(createScope(proj, folder, recurse))
+      case None =>
+        logger.warning(
+            """Calling findDataObjects without a project can cause result in longer response times 
+              |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
+        )
+        None
+    }
     val allResults: Map[DxDataObject, DxObjectDescribe] = Iterator
       .unfold[Map[DxDataObject, DxObjectDescribe], Option[JsValue]](Some(JsNull)) {
         case None => None

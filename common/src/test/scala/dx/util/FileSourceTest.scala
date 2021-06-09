@@ -35,4 +35,22 @@ class FileSourceTest extends AnyFlatSpec with Matchers {
     val proto = getProtocol("file:///A.txt")
     proto.schemes.iterator sameElements Vector("", "file")
   }
+
+  it should "relativize local paths" in {
+    val d = resolver.resolveDirectory("/foo/bar")
+    val f1 = resolver.resolve("/foo/bar/baz.txt")
+    val f2 = resolver.resolve("/foo/bar/baz/blorf.txt")
+    d.relativize(f1) shouldBe "baz.txt"
+    d.relativize(f2) shouldBe "baz/blorf.txt"
+    f1.relativize(f2) shouldBe "baz/blorf.txt"
+  }
+
+  it should "relativize http paths" in {
+    val d = resolver.resolveDirectory("http://foo.com/bar/baz")
+    val f1 = resolver.resolve("http://foo.com/bar/baz/blorf.txt")
+    val f2 = resolver.resolve("http://foo.com/bar/baz/bork/blorf.txt")
+    d.relativize(f1) shouldBe "blorf.txt"
+    d.relativize(f2) shouldBe "bork/blorf.txt"
+    f1.relativize(f2) shouldBe "bork/blorf.txt"
+  }
 }
