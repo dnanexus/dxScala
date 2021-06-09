@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Fixes issues with local and http path relativization
+
 ## 0.4.0 (2021-05-26)
 
 * Adds `relativize` method to `AddressableFileSource`
