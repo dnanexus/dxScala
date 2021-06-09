@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.4.1 (2021-06-08)
 
 * Fixes issues with local and http path relativization
 
