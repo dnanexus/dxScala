@@ -1,9 +1,5 @@
 # dxApi
 
-## in develop
-
-* Adds warning when `findDataObjects` is called without a project
-
 ## 0.4.0 (2021-05-26)
 
 * Adds `tags` and `properties` parameters to the `DxApi.upload*` functions.
