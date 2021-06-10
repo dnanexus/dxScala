@@ -1,9 +1,8 @@
 package dx.api
 
-import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, SimpleFileVisitor}
+import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, Paths, SimpleFileVisitor}
 import java.nio.file.attribute.BasicFileAttributes
 import java.{util => javautil}
-
 import com.dnanexus.{DXAPI, DXEnvironment}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import dx.api.DxPath.DxPathComponents
@@ -62,6 +61,17 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private val DownloadRetryLimit = 3
   private val UploadRetryLimit = 3
   private val UploadWaitMillis = 1000
+  private val projectAndPathRegexp = "(?:(.+):)?(.+)".r
+
+  /**
+    * Calls 'dx pwd' and returns a tuple of (projectName, folder).
+    */
+  def getWorkingDir: (String, String) = {
+    SysUtils.execCommand("dx pwd") match {
+      case (_, projectAndPathRegexp(projName, path), _) => (projName, path)
+      case other                                        => throw new Exception(s"unexpected 'dx pwd' output ${other}")
+    }
+  }
 
   // We are expecting string like:
   //    record-FgG51b00xF63k86F13pqFv57
@@ -891,6 +901,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   /**
     * Uploads a local file to the platform, and returns a DxFile.
     * Calls `dx upload` in a subprocess.
+    * TODO: once https://jira.internal.dnanexus.com/browse/DEVEX-1939 is
+    *  implemented, load the returned JSON and cache it for describe
     */
   def uploadFile(path: Path,
                  destination: Option[String] = None,
@@ -899,6 +911,16 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
                  properties: Map[String, String] = Map.empty): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
+    }
+
+    val (destProj, _) = destination match {
+      case Some(projectAndPathRegexp(proj, path)) if path.endsWith("/") =>
+        (Option(proj), path)
+      case Some(projectAndPathRegexp(proj, path)) =>
+        (Option(proj), Paths.get(path).getParent.toString)
+      case None => (None, getWorkingDir._2)
+      case _ =>
+        throw new Exception(s"invalid destination ${destination}")
     }
 
     def uploadOneFile(path: Path): Option[String] = {
@@ -939,7 +961,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
         uploadOneFile(path) match {
-          case Some(fid) => Some(file(fid, None))
+          case Some(fid) => Some(file(fid, destProj.map(resolveProject)))
           case None      => None
         }
       }

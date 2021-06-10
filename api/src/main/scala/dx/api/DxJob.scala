@@ -16,22 +16,34 @@ case class DxJobDescribe(id: String,
                          output: Option[JsValue],
                          instanceType: Option[String],
                          folder: Option[String])
-    extends DxObjectDescribe
+    extends DxObjectDescribe {
+  override def containsAll(fields: Set[Field.Value]): Boolean = {
+    fields.diff(DxJobDescribe.RequiredFields).forall {
+      case Field.Properties   => properties.isDefined
+      case Field.Details      => details.isDefined
+      case Field.ParentJob    => parentJob.isDefined
+      case Field.Analysis     => analysis.isDefined
+      case Field.Executable   => executable.isDefined
+      case Field.Output       => output.isDefined
+      case Field.InstanceType => instanceType.isDefined
+      case Field.Folder       => folder.isDefined
+      case _                  => false
+    }
+  }
+}
+
+object DxJobDescribe {
+  val RequiredFields =
+    Set(Field.Id, Field.Name, Field.Project, Field.Created, Field.Modified, Field.ExecutableName)
+  val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.ParentJob, Field.Analysis)
+}
 
 case class DxJob(id: String, project: Option[DxProject] = None)(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxJobDescribe]
     with DxExecution {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxJobDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
-    val defaultFields = Set(Field.Id,
-                            Field.Name,
-                            Field.Project,
-                            Field.Created,
-                            Field.Modified,
-                            Field.ExecutableName,
-                            Field.ParentJob,
-                            Field.Analysis)
-    val allFields = fields ++ defaultFields
+    val allFields = fields ++ DxJobDescribe.DefaultFields
     val descJs =
       dxApi.jobDescribe(id, projSpec + ("fields" -> DxObject.requestFields(allFields)))
     DxJob.parseDescribeJson(descJs, dxApi)
