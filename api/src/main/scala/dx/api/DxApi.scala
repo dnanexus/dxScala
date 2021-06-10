@@ -982,7 +982,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
   private case class UploadFileVisitor(sourceDir: Path,
                                        destination: Option[String],
-                                       waitOnUpload: Boolean)
+                                       waitOnUpload: Boolean,
+                                       filter: Option[Path => Boolean])
       extends SimpleFileVisitor[Path] {
     private def ensureEndsWithSlash(path: String): String = {
       if (path.endsWith("/")) path else s"${path}/"
@@ -1010,11 +1011,13 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
 
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-      val fileRelPath = sourceDir.relativize(file)
-      val fileDestPath = s"${folder}${fileRelPath}"
-      val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
-      val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
-      uploadedFiles += (file -> dxFile)
+      if (filter.forall(f => f(file))) {
+        val fileRelPath = sourceDir.relativize(file)
+        val fileDestPath = s"${folder}${fileRelPath}"
+        val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
+        val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
+        uploadedFiles += (file -> dxFile)
+      }
       FileVisitResult.CONTINUE
     }
   }
@@ -1023,12 +1026,21 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     * Uploads all the files in a directory, and - if `recursive=true` - all
     * files in subfolders as well. Returns (projectId, folder, files), where
     * files is a Map from local path to DxFile.
+    * @param path directory to upload
+    * @param destination optional destination folder in the current project, or
+    *                    "project-xxx:/path/to/folder"
+    * @param recursive whether to upload all subdirectories
+    * @param wait whether to wait for each upload to complete
+    * @param filter optional filter function to determine which files to upload
     */
-  def uploadDirectory(path: Path,
-                      destination: Option[String] = None,
-                      recursive: Boolean = true,
-                      wait: Boolean = false): (Option[String], String, Map[Path, DxFile]) = {
-    val visitor = UploadFileVisitor(path, destination, wait)
+  def uploadDirectory(
+      path: Path,
+      destination: Option[String] = None,
+      recursive: Boolean = true,
+      wait: Boolean = false,
+      filter: Option[Path => Boolean]
+  ): (Option[String], String, Map[Path, DxFile]) = {
+    val visitor = UploadFileVisitor(path, destination, wait, filter)
     val maxDepth = if (recursive) Integer.MAX_VALUE else 0
     Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
     visitor.result
