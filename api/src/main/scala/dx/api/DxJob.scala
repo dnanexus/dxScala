@@ -14,7 +14,8 @@ case class DxJobDescribe(id: String,
                          analysis: Option[DxAnalysis],
                          executable: Option[DxExecutable],
                          output: Option[JsValue],
-                         instanceType: Option[String])
+                         instanceType: Option[String],
+                         folder: Option[String])
     extends DxObjectDescribe
 
 case class DxJob(id: String, project: Option[DxProject] = None)(dxApi: DxApi = DxApi.get)
@@ -59,6 +60,7 @@ object DxJob {
                         None,
                         None,
                         None,
+                        None,
                         None)
         case _ =>
           throw new Exception(s"Malformed JSON ${descJs}")
@@ -87,12 +89,18 @@ object DxJob {
       case None                         => None
       case other                        => throw new Exception(s"should be an instance type ${other}")
     }
+    val folder = descJs.fields.get("folder") match {
+      case Some(JsString(folder)) => Some(folder)
+      case None                   => None
+      case other                  => throw new Exception(s"should be a folder ${other}")
+    }
     desc.copy(details = details,
               properties = props,
               parentJob = parentJob,
               analysis = analysis,
               executable = executable,
               output = output,
-              instanceType = instanceType)
+              instanceType = instanceType,
+              folder = folder)
   }
 }
