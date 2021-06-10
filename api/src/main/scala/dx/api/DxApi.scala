@@ -1003,9 +1003,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       }
       .getOrElse((None, "/"))
 
-    private var uploadedFiles = Vector.empty[DxFile]
+    private var uploadedFiles = Map.empty[Path, DxFile]
 
-    def result: (Option[String], String, Vector[DxFile]) = {
+    def result: (Option[String], String, Map[Path, DxFile]) = {
       (projectId, folder, uploadedFiles)
     }
 
@@ -1014,19 +1014,20 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       val fileDestPath = s"${folder}${fileRelPath}"
       val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
       val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
-      uploadedFiles :+= dxFile
+      uploadedFiles += (file -> dxFile)
       FileVisitResult.CONTINUE
     }
   }
 
   /**
     * Uploads all the files in a directory, and - if `recursive=true` - all
-    * files in subfolders as well. Returns (projectId, folder, files).
+    * files in subfolders as well. Returns (projectId, folder, files), where
+    * files is a Map from local path to DxFile.
     */
   def uploadDirectory(path: Path,
                       destination: Option[String] = None,
                       recursive: Boolean = true,
-                      wait: Boolean = false): (Option[String], String, Vector[DxFile]) = {
+                      wait: Boolean = false): (Option[String], String, Map[Path, DxFile]) = {
     val visitor = UploadFileVisitor(path, destination, wait)
     val maxDepth = if (recursive) Integer.MAX_VALUE else 0
     Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
