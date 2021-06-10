@@ -5,7 +5,10 @@
 * Adds `folder` attribute to job description
 * Checks that all necessary fields are available when trying to used cached object descriptions
 * Creates `DxFile` with destination project when uploading to a destination project
-
+* Modifies `DxFile.uploadDirectory` signature:
+    * Optional `filter` parameter to upload only certain files in the directory
+    * Also returns mapping of local path to `DxFile`
+    
 ## 0.4.1 (2021-06-08)
 
 * Adds warning when `findDataObjects` is called without a project
