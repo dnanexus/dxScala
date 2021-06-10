@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Adds `folder` attribute to job description
+
 ## 0.4.1 (2021-06-08)
 
 * Adds warning when `findDataObjects` is called without a project
