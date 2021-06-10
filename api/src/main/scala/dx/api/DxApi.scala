@@ -1038,7 +1038,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       destination: Option[String] = None,
       recursive: Boolean = true,
       wait: Boolean = false,
-      filter: Option[Path => Boolean]
+      filter: Option[Path => Boolean] = None
   ): (Option[String], String, Map[Path, DxFile]) = {
     val visitor = UploadFileVisitor(path, destination, wait, filter)
     val maxDepth = if (recursive) Integer.MAX_VALUE else 0
