@@ -3,6 +3,8 @@
 ## in develop
 
 * Adds `folder` attribute to job description
+* Checks that all necessary fields are available when trying to used cached object descriptions
+* Creates `DxFile` with destination project when uploading to a destination project
 
 ## 0.4.1 (2021-06-08)
 
