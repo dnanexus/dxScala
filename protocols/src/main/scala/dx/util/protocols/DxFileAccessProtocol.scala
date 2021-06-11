@@ -297,6 +297,10 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   def fromDxFile(dxFile: DxFile): DxFileSource = {
     DxFileSource(dxFile, encoding)(dxFile.asUri, this)
   }
+
+  def fromDxFolder(projectId: String, folder: String): DxFolderSource = {
+    DxFolderSource(dxApi.project(projectId), folder)(this)
+  }
 }
 
 object DxFileAccessProtocol {
