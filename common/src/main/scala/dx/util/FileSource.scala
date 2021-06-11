@@ -632,7 +632,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
     protocolMap.contains(scheme)
   }
 
-  private[util] def getProtocolForScheme(scheme: String): FileAccessProtocol = {
+  def getProtocolForScheme(scheme: String): FileAccessProtocol = {
     protocolMap.get(scheme) match {
       case None        => throw NoSuchProtocolException(scheme)
       case Some(proto) => proto
