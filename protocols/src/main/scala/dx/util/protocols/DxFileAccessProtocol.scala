@@ -39,7 +39,7 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   }
 
   override def getParent: Option[DxFolderSource] = {
-    Some(DxFolderSource(dxProject)(folder, protocol))
+    Some(DxFolderSource(dxProject, folder)(protocol))
   }
 
   override def resolve(path: String): AddressableFileSource = {
@@ -110,8 +110,7 @@ case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends Addressable
   *               a '/' (e.g. /a/b/c/)
   * @param protocol DxFileAccessProtocol
   */
-case class DxFolderSource(dxProject: DxProject)(
-    target: String,
+case class DxFolderSource(dxProject: DxProject, target: String)(
     protocol: DxFileAccessProtocol
 ) extends AddressableFileSource {
   private val targetPath = Paths.get(target)
@@ -144,13 +143,13 @@ case class DxFolderSource(dxProject: DxProject)(
       None
     } else {
       val parent = DxFolderSource.ensureEndsWithSlash(folder)
-      Some(DxFolderSource(dxProject)(parent, protocol))
+      Some(DxFolderSource(dxProject, parent)(protocol))
     }
   }
 
   override def resolve(path: String): AddressableFileSource = {
     if (path.endsWith("/")) {
-      DxFolderSource(dxProject)(s"${target}${path}", protocol)
+      DxFolderSource(dxProject, s"${target}${path}")(protocol)
     } else {
       val uri = s"dx://${dxProject.id}:${target}${path}"
       protocol.resolve(uri)
@@ -206,7 +205,7 @@ case class DxFolderSource(dxProject: DxProject)(
     val targetPath = Paths.get(target)
     val folders = filesByFolder.keys.collect {
       case folder if targetPath.relativize(Paths.get(folder)).getNameCount == 1 =>
-        DxFolderSource(dxProject)(folder, protocol)
+        DxFolderSource(dxProject, folder)(protocol)
     }
     files ++ folders
   }
@@ -285,7 +284,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
       val project = projectName
         .map(dxApi.resolveProject)
         .getOrElse(throw new Exception("project must be specified for a DNAnexus folder URI"))
-      DxFolderSource(project)(folder, this)
+      DxFolderSource(project, folder)(this)
     } else {
       DxArchiveFolderSource(resolveFile(uri))
     }

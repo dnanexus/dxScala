@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## in develop
+
+* Exposes target folder in `DxFolderSource`
+
 ## 0.3.1 (2021-06-08)
 
 * Update dependencies
