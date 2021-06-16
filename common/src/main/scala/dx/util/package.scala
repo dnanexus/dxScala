@@ -90,7 +90,7 @@ package object util {
               case kvs =>
                 // there is more than one field, build up the field names and values
                 val prettyFields = kvs.map {
-                  case (k, v) => s"${fieldIndent}${k} = ${nextDepth(v)}"
+                  case (k, v) => s"${k} = ${nextDepth(v)}"
                 }
                 // if the result is not too long, pretty print on one line.
                 val resultOneLine = s"${p.productPrefix}(${prettyFields.mkString(", ")})"
@@ -98,7 +98,7 @@ package object util {
                   resultOneLine
                 } else {
                   // Otherwise, build it with newlines and proper field indents.
-                  s"${p.productPrefix}(\n${prettyFields.mkString(",\n")}\n${indent})"
+                  s"${p.productPrefix}(\n${prettyFields.map(f => s"${fieldIndent}${f}").mkString(",\n")}\n${indent})"
                 }
             }
         }

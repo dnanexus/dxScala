@@ -4,7 +4,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 case class Foo(s1: String, s2: String)(val hidden: Int = 1)
-case class Bar(foo: Foo)
+case class Bar(s3: String)
+case class Baz(foo: Foo, bar: Bar)
 
 class PackageTest extends AnyFlatSpec with Matchers {
   it should "generate a brief exception message" in {
@@ -22,13 +23,14 @@ class PackageTest extends AnyFlatSpec with Matchers {
   }
 
   it should "pretty format a case class" in {
-    val bar = Bar(Foo("value1", "value2")())
-    prettyFormat(bar, maxElementWidth = 4) shouldBe
-      """Bar(
+    val bar = Baz(Foo("value1", "value2")(), bar = Bar("value3"))
+    prettyFormat(bar, maxElementWidth = 26) shouldBe
+      """Baz(
         |  foo = Foo(
         |    s1 = "value1",
         |    s2 = "value2"
-        |  )
+        |  ),
+        |  bar = Bar(s3 = "value3")
         |)""".stripMargin
   }
 }
