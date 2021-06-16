@@ -14,16 +14,31 @@ case class DxAnalysisDescribe(project: String,
                               input: Option[JsValue],
                               output: Option[JsValue],
                               dependsOn: Option[Vector[String]])
-    extends DxObjectDescribe
+    extends DxObjectDescribe {
+  override def containsAll(fields: Set[Field.Value]): Boolean = {
+    fields.diff(DxAnalysisDescribe.DefaultFields).forall {
+      case Field.ExecutableName => executableName.isDefined
+      case Field.Properties     => properties.isDefined
+      case Field.Details        => details.isDefined
+      case Field.Input          => input.isDefined
+      case Field.Output         => output.isDefined
+      case Field.DependsOn      => dependsOn.isDefined
+      case _                    => false
+    }
+  }
+}
+
+object DxAnalysisDescribe {
+  val DefaultFields =
+    Set(Field.Project, Field.Id, Field.Name, Field.Folder, Field.Created, Field.Modified)
+}
 
 case class DxAnalysis(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxAnalysisDescribe]
     with DxExecution {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxAnalysisDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
-    val defaultFields =
-      Set(Field.Project, Field.Id, Field.Name, Field.Folder, Field.Created, Field.Modified)
-    val allFields = fields ++ defaultFields
+    val allFields = fields ++ DxAnalysisDescribe.DefaultFields
     val request = projSpec + ("fields" -> DxObject.requestFields(allFields))
     val descJs = dxApi.analysisDescribe(id, request)
     DxAnalysis.parseDescribeJson(descJs)

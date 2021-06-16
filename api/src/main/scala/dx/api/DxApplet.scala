@@ -22,7 +22,32 @@ case class DxAppletDescribe(project: String,
                             runSpec: Option[JsValue] = None,
                             access: Option[JsValue] = None,
                             ignoreReuse: Option[Boolean] = None)
-    extends DxObjectDescribe
+    extends DxObjectDescribe {
+  override def containsAll(fields: Set[Field.Value]): Boolean = {
+    fields.diff(DxAppletDescribe.RequiredFields).forall {
+      case Field.Properties     => properties.isDefined
+      case Field.Details        => details.isDefined
+      case Field.InputSpec      => inputSpec.isDefined
+      case Field.OutputSpec     => outputSpec.isDefined
+      case Field.Description    => description.isDefined
+      case Field.DeveloperNotes => developerNotes.isDefined
+      case Field.Summary        => summary.isDefined
+      case Field.Title          => title.isDefined
+      case Field.Types          => types.isDefined
+      case Field.Tags           => tags.isDefined
+      case Field.RunSpec        => runSpec.isDefined
+      case Field.Access         => access.isDefined
+      case Field.IgnoreReuse    => ignoreReuse.isDefined
+      case _                    => false
+    }
+  }
+}
+
+object DxAppletDescribe {
+  val RequiredFields =
+    Set(Field.Project, Field.Id, Field.Name, Field.Folder, Field.Created, Field.Modified)
+  val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.InputSpec, Field.OutputSpec)
+}
 
 case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxAppletDescribe]
@@ -30,15 +55,7 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
     with DxExecutable {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxAppletDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
-    val defaultFields = Set(Field.Project,
-                            Field.Id,
-                            Field.Name,
-                            Field.Folder,
-                            Field.Created,
-                            Field.Modified,
-                            Field.InputSpec,
-                            Field.OutputSpec)
-    val allFields = fields ++ defaultFields
+    val allFields = fields ++ DxAppletDescribe.DefaultFields
     val descJs =
       dxApi.appletDescribe(id, projSpec + ("fields" -> DxObject.requestFields(allFields)))
     val desc = descJs.getFields("project",

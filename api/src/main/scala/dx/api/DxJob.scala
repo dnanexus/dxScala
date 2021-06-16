@@ -14,23 +14,36 @@ case class DxJobDescribe(id: String,
                          analysis: Option[DxAnalysis],
                          executable: Option[DxExecutable],
                          output: Option[JsValue],
-                         instanceType: Option[String])
-    extends DxObjectDescribe
+                         instanceType: Option[String],
+                         folder: Option[String])
+    extends DxObjectDescribe {
+  override def containsAll(fields: Set[Field.Value]): Boolean = {
+    fields.diff(DxJobDescribe.RequiredFields).forall {
+      case Field.Properties   => properties.isDefined
+      case Field.Details      => details.isDefined
+      case Field.ParentJob    => parentJob.isDefined
+      case Field.Analysis     => analysis.isDefined
+      case Field.Executable   => executable.isDefined
+      case Field.Output       => output.isDefined
+      case Field.InstanceType => instanceType.isDefined
+      case Field.Folder       => folder.isDefined
+      case _                  => false
+    }
+  }
+}
+
+object DxJobDescribe {
+  val RequiredFields =
+    Set(Field.Id, Field.Name, Field.Project, Field.Created, Field.Modified, Field.ExecutableName)
+  val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.ParentJob, Field.Analysis)
+}
 
 case class DxJob(id: String, project: Option[DxProject] = None)(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxJobDescribe]
     with DxExecution {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxJobDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
-    val defaultFields = Set(Field.Id,
-                            Field.Name,
-                            Field.Project,
-                            Field.Created,
-                            Field.Modified,
-                            Field.ExecutableName,
-                            Field.ParentJob,
-                            Field.Analysis)
-    val allFields = fields ++ defaultFields
+    val allFields = fields ++ DxJobDescribe.DefaultFields
     val descJs =
       dxApi.jobDescribe(id, projSpec + ("fields" -> DxObject.requestFields(allFields)))
     DxJob.parseDescribeJson(descJs, dxApi)
@@ -55,6 +68,7 @@ object DxJob {
                         None,
                         None,
                         executableName,
+                        None,
                         None,
                         None,
                         None,
@@ -87,12 +101,18 @@ object DxJob {
       case None                         => None
       case other                        => throw new Exception(s"should be an instance type ${other}")
     }
+    val folder = descJs.fields.get("folder") match {
+      case Some(JsString(folder)) => Some(folder)
+      case None                   => None
+      case other                  => throw new Exception(s"should be a folder ${other}")
+    }
     desc.copy(details = details,
               properties = props,
               parentJob = parentJob,
               analysis = analysis,
               executable = executable,
               output = output,
-              instanceType = instanceType)
+              instanceType = instanceType,
+              folder = folder)
   }
 }

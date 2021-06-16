@@ -12,15 +12,29 @@ case class DxAppDescribe(id: String,
                          inputSpec: Option[Vector[IOParameter]],
                          outputSpec: Option[Vector[IOParameter]],
                          access: Option[JsValue] = None)
-    extends DxObjectDescribe
+    extends DxObjectDescribe {
+  override def containsAll(fields: Set[Field.Value]): Boolean = {
+    fields.diff(DxAppDescribe.RequiredFields).forall {
+      case Field.Properties => properties.isDefined
+      case Field.Details    => details.isDefined
+      case Field.InputSpec  => inputSpec.isDefined
+      case Field.OutputSpec => outputSpec.isDefined
+      case Field.Access     => access.isDefined
+      case _                => false
+    }
+  }
+}
+
+object DxAppDescribe {
+  val RequiredFields = Set(Field.Id, Field.Name, Field.Created, Field.Modified)
+  val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.InputSpec, Field.OutputSpec)
+}
 
 case class DxApp(id: String)(dxApi: DxApi = DxApi.get)
     extends CachingDxObject[DxAppDescribe]
     with DxExecutable {
   override def describeNoCache(fields: Set[Field.Value] = Set.empty): DxAppDescribe = {
-    val defaultFields =
-      Set(Field.Id, Field.Name, Field.Created, Field.Modified, Field.InputSpec, Field.OutputSpec)
-    val allFields = fields ++ defaultFields
+    val allFields = fields ++ DxAppDescribe.DefaultFields
     val descJs = dxApi.appDescribe(id, Map("fields" -> DxObject.requestFields(allFields)))
     DxApp.parseDescribeJson(descJs, dxApi)
   }
