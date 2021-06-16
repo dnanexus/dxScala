@@ -63,4 +63,18 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
       disambiguator.localize("bar.txt", "container", Some("1.1"))
     }
   }
+
+  it should "throw exception when files with the same name are forced to the same dir" in {
+    val root = Files.createTempDirectory("root")
+    root.toFile.deleteOnExit()
+    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val fileResolver = FileSourceResolver.get
+    val fs1 = fileResolver.fromPath(Paths.get("/foo/bar.txt"))
+    val fs2 = fileResolver.fromPath(Paths.get("/baz/bar.txt"))
+    val defaultDir = root.resolve("default")
+    disambiguator.getLocalPath(fs1, Some(defaultDir))
+    assertThrows[Exception] {
+      disambiguator.getLocalPath(fs2, Some(defaultDir))
+    }
+  }
 }
