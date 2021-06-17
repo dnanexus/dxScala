@@ -3,10 +3,20 @@ package dx.util
 import java.io.{ByteArrayOutputStream, FileNotFoundException, FileOutputStream, OutputStream}
 import java.net.{HttpURLConnection, URI}
 import java.nio.charset.Charset
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.nio.file.{
+  FileAlreadyExistsException,
+  FileVisitOption,
+  FileVisitResult,
+  Files,
+  Path,
+  Paths,
+  SimpleFileVisitor
+}
+import java.nio.file.attribute.BasicFileAttributes
+import java.{util => javautil}
+
 import dx.util.FileUtils.{FileScheme, getUriScheme}
 
-import scala.collection.immutable.ArraySeq
 import scala.io.Source
 import scala.reflect.ClassTag
 
@@ -40,7 +50,10 @@ trait FileSource {
   protected def localizeTo(file: Path): Unit
 
   /**
-    * Localizes this FileSource to the specified path.
+    * Localizes this FileSource to the specified path. The current contents
+    * of the file/directory are localized; there is no guarantee that the
+    * contents will be the same later (i.e. there is no requirement to keep
+    * the local and source copies in sync).
     * @param path destination path
     * @param overwrite whether to overwrite any existing file/directory
     * @return the absolute destination path
@@ -57,7 +70,10 @@ trait FileSource {
   }
 
   /**
-    * Localizes this FileSource to the specified parent directory.
+    * Localizes this FileSource to the specified parent directory. The current
+    * contents of the file/directory are localized; there is no guarantee that
+    * the contents will be the same later (i.e. there is no requirement to keep
+    * the local and source copies in sync).
     * @param dir the destination parent directory
     * @param overwrite whether to overwrite any existing file/directory
     * @return the absolute destination path
@@ -67,10 +83,21 @@ trait FileSource {
   }
 
   /**
-    * If `isDirectory=true`, returns a Vector of all the files/directories
-    * in this directory; otherwise throws NotImplemented.
+    * Whether `listing` may be called.
     */
-  def listing: Vector[FileSource] = ???
+  def isListable: Boolean = false
+
+  /**
+    * If `isDirectory=true` and `isListable=true`, returns a Vector of
+    * all the files/directories in this directory; otherwise throws
+    * UnsupportedOperationException. The listing reflects the current
+    * contents of the directory. If `recursive=true`, the recursive listing
+    * of this directory is cached and used to construct the listings of any
+    * nested directories.
+    */
+  def listing(recursive: Boolean = false): Vector[FileSource] = {
+    throw new UnsupportedOperationException
+  }
 }
 
 /**
@@ -251,7 +278,11 @@ case class LocalFileSource(
     canonicalPath: Path,
     override val encoding: Charset,
     override val isDirectory: Boolean
-)(override val address: String, val originalPath: Path, logger: Logger)
+)(override val address: String,
+  val originalPath: Path,
+  private val cachedParent: Option[LocalFileSource] = None,
+  private var cachedListing: Option[Vector[FileSource]] = None,
+  logger: Logger)
     extends AbstractAddressableFileNode(address, encoding) {
 
   override lazy val name: String = canonicalPath.getFileName.toString
@@ -269,30 +300,38 @@ case class LocalFileSource(
   override lazy val uri: URI = canonicalPath.toUri
 
   override def exists: Boolean = {
-    canonicalPath.toFile.exists()
+    Files.exists(canonicalPath)
   }
 
   override def getParent: Option[LocalFileSource] = {
-    canonicalPath.getParent match {
-      case null => None
-      case parent =>
-        Some(LocalFileSource(parent, encoding, isDirectory = true)(parent.toString, parent, logger))
-    }
+    cachedParent.orElse(Option(canonicalPath.getParent).map { parent =>
+      LocalFileSource(parent, encoding, isDirectory = true)(parent.toString,
+                                                            parent,
+                                                            logger = logger)
+
+    })
   }
 
   override def resolve(path: String): LocalFileSource = {
-    val parent = if (isDirectory) {
-      canonicalPath
-    } else {
-      canonicalPath.getParent
-    }
-    val newPath = parent.resolve(path)
-    val newIsDirectory = newPath.toFile match {
-      case f if f.exists()         => f.isDirectory
-      case _ if path.endsWith("/") => true
-      case _                       => false
-    }
-    LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString, newPath, logger)
+    val parent = if (isDirectory) this else getParent.get
+    val newPath = parent.canonicalPath.resolve(path)
+    cachedListing
+      .flatMap { listing =>
+        listing.collectFirst {
+          case fs: LocalFileSource if fs.canonicalPath == newPath => fs
+        }
+      }
+      .getOrElse {
+        val newIsDirectory = newPath.toFile match {
+          case f if f.exists()         => f.isDirectory
+          case _ if path.endsWith("/") => true
+          case _                       => false
+        }
+        LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString,
+                                                           newPath,
+                                                           cachedParent = Some(parent),
+                                                           logger = logger)
+      }
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -306,12 +345,16 @@ case class LocalFileSource(
     }
   }
 
-  def checkExists(exists: Boolean): Unit = {
-    val existing = Files.exists(canonicalPath)
-    if (exists && !existing) {
+  /**
+    * Check that `exists` equals the given expected value, otherwise
+    * throws an exception.
+    */
+  def checkExists(expected: Boolean): Unit = {
+    val existing = exists
+    if (expected && !existing) {
       throw new FileNotFoundException(s"Path does not exist ${canonicalPath}")
     }
-    if (!exists && existing) {
+    if (!expected && existing) {
       throw new FileAlreadyExistsException(s"Path already exists ${canonicalPath}")
     }
   }
@@ -355,28 +398,71 @@ case class LocalFileSource(
     }
   }
 
-  /**
-    * If `isDirectory=true`, returns a Vector of all the files/directories
-    * in this directory; otherwise throws NotImplemented.
-    */
-  override def listing: Vector[FileSource] = {
-    if (isDirectory) {
-      val dir = canonicalPath.toFile
-      if (dir.exists()) {
-        ArraySeq.unsafeWrapArray(dir.listFiles()).toVector.map { file =>
-          val path = file.toPath
-          LocalFileSource(LocalFileSource.resolve(path), encoding, isDirectory = file.isDirectory)(
-              path.toUri.toString,
-              path,
-              logger
-          )
-        }
-      } else {
-        throw new Exception(s"directory ${canonicalPath} does not exist")
-      }
-    } else {
-      throw new UnsupportedOperationException()
+  override def isListable: Boolean = isDirectory
+
+  private class ListingFileVisitor extends SimpleFileVisitor[Path] {
+    private var dirs = Map.empty[Path, Vector[Path]]
+
+    override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult = {
+      // add an entry for this directory to the map, and if we've already seen the parent,
+      // add this directory to its children
+      dirs ++= Vector(
+          Option(dir.getParent).flatMap(p => dirs.get(p).map(p -> _)).map {
+            case (parent, children) => parent -> (children :+ dir)
+          },
+          Some(dir -> Vector.empty[Path])
+      ).flatten.toMap
+      FileVisitResult.CONTINUE
     }
+
+    override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
+      // add the file to its parent directory's children
+      val parent = file.getParent
+      dirs += (parent -> (dirs(parent) :+ file))
+      FileVisitResult.CONTINUE
+    }
+
+    def buildListing(parent: LocalFileSource): Option[Vector[FileSource]] = {
+      dirs.get(parent.canonicalPath).map { children =>
+        children.map {
+          case dir if Files.isDirectory(dir) =>
+            val dirSource =
+              LocalFileSource(LocalFileSource.resolve(dir), encoding, isDirectory = true)(
+                  dir.toUri.toString,
+                  dir,
+                  cachedParent = Some(parent),
+                  logger = logger
+              )
+            dirSource.cachedListing = buildListing(dirSource)
+            dirSource
+          case file =>
+            LocalFileSource(LocalFileSource.resolve(file), encoding, isDirectory = false)(
+                file.toUri.toString,
+                file,
+                cachedParent = Some(parent),
+                logger = logger
+            )
+        }
+      }
+    }
+  }
+
+  override def listing(recursive: Boolean = false): Vector[FileSource] = {
+    cachedListing
+      .orElse(
+          Option
+            .when(isDirectory && exists) {
+              val visitor = new ListingFileVisitor
+              val maxDepth = if (recursive) Integer.MAX_VALUE else 1
+              Files.walkFileTree(canonicalPath,
+                                 javautil.EnumSet.noneOf(classOf[FileVisitOption]),
+                                 maxDepth,
+                                 visitor)
+              visitor.buildListing(this)
+            }
+            .flatten
+      )
+      .getOrElse(throw new UnsupportedOperationException())
   }
 }
 
@@ -421,17 +507,24 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
 
   def resolvePath(path: Path,
                   value: Option[String] = None,
-                  isDirectory: Boolean = false): LocalFileSource = {
+                  isDirectory: Option[Boolean] = None): LocalFileSource = {
     val resolved = LocalFileSource.resolve(path, searchPath)
-    LocalFileSource(resolved, encoding, isDirectory)(value.getOrElse(path.toString), path, logger)
+    val isDir = isDirectory
+      .orElse(Option.when(Files.exists(resolved))(Files.isDirectory(resolved)))
+      .getOrElse(
+          throw new Exception("'isDirectory' must be specified for a non-existing path")
+      )
+    LocalFileSource(resolved, encoding, isDir)(value.getOrElse(path.toString),
+                                               path,
+                                               logger = logger)
   }
 
   def resolve(address: String): LocalFileSource = {
-    resolvePath(addressToPath(address), Some(address))
+    resolvePath(addressToPath(address), Some(address), isDirectory = Some(false))
   }
 
   override def resolveDirectory(address: String): LocalFileSource = {
-    resolvePath(addressToPath(address), Some(address), isDirectory = true)
+    resolvePath(addressToPath(address), Some(address), isDirectory = Some(true))
   }
 }
 
@@ -655,7 +748,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
             // the imported file is not relative to the parent, but
             // but LocalFileAccessProtocol may be configured to look
             // for it in a different folder
-            fromPath(Paths.get(address))
+            fromFile(Paths.get(address))
           case other =>
             throw new Exception(s"Not an AddressableFileNode: ${other}")
         }
@@ -682,7 +775,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
             // the imported file is not relative to the parent, but
             // but LocalFileAccessProtocol may be configured to look
             // for it in a different folder
-            fromPath(Paths.get(address))
+            fromFile(Paths.get(address))
           case other =>
             throw new Exception(s"Not an AddressableFileNode: ${other}")
         }
@@ -691,13 +784,17 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
     }
   }
 
-  def fromPath(path: Path): LocalFileSource = {
+  def fromPath(path: Path, isDirectory: Option[Boolean] = None): LocalFileSource = {
     getProtocolForScheme(FileUtils.FileScheme) match {
       case proto: LocalFileAccessProtocol =>
-        proto.resolvePath(path)
+        proto.resolvePath(path, isDirectory = isDirectory)
       case other =>
         throw new RuntimeException(s"Expected LocalFileAccessProtocol not ${other}")
     }
+  }
+
+  def fromFile(path: Path): LocalFileSource = {
+    fromPath(path, isDirectory = Some(false))
   }
 
   def localSearchPath: Vector[Path] = {

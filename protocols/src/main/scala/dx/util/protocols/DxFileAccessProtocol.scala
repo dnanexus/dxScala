@@ -170,10 +170,8 @@ case class DxFolderSource(dxProject: DxProject, target: String)(
   }
 
   private lazy val deepListing: Vector[(DxFile, Path)] = {
-    val results =
-      DxFindDataObjects(protocol.dxApi)
-        .apply(Some(dxProject), Some(target), recurse = true, Some("file"))
-    val targetPath = Paths.get(target)
+    val results = DxFindDataObjects(protocol.dxApi)
+      .apply(Some(dxProject), Some(target), recurse = true, Some("file"))
     results.map {
       case (f: DxFile, _) =>
         val relPath = targetPath.relativize(Paths.get(f.describe().folder))
@@ -189,6 +187,8 @@ case class DxFolderSource(dxProject: DxProject, target: String)(
         protocol.dxApi.downloadFile(path, dxFile, overwrite = true)
     }
   }
+
+  override val isListable: Boolean = true
 
   override def listing: Vector[FileSource] = {
     val filesByFolder = deepListing.groupBy {

@@ -175,6 +175,8 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     }
   }
 
+  override val isListable: Boolean = true
+
   override def listing: Vector[FileSource] = {
     val sourcePath = Paths.get(prefix)
     val relPaths = listPrefix.map(s3obj => sourcePath.relativize(Paths.get(s3obj.key())) -> s3obj)
