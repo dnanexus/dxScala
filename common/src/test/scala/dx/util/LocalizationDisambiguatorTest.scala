@@ -49,18 +49,32 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
     val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
-    val v1Path = disambiguator.getLocalPath("foo.txt", "container", Some("1.0"))
+    val v1Path = disambiguator.localize("foo.txt", "container", Some("1.0"))
     // the first file should not have a version specifier
     v1Path.getParent.getFileName.toString should not be "1.0"
-    val v2Path = disambiguator.getLocalPath("foo.txt", "container", Some("1.1"))
+    val v2Path = disambiguator.localize("foo.txt", "container", Some("1.1"))
     // the second file should have a version specifier
     v2Path.getParent.getFileName.toString shouldBe "1.1"
     // a third file with a different name bug same version should be in the same version directory
-    val v3Path = disambiguator.getLocalPath("bar.txt", "container", Some("1.1"))
+    val v3Path = disambiguator.localize("bar.txt", "container", Some("1.1"))
     v2Path.getParent shouldBe v3Path.getParent
     // an exact name and version collision should throw an error
     assertThrows[Exception] {
-      disambiguator.getLocalPath("bar.txt", "container", Some("1.1"))
+      disambiguator.localize("bar.txt", "container", Some("1.1"))
+    }
+  }
+
+  it should "throw exception when files with the same name are forced to the same dir" in {
+    val root = Files.createTempDirectory("root")
+    root.toFile.deleteOnExit()
+    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val fileResolver = FileSourceResolver.get
+    val fs1 = fileResolver.fromPath(Paths.get("/foo/bar.txt"))
+    val fs2 = fileResolver.fromPath(Paths.get("/baz/bar.txt"))
+    val defaultDir = root.resolve("default")
+    disambiguator.getLocalPath(fs1, Some(defaultDir))
+    assertThrows[Exception] {
+      disambiguator.getLocalPath(fs2, Some(defaultDir))
     }
   }
 }

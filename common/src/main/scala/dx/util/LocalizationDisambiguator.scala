@@ -9,14 +9,21 @@ trait LocalizationDisambiguator {
 
   /**
     * Returns a unique local path for a single source file.
+    * @param fileSource `AddressableFileSource` to localize
+    * @param localizationDir optional directory where files must be localized;
+    *                        and exception is thrown if there is a name collision
     */
-  def getLocalPath(fileSource: AddressableFileSource): Path
+  def getLocalPath(fileSource: AddressableFileSource, localizationDir: Option[Path] = None): Path
 
   /**
     * Returns a mapping of file source to unique local path.
     * This method is only meant to be called a single time for a given instance.
+    * @param fileSources `AddressableFileSource`s to localize
+    * @param localizationDir optional directory where files must be localized;
+    *                        and exception is thrown if there is a name collision
     */
-  def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path]
+  def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T],
+                                                localizationDir: Option[Path] = None): Map[T, Path]
 }
 
 /**
@@ -110,16 +117,20 @@ case class SafeLocalizationDisambiguator(
     *                        same directory.
     * @param version an optional file version, in the case that the source file system
     *                uses versioning
-    * @param commonDir the common directory where files should be placed unless
-    *                  they name-collide with another file in the common directory;
+    * @param defaultDir the directory where files should be placed unless
+    *                  they name-collide with another file in the directory;
     *                  if None, each sourceContainer will map to a separate
     *                  local directory.
+    * @param force whether to force the use of `defaultDir` - if true and there is a name
+    *              collision, an exception is thrown rather than using a disambiguation
+    *              directory.
     * @return the local path
     */
-  def getLocalPath(name: String,
-                   sourceContainer: String,
-                   version: Option[String] = None,
-                   commonDir: Option[Path] = None): Path = {
+  private[util] def localize(name: String,
+                             sourceContainer: String,
+                             version: Option[String] = None,
+                             defaultDir: Option[Path] = None,
+                             force: Boolean = false): Path = {
     logger.trace(s"getting local path for '${name}' from source container '${sourceContainer}''")
     val namePath = Paths.get(name)
     if (namePath.isAbsolute) {
@@ -176,11 +187,17 @@ case class SafeLocalizationDisambiguator(
           case None =>
             // we have not seen the source container before - place the file in
             // the common dir if possible, otherwise a disambiguating subdir
-            commonDir.map(_.resolve(namePath)) match {
+            defaultDir.map(_.resolve(namePath)) match {
               case Some(localPath) if !exists(localPath) =>
-                logger.trace(s"  localizing to common directory ${commonDir}")
-                sourceToTarget += ((sourceContainer, None) -> commonDir.get)
+                logger.trace(s"  localizing to default directory ${defaultDir}")
+                sourceToTarget += ((sourceContainer, None) -> defaultDir.get)
                 localPath
+              case Some(_) if force =>
+                throw new FileAlreadyExistsException(
+                    s"""Trying to localize ${name} from ${sourceContainer} to default directory 
+                       |${defaultDir.get} but a file with that name already exists in that 
+                       |directory and 'force' is true""".stripMargin
+                )
               case _ if canCreateDisambiguationDir =>
                 // create a new disambiguation dir
                 val newDir = createDisambiguationDir
@@ -209,8 +226,9 @@ case class SafeLocalizationDisambiguator(
     * name collision, a separate disambiguation dir is created for each
     * source folder regardless of the value of `separateDirsBySource`.
     */
-  override def getLocalPath(source: AddressableFileSource): Path = {
-    getLocalPath(source.name, source.container, source.version)
+  override def getLocalPath(source: AddressableFileSource,
+                            localizationDir: Option[Path] = None): Path = {
+    localize(source.name, source.container, source.version, localizationDir, force = true)
   }
 
   /**
@@ -219,24 +237,32 @@ case class SafeLocalizationDisambiguator(
     * the file with a collision is placed in a separate dir along with any other
     * files that came from the same source.
     */
-  override def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T]): Map[T, Path] = {
+  override def getLocalPaths[T <: AddressableFileSource](
+      fileSources: Iterable[T],
+      localizationDir: Option[Path] = None
+  ): Map[T, Path] = {
     if (separateDirsBySource) {
       fileSources.map(fs => fs -> getLocalPath(fs)).toMap
     } else {
       val (duplicates, singletons) = fileSources.groupBy(_.name).partition {
         case (_, sources) => sources.size > 1
       }
-      val (separateSourceToPath, addToCommon) = if (duplicates.nonEmpty) {
+      val (separateSourceToPath, addToDefault) = if (duplicates.nonEmpty) {
         val duplicateFolders = duplicates.values.flatten.map(_.folder).toSet
-        val (separate, common) = fileSources.partition(fs => duplicateFolders.contains(fs.folder))
-        (separate.map(fs => fs -> getLocalPath(fs.name, fs.folder)).toMap, common)
+        val (separate, default) = fileSources.partition(fs => duplicateFolders.contains(fs.folder))
+        (separate.map { fs =>
+          fs -> localize(fs.name, fs.folder, defaultDir = localizationDir, force = true)
+        }.toMap, default)
       } else {
         (Map.empty[T, Path], singletons.values.flatten)
       }
-      val commonDir = Some(createDisambiguationDir)
+      val (defaultDir, force) = localizationDir match {
+        case Some(dir) => (dir, true)
+        case None      => (createDisambiguationDir, false)
+      }
       val commonSourceToPath =
-        addToCommon.map { fs =>
-          fs -> getLocalPath(fs.name, fs.container, fs.version, commonDir)
+        addToDefault.map { fs =>
+          fs -> localize(fs.name, fs.container, fs.version, Some(defaultDir), force)
         }.toMap
       commonSourceToPath ++ separateSourceToPath
     }
