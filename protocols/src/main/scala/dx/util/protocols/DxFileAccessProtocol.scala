@@ -18,7 +18,8 @@ import java.net.URI
 
 case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
     override val address: String,
-    protocol: DxFileAccessProtocol
+    protocol: DxFileAccessProtocol,
+    private val cachedParent: Option[DxFolderSource] = None
 ) extends AbstractAddressableFileNode(address, encoding) {
 
   override def name: String = dxFile.getName
@@ -39,7 +40,9 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   }
 
   override def getParent: Option[DxFolderSource] = {
-    Some(DxFolderSource(dxProject, folder)(protocol))
+    cachedParent.orElse(
+        Some(DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(folder))(protocol))
+    )
   }
 
   override def resolve(path: String): AddressableFileSource = {
@@ -60,6 +63,10 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
 
   override protected def localizeTo(file: Path): Unit = {
     protocol.dxApi.downloadFile(file, dxFile, overwrite = true)
+  }
+
+  private[protocols] def copyWithParent(parent: DxFolderSource): DxFileSource = {
+    copy()(address, protocol, Some(parent))
   }
 }
 
@@ -101,26 +108,34 @@ case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends Addressable
       tempfile.toFile.delete()
     }
   }
+
+  private[protocols] def copyWithParent(parent: DxFolderSource): DxArchiveFolderSource = {
+    copy(dxFileSource.copyWithParent(parent))
+  }
 }
 
 /**
   * Represents a folder in a DNAnexus project.
   * @param dxProject the DNAnexus project (`DxProject`) object
-  * @param target the absolute target folder - must terminate with
+  * @param dxFolder the absolute target folder - must terminate with
   *               a '/' (e.g. /a/b/c/)
   * @param protocol DxFileAccessProtocol
   */
-case class DxFolderSource(dxProject: DxProject, target: String)(
-    protocol: DxFileAccessProtocol
+case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
+    protocol: DxFileAccessProtocol,
+    private val cachedParent: Option[DxFolderSource] = None,
+    private var cachedListing: Option[Vector[FileSource]] = None
 ) extends AddressableFileSource {
-  private val targetPath = Paths.get(target)
-  assert(targetPath.isAbsolute, s"not an absolute path: ${targetPath}")
+  private val dxFolderPath = Paths.get(dxFolder)
+  assert(dxFolderPath.isAbsolute, s"not an absolute path: ${dxFolderPath}")
+  assert(dxFolder.endsWith("/"), "dx folder must end with '/'")
 
-  override def address: String = s"dx://${dxProject.id}:${target}"
+  override def address: String =
+    s"dx://${dxProject.id}:${DxFolderSource.ensureEndsWithSlash(dxFolder)}"
 
-  override def name: String = targetPath.getFileName.toString
+  override def name: String = dxFolderPath.getFileName.toString
 
-  override def folder: String = targetPath.getParent match {
+  override def folder: String = dxFolderPath.getParent match {
     case null   => ""
     case parent => parent.toString
   }
@@ -131,7 +146,7 @@ case class DxFolderSource(dxProject: DxProject, target: String)(
 
   override def exists: Boolean = {
     try {
-      dxProject.listFolder(target)
+      dxProject.listFolder(dxFolder)
       true
     } catch {
       case _: ResourceNotFoundException => false
@@ -139,75 +154,126 @@ case class DxFolderSource(dxProject: DxProject, target: String)(
   }
 
   override def getParent: Option[DxFolderSource] = {
-    if (folder == "") {
-      None
-    } else {
-      val parent = DxFolderSource.ensureEndsWithSlash(folder)
-      Some(DxFolderSource(dxProject, parent)(protocol))
+    cachedParent.orElse {
+      if (folder == "") {
+        None
+      } else {
+        Some(DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(folder))(protocol))
+      }
     }
   }
 
   override def resolve(path: String): AddressableFileSource = {
     if (path.endsWith("/")) {
-      DxFolderSource(dxProject, s"${target}${path}")(protocol)
+      DxFolderSource(dxProject, s"${dxFolder}${path}")(protocol, Some(this))
     } else {
-      val uri = s"dx://${dxProject.id}:${target}${path}"
-      protocol.resolve(uri)
+      val uri = s"dx://${dxProject.id}:${dxFolder}${path}"
+      protocol.resolve(uri).copyWithParent(this)
     }
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
     fileSource match {
       case fs: DxFileSource =>
-        targetPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
+        dxFolderPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
       case fs: DxArchiveFolderSource =>
-        targetPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
+        dxFolderPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
       case fs: DxFolderSource =>
-        targetPath.relativize(fs.targetPath).toString
+        dxFolderPath.relativize(fs.dxFolderPath).toString
       case _ =>
         throw new Exception(s"not a DxFileSource: ${fileSource}")
     }
   }
 
-  private lazy val deepListing: Vector[(DxFile, Path)] = {
-    val results = DxFindDataObjects(protocol.dxApi)
-      .apply(Some(dxProject), Some(target), recurse = true, Some("file"))
-    results.map {
-      case (f: DxFile, _) =>
-        val relPath = targetPath.relativize(Paths.get(f.describe().folder))
-        (f, relPath)
-      case other => throw new Exception(s"unexpected result ${other}")
-    }.toVector
+  private def listDxFolderRecursive: Vector[DxFile] = {
+    DxFindDataObjects(protocol.dxApi)
+      .apply(Some(dxProject), Some(dxFolder), recurse = true, Some("file"))
+      .keys
+      .toVector
+      .map {
+        case dxFile: DxFile => dxFile
+        case other          => throw new Exception(s"unexpected result ${other}")
+      }
   }
 
   override protected def localizeTo(dir: Path): Unit = {
-    deepListing.foreach {
-      case (dxFile, relPath) =>
-        val path = dir.resolve(relPath).resolve(dxFile.getName)
-        protocol.dxApi.downloadFile(path, dxFile, overwrite = true)
+    listDxFolderRecursive.foreach { dxFile =>
+      val relPath = dxFolderPath.relativize(Paths.get(dxFile.describe().folder))
+      val path = dir.resolve(relPath).resolve(dxFile.getName)
+      protocol.dxApi.downloadFile(path, dxFile, overwrite = true)
     }
   }
 
   override val isListable: Boolean = true
 
-  override def listing: Vector[FileSource] = {
-    val filesByFolder = deepListing.groupBy {
-      case (dxFile, _) => DxFolderSource.ensureEndsWithSlash(dxFile.describe().folder)
-    }
-    val files = filesByFolder
-      .get(target)
-      .map { paths =>
-        paths.map {
-          case (dxFile, _) => DxFileSource(dxFile, protocol.encoding)(dxFile.asUri, protocol)
+  override def listing(recursive: Boolean = false): Vector[FileSource] = {
+    cachedListing.getOrElse {
+      if (recursive) {
+        def addDirs(
+            folder: Path,
+            dirs: Map[Path, (Set[Path], Set[DxFile])]
+        ): Map[Path, (Set[Path], Set[DxFile])] = {
+          if (dirs.contains(folder)) {
+            dirs
+          } else if (folder.getParent == null) {
+            throw new Exception(s"cannot add folder ${folder} to directory listing")
+          } else {
+            val newDirs = addDirs(folder.getParent, dirs)
+            val (subdirs, files) = newDirs(folder.getParent)
+            newDirs ++ Map(
+                folder.getParent -> (subdirs + folder, files),
+                folder -> (Set.empty[Path], Set.empty[DxFile])
+            )
+          }
         }
+
+        // use findDataObjects to get all files in a folder recursively with a
+        // single API call
+        val dirs = listDxFolderRecursive
+          .groupBy { dxFile =>
+            Paths.get(DxFolderSource.ensureEndsWithSlash(dxFile.describe().folder))
+          }
+          .foldLeft(Map(dxFolderPath -> (Set.empty[Path], Set.empty[DxFile]))) {
+            case (dirs, (folder, children)) =>
+              val newDirs = addDirs(folder, dirs)
+              val (subdirs, files) = newDirs(folder)
+              newDirs + (folder -> (subdirs, files ++ children))
+          }
+
+        def buildListing(folder: Path, parent: DxFolderSource): Vector[FileSource] = {
+          val (subdirs, files) = dirs(folder)
+          val fileSources = files.toVector.map { dxFile =>
+            DxFileSource(dxFile, protocol.encoding)(dxFile.asUri, protocol, Some(parent))
+          }
+          val folderSources = subdirs.toVector.map { folder =>
+            val fs = DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(folder.toString))(
+                protocol,
+                Some(parent)
+            )
+            fs.cachedListing = Some(buildListing(folder, fs))
+            fs
+          }
+          fileSources ++ folderSources
+        }
+
+        buildListing(dxFolderPath, this)
+      } else {
+        // using findDataObjects with recurse=false will not give us the subfolders,
+        // so we need to use project/listFolder instead
+        val contents = dxProject.listFolder(dxFolder)
+        val fileSources = contents.dataObjects.collect {
+          case dxFile: DxFile =>
+            DxFileSource(dxFile, protocol.encoding)(dxFile.asUri, protocol, Some(this))
+        }
+        val folderSources = contents.subFolders.map { folder =>
+          DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(folder))(
+              protocol,
+              Some(this)
+          )
+        }
+        fileSources ++ folderSources
       }
-      .getOrElse(Vector.empty)
-    val targetPath = Paths.get(target)
-    val folders = filesByFolder.keys.collect {
-      case folder if targetPath.relativize(Paths.get(folder)).getNameCount == 1 =>
-        DxFolderSource(dxProject, folder)(protocol)
     }
-    files ++ folders
   }
 }
 
@@ -299,7 +365,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   }
 
   def fromDxFolder(projectId: String, folder: String): DxFolderSource = {
-    DxFolderSource(dxApi.project(projectId), folder)(this)
+    DxFolderSource(dxApi.project(projectId), DxFolderSource.ensureEndsWithSlash(folder))(this)
   }
 }
 

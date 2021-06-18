@@ -303,7 +303,7 @@ case class LocalFileSource(
     Files.exists(canonicalPath)
   }
 
-  override def getParent: Option[LocalFileSource] = {
+  override lazy val getParent: Option[LocalFileSource] = {
     cachedParent.orElse(Option(canonicalPath.getParent).map { parent =>
       LocalFileSource(parent, encoding, isDirectory = true)(parent.toString,
                                                             parent,
