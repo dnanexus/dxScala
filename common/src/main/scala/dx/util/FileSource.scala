@@ -85,7 +85,7 @@ trait FileSource {
   /**
     * Whether `listing` may be called.
     */
-  def isListable: Boolean = false
+  def isListable: Boolean = isDirectory
 
   /**
     * If `isDirectory=true` and `isListable=true`, returns a Vector of
@@ -398,8 +398,6 @@ case class LocalFileSource(
     }
   }
 
-  override def isListable: Boolean = isDirectory
-
   private class ListingFileVisitor extends SimpleFileVisitor[Path] {
     private var dirs = Map.empty[Path, Vector[Path]]
 
@@ -679,6 +677,8 @@ case class HttpFileSource(
       localizeToFile(file)
     }
   }
+
+  override def isListable: Boolean = false
 }
 
 case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
