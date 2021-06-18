@@ -4,6 +4,7 @@
 
 * Adds optional `localizationDir` parameter to `LocalizationDisambiguator` methods for specifying the localization directory that must be used
 * Fixes `prettyFormat` function to handle case clases with public fields in the second parameter list
+* Adds `recurse` parameter (default=`false`) to `FileSource.listing`
 
 ## 0.4.1 (2021-06-08)
 

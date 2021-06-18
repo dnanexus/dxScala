@@ -2,7 +2,8 @@
 
 ## in develop
 
-* Exposes target folder in `DxFolderSource`
+* Exposes dx folder in `DxFolderSource`
+* Implements recursive listing in `S3FileAccessProtocol` and `DxFileAccessProtocol`
 
 ## 0.3.1 (2021-06-08)
 
