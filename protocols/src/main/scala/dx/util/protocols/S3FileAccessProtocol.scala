@@ -181,8 +181,6 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     }
   }
 
-  override val isListable: Boolean = true
-
   override def listing(recursive: Boolean = false): Vector[FileSource] = {
     val s3Objs = listPrefix
     if (s3Objs.isEmpty) {

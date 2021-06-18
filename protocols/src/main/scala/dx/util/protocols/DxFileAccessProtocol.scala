@@ -204,8 +204,6 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
     }
   }
 
-  override val isListable: Boolean = true
-
   override def listing(recursive: Boolean = false): Vector[FileSource] = {
     cachedListing.getOrElse {
       if (recursive) {
