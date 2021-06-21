@@ -123,13 +123,13 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private var projectDict: Map[String, DxProject] = Map.empty
 
   def resolveProject(projName: String): DxProject = {
+    if (projectDict.contains(projName)) {
+      return projectDict(projName)
+    }
+
     if (projName.startsWith("project-")) {
       // A project ID
       return project(projName)
-    }
-
-    if (projectDict.contains(projName)) {
-      return projectDict(projName)
     }
 
     // A project name, resolve it
@@ -161,7 +161,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
             s"Bad response from SystemFindProject API call ${responseJs.prettyPrint}"
         )
     }
-    projectDict += (projName -> dxProject)
+    projectDict ++= Map(projName -> dxProject, dxProject.id -> dxProject)
     dxProject
   }
 

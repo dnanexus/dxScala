@@ -65,8 +65,14 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
     protocol.dxApi.downloadFile(file, dxFile, overwrite = true)
   }
 
+  // copies this file and sets the given parent as this file's cachedParent
+  // only if this file's parent folder matches the parent's folder
   private[protocols] def copyWithParent(parent: DxFolderSource): DxFileSource = {
-    copy()(address, protocol, Some(parent))
+    if (Paths.get(folder) == parent.dxFolderPath) {
+      copy()(address, protocol, Some(parent))
+    } else {
+      this
+    }
   }
 }
 
@@ -126,7 +132,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
     private val cachedParent: Option[DxFolderSource] = None,
     private var cachedListing: Option[Vector[FileSource]] = None
 ) extends AddressableFileSource {
-  private val dxFolderPath = Paths.get(dxFolder)
+  private[protocols] val dxFolderPath = Paths.get(dxFolder)
   assert(dxFolderPath.isAbsolute, s"not an absolute path: ${dxFolderPath}")
   assert(dxFolder.endsWith("/"), "dx folder must end with '/'")
 
@@ -163,12 +169,24 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
     }
   }
 
+  // copies this folder and sets the given parent as this folder's cachedParent
+  // only if this folder's parent folder matches the parent's folder
+  private[protocols] def copyWithParent(parent: DxFolderSource): DxFolderSource = {
+    if (Paths.get(folder) == parent.dxFolderPath) {
+      copy()(protocol, Some(this), cachedListing)
+    } else {
+      this
+    }
+  }
+
   override def resolve(path: String): AddressableFileSource = {
     if (path.endsWith("/")) {
-      DxFolderSource(dxProject, s"${dxFolder}${path}")(protocol, Some(this))
+      val folder = DxFolderSource(dxProject, s"${dxFolder}${path}")(protocol)
+      folder.copyWithParent(this)
     } else {
       val uri = s"dx://${dxProject.id}:${dxFolder}${path}"
-      protocol.resolve(uri).copyWithParent(this)
+      val file = protocol.resolve(uri)
+      file.copyWithParent(this)
     }
   }
 
@@ -342,7 +360,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   }
 
   override def resolveDirectory(uri: String): AddressableFileSource = {
-    // a Directory may be either a dx file or a dx://project:/path/to/dir/ URI.
+    // a Directory may be either a dx file (archive) or a dx://project:/path/to/dir/ URI.
     if (uri.endsWith("/")) {
       val (projectName, folder) = DxPath.split(uri)
       val project = projectName

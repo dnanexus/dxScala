@@ -149,12 +149,15 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
   }
 
   override def resolve(path: String): AddressableFileSource = {
-    val objectKey = s"${folder}${path}"
+    val objectKey = s"${prefix}${path}"
     val newUri = s"s3://${bucketName}/${objectKey}"
+    // we can only use this folder as the parent if it is the direct ancestor
+    // of the new file/folder
+    val cachedParent = if (Paths.get(objectKey).getParent == prefixPath) Some(this) else None
     if (path.endsWith("/")) {
-      S3FolderSource(newUri, bucketName, objectKey)(protocol, Some(this))
+      S3FolderSource(newUri, bucketName, objectKey)(protocol, cachedParent)
     } else {
-      S3FileSource(newUri, bucketName, objectKey)(protocol, Some(this))
+      S3FileSource(newUri, bucketName, objectKey)(protocol, cachedParent)
     }
   }
 

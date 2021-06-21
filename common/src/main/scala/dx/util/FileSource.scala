@@ -314,7 +314,8 @@ case class LocalFileSource(
 
   override def resolve(path: String): LocalFileSource = {
     val parent = if (isDirectory) this else getParent.get
-    val newPath = parent.canonicalPath.resolve(path)
+    val parentPath = parent.canonicalPath
+    val newPath = parentPath.resolve(path)
     cachedListing
       .flatMap { listing =>
         listing.collectFirst {
@@ -327,9 +328,11 @@ case class LocalFileSource(
           case _ if path.endsWith("/") => true
           case _                       => false
         }
+        // the parent can only be used if it is the direct ancestor of the new path
+        val cachedParent = if (newPath.getParent == parentPath) Some(parent) else None
         LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString,
                                                            newPath,
-                                                           cachedParent = Some(parent),
+                                                           cachedParent = cachedParent,
                                                            logger = logger)
       }
   }
@@ -784,17 +787,23 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
     }
   }
 
-  def fromPath(path: Path, isDirectory: Option[Boolean] = None): LocalFileSource = {
-    getProtocolForScheme(FileUtils.FileScheme) match {
-      case proto: LocalFileAccessProtocol =>
-        proto.resolvePath(path, isDirectory = isDirectory)
-      case other =>
-        throw new RuntimeException(s"Expected LocalFileAccessProtocol not ${other}")
+  def fromPath(path: Path,
+               isDirectory: Option[Boolean] = None,
+               parent: Option[LocalFileSource] = None): LocalFileSource = {
+    if (parent.isDefined && !path.isAbsolute) {
+      parent.get.resolve(path.toString)
+    } else {
+      getProtocolForScheme(FileUtils.FileScheme) match {
+        case proto: LocalFileAccessProtocol =>
+          proto.resolvePath(path, isDirectory = isDirectory)
+        case other =>
+          throw new RuntimeException(s"Expected LocalFileAccessProtocol not ${other}")
+      }
     }
   }
 
-  def fromFile(path: Path): LocalFileSource = {
-    fromPath(path, isDirectory = Some(false))
+  def fromFile(path: Path, parent: Option[LocalFileSource] = None): LocalFileSource = {
+    fromPath(path, isDirectory = Some(false), parent)
   }
 
   def localSearchPath: Vector[Path] = {
