@@ -46,7 +46,30 @@ case class DxFileDescribe(project: String,
                           properties: Option[Map[String, String]],
                           details: Option[JsValue],
                           parts: Option[Map[Int, DxFilePart]])
-    extends DxObjectDescribe
+    extends DxObjectDescribe {
+  override def containsAll(fields: Set[Field.Value]): Boolean = {
+    // all default fields must be specified to create this object,
+    // so we only need to check non-default fields
+    fields.diff(DxFileDescribe.DefaultFields).forall {
+      case Field.Properties => properties.isDefined
+      case Field.Details    => details.isDefined
+      case Field.Parts      => parts.isDefined
+      case _                => false
+    }
+  }
+}
+
+object DxFileDescribe {
+  val DefaultFields = Set(Field.Project,
+                          Field.Id,
+                          Field.Name,
+                          Field.Folder,
+                          Field.Created,
+                          Field.Modified,
+                          Field.Size,
+                          Field.State,
+                          Field.ArchivalState)
+}
 
 case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxApi.get,
                                                           name: Option[String] = None,
@@ -55,16 +78,7 @@ case class DxFile(id: String, project: Option[DxProject])(val dxApi: DxApi = DxA
     with DxDataObject {
   def describeNoCache(fields: Set[Field.Value] = Set.empty): DxFileDescribe = {
     val projSpec = DxObject.maybeSpecifyProject(project)
-    val defaultFields = Set(Field.Project,
-                            Field.Id,
-                            Field.Name,
-                            Field.Folder,
-                            Field.Created,
-                            Field.Modified,
-                            Field.Size,
-                            Field.State,
-                            Field.ArchivalState)
-    val allFields = fields ++ defaultFields
+    val allFields = fields ++ DxFileDescribe.DefaultFields
     val descJs = dxApi.fileDescribe(id, projSpec + ("fields" -> DxObject.requestFields(allFields)))
     DxFile.parseDescribeJson(descJs)
   }

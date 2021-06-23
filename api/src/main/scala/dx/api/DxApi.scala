@@ -1,9 +1,8 @@
 package dx.api
 
-import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, SimpleFileVisitor}
+import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, Paths, SimpleFileVisitor}
 import java.nio.file.attribute.BasicFileAttributes
 import java.{util => javautil}
-
 import com.dnanexus.{DXAPI, DXEnvironment}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import dx.api.DxPath.DxPathComponents
@@ -62,6 +61,17 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private val DownloadRetryLimit = 3
   private val UploadRetryLimit = 3
   private val UploadWaitMillis = 1000
+  private val projectAndPathRegexp = "(?:(.+):)?(.+)".r
+
+  /**
+    * Calls 'dx pwd' and returns a tuple of (projectName, folder).
+    */
+  def getWorkingDir: (String, String) = {
+    SysUtils.execCommand("dx pwd") match {
+      case (_, projectAndPathRegexp(projName, path), _) => (projName, path)
+      case other                                        => throw new Exception(s"unexpected 'dx pwd' output ${other}")
+    }
+  }
 
   // We are expecting string like:
   //    record-FgG51b00xF63k86F13pqFv57
@@ -113,13 +123,13 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private var projectDict: Map[String, DxProject] = Map.empty
 
   def resolveProject(projName: String): DxProject = {
+    if (projectDict.contains(projName)) {
+      return projectDict(projName)
+    }
+
     if (projName.startsWith("project-")) {
       // A project ID
       return project(projName)
-    }
-
-    if (projectDict.contains(projName)) {
-      return projectDict(projName)
     }
 
     // A project name, resolve it
@@ -151,7 +161,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
             s"Bad response from SystemFindProject API call ${responseJs.prettyPrint}"
         )
     }
-    projectDict += (projName -> dxProject)
+    projectDict ++= Map(projName -> dxProject, dxProject.id -> dxProject)
     dxProject
   }
 
@@ -891,6 +901,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   /**
     * Uploads a local file to the platform, and returns a DxFile.
     * Calls `dx upload` in a subprocess.
+    * TODO: once https://jira.internal.dnanexus.com/browse/DEVEX-1939 is
+    *  implemented, load the returned JSON and cache it for describe
     */
   def uploadFile(path: Path,
                  destination: Option[String] = None,
@@ -899,6 +911,16 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
                  properties: Map[String, String] = Map.empty): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
+    }
+
+    val (destProj, _) = destination match {
+      case Some(projectAndPathRegexp(proj, path)) if path.endsWith("/") =>
+        (Option(proj), path)
+      case Some(projectAndPathRegexp(proj, path)) =>
+        (Option(proj), Paths.get(path).getParent.toString)
+      case None => (None, getWorkingDir._2)
+      case _ =>
+        throw new Exception(s"invalid destination ${destination}")
     }
 
     def uploadOneFile(path: Path): Option[String] = {
@@ -939,7 +961,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
         uploadOneFile(path) match {
-          case Some(fid) => Some(file(fid, None))
+          case Some(fid) => Some(file(fid, destProj.map(resolveProject)))
           case None      => None
         }
       }
@@ -960,7 +982,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
   private case class UploadFileVisitor(sourceDir: Path,
                                        destination: Option[String],
-                                       waitOnUpload: Boolean)
+                                       waitOnUpload: Boolean,
+                                       filter: Option[Path => Boolean])
       extends SimpleFileVisitor[Path] {
     private def ensureEndsWithSlash(path: String): String = {
       if (path.endsWith("/")) path else s"${path}/"
@@ -981,32 +1004,44 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       }
       .getOrElse((None, "/"))
 
-    private var uploadedFiles = Vector.empty[DxFile]
+    private var uploadedFiles = Map.empty[Path, DxFile]
 
-    def result: (Option[String], String, Vector[DxFile]) = {
+    def result: (Option[String], String, Map[Path, DxFile]) = {
       (projectId, folder, uploadedFiles)
     }
 
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-      val fileRelPath = sourceDir.relativize(file)
-      val fileDestPath = s"${folder}${fileRelPath}"
-      val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
-      val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
-      uploadedFiles :+= dxFile
+      if (!attrs.isDirectory && filter.forall(f => f(file))) {
+        val fileRelPath = sourceDir.relativize(file)
+        val fileDestPath = s"${folder}${fileRelPath}"
+        val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
+        val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
+        uploadedFiles += (file -> dxFile)
+      }
       FileVisitResult.CONTINUE
     }
   }
 
   /**
     * Uploads all the files in a directory, and - if `recursive=true` - all
-    * files in subfolders as well. Returns (projectId, folder, files).
+    * files in subfolders as well. Returns (projectId, folder, files), where
+    * files is a Map from local path to DxFile.
+    * @param path directory to upload
+    * @param destination optional destination folder in the current project, or
+    *                    "project-xxx:/path/to/folder"
+    * @param recursive whether to upload all subdirectories
+    * @param wait whether to wait for each upload to complete
+    * @param filter optional filter function to determine which files to upload
     */
-  def uploadDirectory(path: Path,
-                      destination: Option[String] = None,
-                      recursive: Boolean = true,
-                      wait: Boolean = false): (Option[String], String, Vector[DxFile]) = {
-    val visitor = UploadFileVisitor(path, destination, wait)
-    val maxDepth = if (recursive) Integer.MAX_VALUE else 0
+  def uploadDirectory(
+      path: Path,
+      destination: Option[String] = None,
+      recursive: Boolean = true,
+      wait: Boolean = false,
+      filter: Option[Path => Boolean] = None
+  ): (Option[String], String, Map[Path, DxFile]) = {
+    val visitor = UploadFileVisitor(path, destination, wait, filter)
+    val maxDepth = if (recursive) Integer.MAX_VALUE else 1
     Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
     visitor.result
   }

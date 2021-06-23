@@ -22,6 +22,8 @@ trait DxObjectDescribe {
   val details: Option[JsValue]
 
   def getCreationDate: java.util.Date = new java.util.Date(created)
+
+  def containsAll(fields: Set[Field.Value]): Boolean = ???
 }
 
 trait DxObject {
@@ -119,7 +121,10 @@ trait DxExecution extends DxObject {
   val project: Option[DxProject]
 }
 
-// DxDataObject that caches its description
+/**
+  * DxDataObject that caches its description.
+  * @tparam T type of DxObjectDescribe - must override `containsAll`
+  */
 abstract class CachingDxObject[T <: DxObjectDescribe] extends DxObject {
   private var cachedDesc: Option[T] = None
 
@@ -130,10 +135,11 @@ abstract class CachingDxObject[T <: DxObjectDescribe] extends DxObject {
   }
 
   def describe(fields: Set[Field.Value] = Set.empty): T = {
-    if (cachedDesc.isEmpty) {
+    // only call describe if there is not a cached value,
+    // or if the cached value does not contain all the
+    // required fields
+    if (cachedDesc.isEmpty || !cachedDesc.get.containsAll(fields)) {
       cachedDesc = Some(describeNoCache(fields))
-    } else {
-      // TODO: check that all `fields` are present in desc
     }
     cachedDesc.get
   }

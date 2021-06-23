@@ -45,56 +45,61 @@ package object util {
                    callback: Option[Product => Option[String]] = None): String = {
     val indent = " " * depth * indentSize
     val fieldIndent = indent + (" " * indentSize)
-    val thisDepth = prettyFormat(_: Any, indentSize, maxElementWidth, depth, callback)
     val nextDepth = prettyFormat(_: Any, indentSize, maxElementWidth, depth + 1, callback)
     a match {
-      // Make Strings look similar to their literal form.
       case s: String =>
-        val replaceMap = Seq(
-            "\n" -> "\\n",
-            "\r" -> "\\r",
-            "\t" -> "\\t",
-            "\"" -> "\\\""
-        )
-        val buf = replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) }
-        s""""${buf}""""
-      // For an empty Seq just use its normal String representation.
-      case xs: Seq[_] if xs.isEmpty => xs.toString()
-      case xs: Seq[_]               =>
-        // If the Seq is not too long, pretty print on one line.
+        // make Strings look similar to their literal form
+        val builder = new StringBuilder
+        s.foreach {
+          case '\n' => builder.append("\\n")
+          case '\r' => builder.append("\\r")
+          case '\t' => builder.append("\\t")
+          case '"'  => builder.append("\\\"")
+          case c    => builder.append(c)
+        }
+        s""""${builder.toString()}""""
+      case xs: Seq[_] if xs.isEmpty =>
+        // for an empty Seq just use its normal String representation
+        xs.toString()
+      case xs: Seq[_] =>
         val resultOneLine = xs.map(nextDepth).toString()
-        if (resultOneLine.length <= maxElementWidth) return resultOneLine
-        // Otherwise, build it with newlines and proper field indents.
-        val result = xs.map(x => s"\n$fieldIndent${nextDepth(x)}").toString()
-        result.substring(0, result.length - 1) + "\n" + indent + ")"
+        if (resultOneLine.length <= maxElementWidth) {
+          // if the Seq is not too long, pretty print on one line
+          resultOneLine
+        } else {
+          // otherwise, build it with newlines and proper field indents
+          val result = xs.map(x => s"\n${fieldIndent}${nextDepth(x)}").toString()
+          s"${result.substring(0, result.length - 1)}\n${indent})"
+        }
       case Some(x) =>
-        s"Some(\n$fieldIndent${prettyFormat(x, indentSize, maxElementWidth, depth + 1, callback)}\n$indent)"
-      case None => "None"
-      // Product should cover case classes.
+        s"Some(\n${fieldIndent}${prettyFormat(x, indentSize, maxElementWidth, depth + 1, callback)}\n${indent})"
+      case None       => "None"
       case p: Product =>
-        callback.map(_(p)) match {
-          case Some(Some(s)) => s
-          case _ =>
-            val prefix = p.productPrefix
-            // We'll use reflection to get the constructor arg names and values.
-            val cls = p.getClass
-            val fields = cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName)
-            val values = p.productIterator.toSeq
-            // If we weren't able to match up fields/values, fall back to toString.
-            if (fields.length != values.length) return p.toString
-            fields.zip(values).toList match {
-              // If there are no fields, just use the normal String representation.
-              case Nil => p.toString
-              // If there is just one field, let's just print it as a wrapper.
-              case (_, value) :: Nil => s"$prefix(${thisDepth(value)})"
-              // If there is more than one field, build up the field names and values.
-              case kvps =>
-                val prettyFields = kvps.map { case (k, v) => s"$fieldIndent$k = ${nextDepth(v)}" }
-                // If the result is not too long, pretty print on one line.
-                val resultOneLine = s"$prefix(${prettyFields.mkString(", ")})"
-                if (resultOneLine.length <= maxElementWidth) return resultOneLine
-                // Otherwise, build it with newlines and proper field indents.
-                s"$prefix(\n${prettyFields.mkString(",\n")}\n$indent)"
+        // Product includes case classes
+        // first check if the callback returns a value
+        callback.flatMap(_(p)) match {
+          case Some(s) => s
+          case _       =>
+            // Use reflection to get the constructor arg names and values.
+            // Note that this excludes any public values in the case class
+            // second parameter list (if any).
+            p.productElementNames.zip(p.productIterator).toList match {
+              case Nil =>
+                // there are no fields, just use toString
+                p.toString
+              case kvs =>
+                // there is more than one field, build up the field names and values
+                val prettyFields = kvs.map {
+                  case (k, v) => s"${k} = ${nextDepth(v)}"
+                }
+                // if the result is not too long, pretty print on one line.
+                val resultOneLine = s"${p.productPrefix}(${prettyFields.mkString(", ")})"
+                if (resultOneLine.length <= maxElementWidth) {
+                  resultOneLine
+                } else {
+                  // Otherwise, build it with newlines and proper field indents.
+                  s"${p.productPrefix}(\n${prettyFields.map(f => s"${fieldIndent}${f}").mkString(",\n")}\n${indent})"
+                }
             }
         }
       // If we haven't specialized this type, just use its toString.

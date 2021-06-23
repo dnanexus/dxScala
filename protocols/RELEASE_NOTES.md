@@ -1,5 +1,10 @@
 # dxFileAccessProtocols
 
+## ## 0.4.0 (2021-06-23)
+
+* Exposes dx folder in `DxFolderSource`
+* Implements recursive listing in `S3FileAccessProtocol` and `DxFileAccessProtocol`
+
 ## 0.3.1 (2021-06-08)
 
 * Update dependencies
