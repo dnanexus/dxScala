@@ -35,6 +35,7 @@ jobs:
       - name: Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTH_TOKEN: ${{ secrets.DX_STAGING_TOKEN }}
         run: |
           sbt 'project protocols' test
       - name: Assembly
