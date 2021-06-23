@@ -123,13 +123,13 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private var projectDict: Map[String, DxProject] = Map.empty
 
   def resolveProject(projName: String): DxProject = {
+    if (projectDict.contains(projName)) {
+      return projectDict(projName)
+    }
+
     if (projName.startsWith("project-")) {
       // A project ID
       return project(projName)
-    }
-
-    if (projectDict.contains(projName)) {
-      return projectDict(projName)
     }
 
     // A project name, resolve it
@@ -161,7 +161,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
             s"Bad response from SystemFindProject API call ${responseJs.prettyPrint}"
         )
     }
-    projectDict += (projName -> dxProject)
+    projectDict ++= Map(projName -> dxProject, dxProject.id -> dxProject)
     dxProject
   }
 
@@ -1011,7 +1011,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
 
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-      if (filter.forall(f => f(file))) {
+      if (!attrs.isDirectory && filter.forall(f => f(file))) {
         val fileRelPath = sourceDir.relativize(file)
         val fileDestPath = s"${folder}${fileRelPath}"
         val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
@@ -1041,7 +1041,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       filter: Option[Path => Boolean] = None
   ): (Option[String], String, Map[Path, DxFile]) = {
     val visitor = UploadFileVisitor(path, destination, wait, filter)
-    val maxDepth = if (recursive) Integer.MAX_VALUE else 0
+    val maxDepth = if (recursive) Integer.MAX_VALUE else 1
     Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
     visitor.result
   }
