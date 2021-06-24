@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Normalizes any object/folder paths
+
 ## 0.5.0 (2021-06-23)
 
 * Adds `folder` attribute to job description
