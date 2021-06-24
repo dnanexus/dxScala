@@ -40,14 +40,11 @@ case class S3FileSource(
 
   private lazy val request: GetObjectRequest =
     GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
-  private[protocols] lazy val objectPath: Path = Paths.get(objectKey)
+  private[protocols] lazy val objectPath: Path = FileUtils.getPath(objectKey)
 
   override def name: String = objectPath.getFileName.toString
 
-  override def folder: String = objectPath.getParent match {
-    case null => ""
-    case path => path.toString
-  }
+  override def folder: String = Option(objectPath.getParent).map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 

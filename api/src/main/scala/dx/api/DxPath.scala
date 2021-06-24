@@ -53,7 +53,7 @@ object DxPath {
     val (folder, name) = dxObjectPath match {
       case pathRegex(_, name) if DxUtils.isDataObjectId(name) => (None, name)
       case pathRegex(folder, name) if folder == ""            => (Some("/"), name)
-      case pathRegex(folder, name)                            => (Some(folder), name)
+      case pathRegex(folder, name)                            => (Some(FileUtils.getPath(folder).toString), name)
       case _ if DxUtils.isDataObjectId(dxObjectPath)          => (None, dxObjectPath)
       case _                                                  => (Some("/"), dxObjectPath)
     }
