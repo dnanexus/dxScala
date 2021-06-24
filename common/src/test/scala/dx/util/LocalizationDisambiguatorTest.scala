@@ -3,7 +3,7 @@ package dx.util
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 
 class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
   it should "disambiguate files" in {
@@ -11,9 +11,9 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     root.toFile.deleteOnExit()
     val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
-    val p1 = Paths.get("/foo/bar.txt")
+    val p1 = FileUtils.getPath("/foo/bar.txt")
     val f1 = disambiguator.getLocalPath(fileResolver.fromFile(p1))
-    val p2 = Paths.get("/baz/bar.txt")
+    val p2 = FileUtils.getPath("/baz/bar.txt")
     val f2 = disambiguator.getLocalPath(fileResolver.fromFile(p2))
     f1 should not equal f2
   }
@@ -23,10 +23,10 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     root.toFile.deleteOnExit()
     val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
-    val fs1 = fileResolver.fromFile(Paths.get("/foo/bar.txt"))
-    val fs2 = fileResolver.fromFile(Paths.get("/baz/bar.txt"))
-    val fs3 = fileResolver.fromFile(Paths.get("/a/b.txt"))
-    val fs4 = fileResolver.fromFile(Paths.get("/c/d.txt"))
+    val fs1 = fileResolver.fromFile(FileUtils.getPath("/foo/bar.txt"))
+    val fs2 = fileResolver.fromFile(FileUtils.getPath("/baz/bar.txt"))
+    val fs3 = fileResolver.fromFile(FileUtils.getPath("/a/b.txt"))
+    val fs4 = fileResolver.fromFile(FileUtils.getPath("/c/d.txt"))
     val localPaths = disambiguator.getLocalPaths(Vector(fs1, fs2, fs3, fs4))
     localPaths(fs1) should not equal localPaths(fs2)
     localPaths(fs1).getParent should not equal localPaths(fs3).getParent
@@ -38,9 +38,9 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     root.toFile.deleteOnExit()
     val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
-    val p1 = Paths.get("/foo/bar.txt")
+    val p1 = FileUtils.getPath("/foo/bar.txt")
     val f1 = disambiguator.getLocalPath(fileResolver.fromFile(p1))
-    val p2 = Paths.get("/foo/baz.txt")
+    val p2 = FileUtils.getPath("/foo/baz.txt")
     val f2 = disambiguator.getLocalPath(fileResolver.fromFile(p2))
     f1.getParent shouldBe f2.getParent
   }
@@ -69,8 +69,8 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
     root.toFile.deleteOnExit()
     val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
-    val fs1 = fileResolver.fromFile(Paths.get("/foo/bar.txt"))
-    val fs2 = fileResolver.fromFile(Paths.get("/baz/bar.txt"))
+    val fs1 = fileResolver.fromFile(FileUtils.getPath("/foo/bar.txt"))
+    val fs2 = fileResolver.fromFile(FileUtils.getPath("/baz/bar.txt"))
     val defaultDir = root.resolve("default")
     disambiguator.getLocalPath(fs1, Some(defaultDir))
     assertThrows[Exception] {

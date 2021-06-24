@@ -752,7 +752,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
             // the imported file is not relative to the parent, but
             // but LocalFileAccessProtocol may be configured to look
             // for it in a different folder
-            fromFile(Paths.get(address))
+            fromFile(FileUtils.getPath(address))
           case other =>
             throw new Exception(s"Not an AddressableFileNode: ${other}")
         }
@@ -779,7 +779,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
             // the imported file is not relative to the parent, but
             // but LocalFileAccessProtocol may be configured to look
             // for it in a different folder
-            fromFile(Paths.get(address))
+            fromFile(FileUtils.getPath(address))
           case other =>
             throw new Exception(s"Not an AddressableFileNode: ${other}")
         }

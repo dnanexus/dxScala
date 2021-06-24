@@ -29,7 +29,7 @@ object FileUtils {
 
   def systemTempDir: Path = {
     try {
-      Paths.get(GetPropertyAction.privilegedGetProperty("java.io.tmpdir"))
+      getPath(GetPropertyAction.privilegedGetProperty("java.io.tmpdir"))
     } catch {
       case _: Throwable => Paths.get("/tmp")
     }

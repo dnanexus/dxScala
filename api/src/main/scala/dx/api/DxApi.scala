@@ -1,6 +1,6 @@
 package dx.api
 
-import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, Paths, SimpleFileVisitor}
+import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, SimpleFileVisitor}
 import java.nio.file.attribute.BasicFileAttributes
 import java.{util => javautil}
 import com.dnanexus.{DXAPI, DXEnvironment}
@@ -917,7 +917,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       case Some(projectAndPathRegexp(proj, path)) if path.endsWith("/") =>
         (Option(proj), path)
       case Some(projectAndPathRegexp(proj, path)) =>
-        (Option(proj), Paths.get(path).getParent.toString)
+        (Option(proj), FileUtils.getPath(path).getParent.toString)
       case None => (None, getWorkingDir._2)
       case _ =>
         throw new Exception(s"invalid destination ${destination}")

@@ -3,7 +3,6 @@ package dx.api
 import dx.util.FileUtils
 
 import java.net.{URI, URLDecoder}
-import java.nio.file.Paths
 
 object DxPath {
   val DxScheme = "dx"
@@ -74,7 +73,7 @@ object DxPath {
     * Formats a project and file path to a dx:// URI.
     */
   def format(project: String, folder: String, name: String): String = {
-    val path = Paths.get(folder).resolve(name).toString
+    val path = FileUtils.getPath(folder).resolve(name).toString
     new URI(DxScheme, s"${project}:", path, null, null).toString
   }
 }

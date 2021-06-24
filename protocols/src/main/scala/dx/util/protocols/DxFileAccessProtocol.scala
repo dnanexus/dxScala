@@ -244,9 +244,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
         // use findDataObjects to get all files in a folder recursively with a
         // single API call
         val dirs = listDxFolderRecursive
-          .groupBy { dxFile =>
-            Paths.get(DxFolderSource.ensureEndsWithSlash(dxFile.describe().folder))
-          }
+          .groupBy(dxFile => FileUtils.getPath(dxFile.describe().folder))
           .foldLeft(Map(dxFolderPath -> (Set.empty[Path], Set.empty[DxFile]))) {
             case (dirs, (folder, children)) =>
               val newDirs = addDirs(folder, dirs)
