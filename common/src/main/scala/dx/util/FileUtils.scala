@@ -15,6 +15,7 @@ import java.nio.file.{
 import sun.security.action.GetPropertyAction
 
 import scala.io.{Codec, Source}
+import scala.jdk.CollectionConverters._
 
 object FileUtils {
   val FileScheme: String = "file"
@@ -55,6 +56,20 @@ object FileUtils {
     */
   def getPath(path: String): Path = {
     new File(path).toPath
+  }
+
+  // removes all '.' and all path elements followed by a '..'
+  // e.g. /A/./B/../C -> /A/C
+  def normalizePath(path: Path): Path = {
+    val elements = Option(path.getRoot).toVector ++ path.iterator().asScala
+    elements.reduceLeft[Path] {
+      case (p, element) if element.toString == "." => p
+      case (p, element) if element.toString == ".." =>
+        Option(p.getParent).getOrElse(
+            throw new Exception("'..' cannot be the first path element")
+        )
+      case (p, element) => p.resolve(element)
+    }
   }
 
   def getUriScheme(pathOrUri: String): Option[String] = {

@@ -3,7 +3,7 @@ package dx.util
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 
 class FileUtilsTest extends AnyFlatSpec with Matchers {
   it should "Correctly replace file suffix" in {
@@ -16,5 +16,10 @@ class FileUtilsTest extends AnyFlatSpec with Matchers {
     val subdir = root.resolve("foo").resolve("bar")
     FileUtils.createDirectories(subdir)
     subdir.toFile.exists() shouldBe true
+  }
+
+  it should "normalize a Path" in {
+    val p = Paths.get("/A/./B/../C")
+    FileUtils.normalizePath(p).toString shouldBe "/A/C"
   }
 }

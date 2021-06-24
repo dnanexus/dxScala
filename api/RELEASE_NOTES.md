@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.5.0 (2021-06-23)
 
 * Adds `folder` attribute to job description
 * Checks that all necessary fields are available when trying to used cached object descriptions
