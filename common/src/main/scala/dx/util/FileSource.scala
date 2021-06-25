@@ -315,26 +315,25 @@ case class LocalFileSource(
   override def resolve(path: String): LocalFileSource = {
     val parent = if (isDirectory) this else getParent.get
     val parentPath = parent.canonicalPath
-    val newPath = parentPath.resolve(path)
-    val newCanonicalPath = FileUtils.normalizePath(newPath)
+    val newPath = FileUtils.normalizePath(parentPath.resolve(path))
     cachedListing
       .flatMap { listing =>
         listing.collectFirst {
-          case fs: LocalFileSource if fs.canonicalPath == newCanonicalPath => fs
+          case fs: LocalFileSource if fs.canonicalPath == newPath => fs
         }
       }
       .getOrElse {
-        val newIsDirectory = newCanonicalPath.toFile match {
+        val newIsDirectory = newPath.toFile match {
           case f if f.exists()         => f.isDirectory
           case _ if path.endsWith("/") => true
           case _                       => false
         }
         // the parent can only be used if it is the direct ancestor of the new path
-        val cachedParent = if (newCanonicalPath.getParent == parentPath) Some(parent) else None
-        LocalFileSource(newCanonicalPath, encoding, newIsDirectory)(newPath.toString,
-                                                                    newPath,
-                                                                    cachedParent = cachedParent,
-                                                                    logger = logger)
+        val cachedParent = if (newPath.getParent == parentPath) Some(parent) else None
+        LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString,
+                                                           newPath,
+                                                           cachedParent = cachedParent,
+                                                           logger = logger)
       }
   }
 
