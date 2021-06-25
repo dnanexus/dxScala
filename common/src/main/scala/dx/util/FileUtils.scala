@@ -15,6 +15,7 @@ import java.nio.file.{
 import sun.security.action.GetPropertyAction
 
 import scala.io.{Codec, Source}
+import scala.jdk.CollectionConverters._
 
 object FileUtils {
   val FileScheme: String = "file"
@@ -28,21 +29,64 @@ object FileUtils {
 
   def systemTempDir: Path = {
     try {
-      Paths.get(GetPropertyAction.privilegedGetProperty("java.io.tmpdir"))
+      getPath(GetPropertyAction.privilegedGetProperty("java.io.tmpdir"))
     } catch {
       case _: Throwable => Paths.get("/tmp")
     }
   }
 
-  def cwd: Path = {
-    Paths.get(".")
-  }
-
-  def absolutePath(path: Path): Path = {
-    if (Files.exists(path)) {
+  /**
+    * Removes '.' and '..' elements from a path. Beginning '..'
+    * elements of a relative path are preserved, otherwise a '..'
+    * removes the preceeding path element.
+    * @example
+    *   /A/./B/../C -> /A/C
+    *   ../foo/../bar -> ../bar
+    *   ./hello.txt -> hello.txt
+    */
+  def normalizePath(path: Path): Path = {
+    if (path.isAbsolute && Files.exists(path)) {
       path.toRealPath()
     } else {
-      path.toAbsolutePath
+      val elements = Option(path.getRoot).map(_.toString).toVector ++ path
+        .iterator()
+        .asScala
+        .map(_.toString)
+        .dropWhile(_ == ".")
+      val filtered = elements.foldLeft(Vector.empty[String]) {
+        case (accu, element) if element == "." => accu
+        case (accu, element) if element == ".." && accu.lastOption.exists(_ != "..") =>
+          accu.dropRight(1)
+        case (accu, element) => accu :+ element
+      }
+      filtered match {
+        case Vector()  => new File(".").toPath
+        case Vector(p) => new File(p).toPath
+        case Vector(head, tail @ _*) =>
+          tail.foldLeft(new File(head).toPath) {
+            case (parent, child) => parent.resolve(child)
+          }
+      }
+    }
+  }
+
+  /**
+    * Returns the absolute, normalized version of `path`.
+    */
+  def absolutePath(path: Path): Path = {
+    normalizePath(path.toAbsolutePath)
+  }
+
+  /**
+    * Returns the current working directory. If `absolute=true` this
+    * is an absolute, normalized path, otherwise it is a relative path.
+    */
+  def cwd(absolute: Boolean = false): Path = {
+    val relCwd = new File(".").toPath
+    if (absolute) {
+      absolutePath(relCwd)
+    } else {
+      relCwd
     }
   }
 
@@ -54,7 +98,7 @@ object FileUtils {
     * @return
     */
   def getPath(path: String): Path = {
-    new File(path).toPath
+    normalizePath(new File(path).toPath)
   }
 
   def getUriScheme(pathOrUri: String): Option[String] = {

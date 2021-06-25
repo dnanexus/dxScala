@@ -2,6 +2,10 @@
 
 ## in develop
 
+* Normalizes any object/folder paths
+
+## 0.5.0 (2021-06-23)
+
 * Adds `folder` attribute to job description
 * Checks that all necessary fields are available when trying to used cached object descriptions
 * Creates `DxFile` with destination project when uploading to a destination project

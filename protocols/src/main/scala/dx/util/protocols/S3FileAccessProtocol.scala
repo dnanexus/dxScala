@@ -1,7 +1,7 @@
 package dx.util.protocols
 
 import java.nio.charset.Charset
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.core.sync.ResponseTransformer
 import software.amazon.awssdk.regions.Region
@@ -40,14 +40,11 @@ case class S3FileSource(
 
   private lazy val request: GetObjectRequest =
     GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
-  private[protocols] lazy val objectPath: Path = Paths.get(objectKey)
+  private[protocols] lazy val objectPath: Path = FileUtils.getPath(objectKey)
 
   override def name: String = objectPath.getFileName.toString
 
-  override def folder: String = objectPath.getParent match {
-    case null => ""
-    case path => path.toString
-  }
+  override def folder: String = Option(objectPath.getParent).map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
@@ -103,14 +100,11 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     private val cachedParent: Option[S3FolderSource] = None,
     private var cachedListing: Option[Vector[FileSource]] = None
 ) extends AddressableFileSource {
-  private lazy val prefixPath: Path = Paths.get(prefix)
+  private lazy val prefixPath: Path = FileUtils.getPath(prefix)
 
   override def name: String = prefixPath.getFileName.toString
 
-  override def folder: String = prefixPath.getParent match {
-    case null => ""
-    case path => path.toString
-  }
+  override def folder: String = Option(prefixPath.getParent).map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
@@ -149,15 +143,15 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
   }
 
   override def resolve(path: String): AddressableFileSource = {
-    val objectKey = s"${prefix}${path}"
-    val newUri = s"s3://${bucketName}/${objectKey}"
+    val objectKey = prefixPath.resolve(path)
+    val newUri = s"s3://${bucketName}/${objectKey.toString}"
     // we can only use this folder as the parent if it is the direct ancestor
     // of the new file/folder
-    val cachedParent = if (Paths.get(objectKey).getParent == prefixPath) Some(this) else None
+    val cachedParent = if (objectKey.getParent == prefixPath) Some(this) else None
     if (path.endsWith("/")) {
-      S3FolderSource(newUri, bucketName, objectKey)(protocol, cachedParent)
+      S3FolderSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
     } else {
-      S3FileSource(newUri, bucketName, objectKey)(protocol, cachedParent)
+      S3FileSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
     }
   }
 
@@ -173,10 +167,10 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
   }
 
   override protected def localizeTo(dir: Path): Unit = {
-    val sourcePath = Paths.get(prefix)
+    val sourcePath = FileUtils.getPath(prefix)
     listPrefix.foreach { s3obj =>
       val objectKey = s3obj.key()
-      val relativePath = sourcePath.relativize(Paths.get(objectKey))
+      val relativePath = sourcePath.relativize(FileUtils.getPath(objectKey))
       val destPath = dir.resolve(relativePath)
       val downloadRequest = GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
       protocol.getClient.getObject(downloadRequest,
@@ -216,7 +210,7 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
       val dirs =
         s3Objs.foldLeft(Map(Option.empty[Path] -> (Set.empty[Path], Set.empty[(Path, S3Object)]))) {
           case (dirs, s3Obj) =>
-            val path = Paths.get(s3Obj.key())
+            val path = FileUtils.getPath(s3Obj.key())
             val parent = Option(path.getParent)
             val newDirs = addDirs(parent, dirs)
             val (subdirs, files) = newDirs(parent)
@@ -246,11 +240,11 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
 
       buildListing(None, this)
     } else {
-      val sourcePath = Paths.get(prefix)
+      val sourcePath = FileUtils.getPath(prefix)
       val (files, folders) =
         s3Objs.foldLeft(Vector.empty[S3FileSource], Map.empty[Path, S3FolderSource]) {
           case ((files, folders), s3Obj) =>
-            val relPath = sourcePath.relativize(Paths.get(s3Obj.key()))
+            val relPath = sourcePath.relativize(FileUtils.getPath(s3Obj.key()))
             if (relPath.getNameCount == 1) {
               (files :+ S3FileSource(s"s3://${bucketName}/${s3Obj.key()}", bucketName, s3Obj.key())(
                    protocol,

@@ -17,4 +17,11 @@ class FileUtilsTest extends AnyFlatSpec with Matchers {
     FileUtils.createDirectories(subdir)
     subdir.toFile.exists() shouldBe true
   }
+
+  it should "normalize a Path" in {
+    FileUtils.getPath("/A/./B/../C").toString shouldBe "/A/C"
+    FileUtils.getPath("A/../B/./C").toString shouldBe "B/C"
+    FileUtils.getPath("../foo/../bar").toString shouldBe "../bar"
+    FileUtils.getPath("./hello.txt").toString shouldBe "hello.txt"
+  }
 }
