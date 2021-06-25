@@ -15,11 +15,12 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
   }
 
   // pull a Docker image from a repository - requires Docker client to be installed
-  def pullImage(name: String, maxRetries: Int = 3): String = {
+  def pullImage(name: String, maxRetries: Int = 3, quiet: Boolean = true): String = {
     def pull(retry: Int): Option[String] = {
       try {
         // stdout will be the full image name
-        val (_, stdout, stderr) = SysUtils.execCommand(s"docker pull --quiet ${name}")
+        val quietOpt = Option.when(quiet)("--quiet ").getOrElse("")
+        val (_, stdout, stderr) = SysUtils.execCommand(s"docker pull ${quietOpt}${name}")
         logger.trace(
             s"""|output:
                 |${stdout}
