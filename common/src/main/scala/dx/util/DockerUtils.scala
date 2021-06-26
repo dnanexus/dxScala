@@ -14,12 +14,34 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
     p
   }
 
+  private lazy val dockerVersion: Vector[Int] = {
+    val dockerVersionRegexp = "Docker version (\\d+)\\.(\\d+)\\.(\\d+),.*".r
+    SysUtils.execCommand("docker --version") match {
+      case (_, dockerVersionRegexp(major, minor, patch), _) =>
+        Vector(major.toInt, minor.toInt, patch.toInt)
+      case other =>
+        throw new Exception(s"unexpected docker --version output ${other}")
+    }
+  }
+
+  private def dockerVersionCompare(ver: Vector[Int]): Int = {
+    dockerVersion
+      .zip(ver)
+      .collectFirst {
+        case (a, b) if a < b => -1
+        case (a, b) if a > b => 1
+      }
+      .getOrElse(0)
+  }
+
   // pull a Docker image from a repository - requires Docker client to be installed
-  def pullImage(name: String, maxRetries: Int = 3, quiet: Boolean = true): String = {
+  def pullImage(name: String, maxRetries: Int = 3): String = {
     def pull(retry: Int): Option[String] = {
       try {
+        // --quiet option was added in docker 19.03
+        val quietOpt =
+          Option.when(dockerVersionCompare(Vector(19, 3, 0)) >= 0)("--quiet ").getOrElse("")
         // stdout will be the full image name
-        val quietOpt = Option.when(quiet)("--quiet ").getOrElse("")
         val (_, stdout, stderr) = SysUtils.execCommand(s"docker pull ${quietOpt}${name}")
         logger.trace(
             s"""|output:
