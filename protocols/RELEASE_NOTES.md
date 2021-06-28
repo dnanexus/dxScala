@@ -1,6 +1,6 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.4.1 (2021-06-28)
 
 * Normalizes any file/folder paths
 

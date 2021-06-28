@@ -1,8 +1,9 @@
 # dxCommon
 
-## in develop
+## 0.5.1 (2021-06-28)
 
 * Adds `FileUtils.normalizePath`
+* Makes `DockerUtil.pullImage` compatible with earlier Docker versions by only using `--quiet` option with versions >= 19.03
 
 ## 0.5.0 (2021-06-23)
 
