@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Fixes `DockerUtils.pullImage` for Docker versions with qualifiers
+
 ## 0.5.1 (2021-06-28)
 
 * Adds `FileUtils.normalizePath`
