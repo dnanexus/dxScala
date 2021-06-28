@@ -34,23 +34,27 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
 //      .getOrElse(0)
 //  }
 
+  private val dockerPullStdoutRegexp = "(?s).*[\n ](.+)".r
+
   // pull a Docker image from a repository - requires Docker client to be installed
   def pullImage(name: String, maxRetries: Int = 3): String = {
     def pull(retry: Int): Option[String] = {
       try {
-        // the last line of stdout is the full image name
-        val (_, stdout, _) = SysUtils.execCommand(s"docker pull ${name}")
-        val lastLine = stdout.linesIterator.toVector.last.trim
-        return Some(lastLine)
+        // the last line of stdout ends with the full image name
+        SysUtils.execCommand(s"docker pull ${name}") match {
+          case (0, dockerPullStdoutRegexp(imageName), _) => Some(imageName.trim)
+          case other =>
+            throw new Exception(s"unexpected output from 'docker pull': ${other}")
+        }
       } catch {
-        case t: Throwable =>
+        case t: CommandExecError =>
           logger.trace(
               s"Failed to pull docker image: ${name}. Retrying... ${maxRetries - retry}",
               exception = Some(t)
           )
           Thread.sleep(1000)
+          None
       }
-      None
     }
 
     (0 to maxRetries)
