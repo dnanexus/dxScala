@@ -1,6 +1,10 @@
 # dxFileAccessProtocols
 
-## ## 0.4.0 (2021-06-23)
+## 0.4.1 (2021-06-28)
+
+* Normalizes any file/folder paths
+
+## 0.4.0 (2021-06-23)
 
 * Exposes dx folder in `DxFolderSource`
 * Implements recursive listing in `S3FileAccessProtocol` and `DxFileAccessProtocol`

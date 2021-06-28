@@ -72,7 +72,7 @@ jobs:
           # released. The section should start with '## <version>', e.g. ## 1.0.0 2021-01-01
           # The file will be read by the create-release step
           RELEASE_NOTES_PATH="./protocols/release_notes_${{ github.event.inputs.release-version }}.md"
-          sed -n '/## ${{ github.event.inputs.release-version }}/,/##/p' api/RELEASE_NOTES.md | sed '1d; $d' > $RELEASE_NOTES_PATH
+          sed -n '/## ${{ github.event.inputs.release-version }}/,/##/p' protocols/RELEASE_NOTES.md | sed '1d; $d' > $RELEASE_NOTES_PATH
           echo ::set-output name=release-notes-path::$(echo "${RELEASE_NOTES_PATH}")
       - name: Commit changes to application.conf files
         uses: EndBug/add-and-commit@v7

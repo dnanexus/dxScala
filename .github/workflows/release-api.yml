@@ -88,7 +88,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: common-${{ github.event.inputs.release-version }}
+          tag_name: api-${{ github.event.inputs.release-version }}
           release_name: dxApi ${{ github.event.inputs.release-version }}
           body_path: ${{ steps.update-release.outputs.release-notes-path }}
           draft: true
@@ -112,7 +112,7 @@ jobs:
         run: |
           git pull
           git push origin HEAD:${{ github.ref }}
-          git push origin HEAD:common-${{ github.event.inputs.release-version }}
+          git push origin HEAD:api-${{ github.event.inputs.release-version }}
       - name: Publish package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,7 +123,7 @@ jobs:
         uses: author/action-rollback@stable
         with:
           release_id: ${{ steps.create-release.outputs.id }}
-          tag: common-${{ github.event.inputs.release-version }}
+          tag: api-${{ github.event.inputs.release-version }}
           delete_orphan_tag: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

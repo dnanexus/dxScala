@@ -315,7 +315,7 @@ case class LocalFileSource(
   override def resolve(path: String): LocalFileSource = {
     val parent = if (isDirectory) this else getParent.get
     val parentPath = parent.canonicalPath
-    val newPath = parentPath.resolve(path)
+    val newPath = FileUtils.normalizePath(parentPath.resolve(path))
     cachedListing
       .flatMap { listing =>
         listing.collectFirst {
@@ -481,7 +481,7 @@ object LocalFileSource {
     if (Files.exists(path)) {
       path.toRealPath()
     } else if (path.isAbsolute) {
-      path
+      FileUtils.normalizePath(path)
     } else {
       findInPath(path.toString, searchPath).getOrElse(
           // it's a non-existant relative path - localize it to current working dir
@@ -536,7 +536,7 @@ case class HttpFileSource(
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
-  private lazy val path = Paths.get(uri.getPath)
+  private lazy val path = FileUtils.getPath(uri.getPath)
 
   override lazy val name: String = path.getFileName.toString
 
@@ -751,7 +751,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
             // the imported file is not relative to the parent, but
             // but LocalFileAccessProtocol may be configured to look
             // for it in a different folder
-            fromFile(Paths.get(address))
+            fromFile(FileUtils.getPath(address))
           case other =>
             throw new Exception(s"Not an AddressableFileNode: ${other}")
         }
@@ -778,7 +778,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
             // the imported file is not relative to the parent, but
             // but LocalFileAccessProtocol may be configured to look
             // for it in a different folder
-            fromFile(Paths.get(address))
+            fromFile(FileUtils.getPath(address))
           case other =>
             throw new Exception(s"Not an AddressableFileNode: ${other}")
         }

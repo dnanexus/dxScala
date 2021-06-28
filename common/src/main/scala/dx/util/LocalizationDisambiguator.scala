@@ -2,7 +2,7 @@ package dx.util
 
 import dx.util.CollectionUtils.IterableOnceExtensions
 
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.nio.file.{FileAlreadyExistsException, Files, Path}
 import java.util.UUID
 
 trait LocalizationDisambiguator {
@@ -132,7 +132,7 @@ case class SafeLocalizationDisambiguator(
                              defaultDir: Option[Path] = None,
                              force: Boolean = false): Path = {
     logger.trace(s"getting local path for '${name}' from source container '${sourceContainer}''")
-    val namePath = Paths.get(name)
+    val namePath = FileUtils.getPath(name)
     if (namePath.isAbsolute) {
       throw new Exception(s"expected ${name} to be a file name")
     }
