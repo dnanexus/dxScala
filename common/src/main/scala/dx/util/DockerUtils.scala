@@ -15,7 +15,7 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
   }
 
   private lazy val dockerVersion: Vector[Int] = {
-    val dockerVersionRegexp = "Docker version (\\d+)\\.(\\d+)\\.(\\d+),.*".r
+    val dockerVersionRegexp = "Docker version (\\d+)\\.(\\d+)\\.(\\d+).*".r
     SysUtils.execCommand("docker --version") match {
       case (_, dockerVersionRegexp(major, minor, patch), _) =>
         Vector(major.toInt, minor.toInt, patch.toInt)
