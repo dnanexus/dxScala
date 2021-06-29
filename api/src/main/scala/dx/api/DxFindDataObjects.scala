@@ -226,6 +226,15 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       state.map(s => Map("state" -> JsString(s.toString.toLowerCase))).getOrElse(Map.empty)
     val request = requiredFields ++ projectField ++ scopeField ++ cursorField ++ limitField ++ classField ++
       tagsField ++ nameField ++ idField ++ stateField
+    if (scope.isEmpty) {
+      logger.warning(
+          """Calling findDataObjects without a project can cause result in longer response times 
+            |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
+      )
+      if (logger.isVerbose) {
+        logger.traceLimited(JsObject(request).prettyPrint)
+      }
+    }
     val responseJs = dxApi.findDataObjects(request)
     val next: JsValue = responseJs.fields.get("next") match {
       case None | Some(JsNull) => JsNull
@@ -272,15 +281,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
           s"invalid class limitation ${invalidClasses.mkString(",")}; must be one of {record, file, applet, workflow}"
       )
     }
-    val scope: Option[JsValue] = dxProject match {
-      case Some(proj) => Some(createScope(proj, folder, recurse))
-      case None =>
-        logger.warning(
-            """Calling findDataObjects without a project can cause result in longer response times 
-              |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
-        )
-        None
-    }
+    val scope: Option[JsValue] = dxProject.map(createScope(_, folder, recurse))
     val allResults: Map[DxDataObject, DxObjectDescribe] = Iterator
       .unfold[Map[DxDataObject, DxObjectDescribe], Option[JsValue]](Some(JsNull)) {
         case None => None
