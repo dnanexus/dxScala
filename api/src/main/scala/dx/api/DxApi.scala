@@ -61,7 +61,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private val DownloadRetryLimit = 3
   private val UploadRetryLimit = 3
   private val UploadWaitMillis = 1000
-  private val projectAndPathRegexp = "(?:(.+):)?(.+)".r
+  private val projectAndPathRegexp = "(?:(.+):)?(.+)\\s*".r
 
   /**
     * Calls 'dx pwd' and returns a tuple of (projectName, folder).
