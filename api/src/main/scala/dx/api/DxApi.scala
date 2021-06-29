@@ -61,7 +61,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private val DownloadRetryLimit = 3
   private val UploadRetryLimit = 3
   private val UploadWaitMillis = 1000
-  private val projectAndPathRegexp = "(?:(.+):)?(.+)".r
+  private val projectAndPathRegexp = "(?:(.+):)?(.+)\\s*".r
 
   /**
     * Calls 'dx pwd' and returns a tuple of (projectName, folder).
@@ -69,7 +69,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   def getWorkingDir: (String, String) = {
     SysUtils.execCommand("dx pwd") match {
       case (_, projectAndPathRegexp(projName, path), _) => (projName, path)
-      case other                                        => throw new Exception(s"unexpected 'dx pwd' output ${other}")
+      case other =>
+        throw new Exception(s"unexpected 'dx pwd' output ${other}")
     }
   }
 

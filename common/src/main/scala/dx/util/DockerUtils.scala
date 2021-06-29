@@ -14,52 +14,47 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
     p
   }
 
-  private lazy val dockerVersion: Vector[Int] = {
-    val dockerVersionRegexp = "Docker version (\\d+)\\.(\\d+)\\.(\\d+),.*".r
-    SysUtils.execCommand("docker --version") match {
-      case (_, dockerVersionRegexp(major, minor, patch), _) =>
-        Vector(major.toInt, minor.toInt, patch.toInt)
-      case other =>
-        throw new Exception(s"unexpected docker --version output ${other}")
-    }
-  }
+//  private lazy val dockerVersion: Vector[Int] = {
+//    val dockerVersionRegexp = "(?s)Docker version (\\d+)\\.(\\d+)\\.(\\d+).*".r
+//    SysUtils.execCommand("docker --version") match {
+//      case (0, dockerVersionRegexp(major, minor, patch), _) =>
+//        Vector(major.toInt, minor.toInt, patch.toInt)
+//      case other =>
+//        throw new Exception(s"unexpected docker --version output ${other}")
+//    }
+//  }
+//
+//  private def dockerVersionCompare(ver: Vector[Int]): Int = {
+//    dockerVersion
+//      .zip(ver)
+//      .collectFirst {
+//        case (a, b) if a < b => -1
+//        case (a, b) if a > b => 1
+//      }
+//      .getOrElse(0)
+//  }
 
-  private def dockerVersionCompare(ver: Vector[Int]): Int = {
-    dockerVersion
-      .zip(ver)
-      .collectFirst {
-        case (a, b) if a < b => -1
-        case (a, b) if a > b => 1
-      }
-      .getOrElse(0)
-  }
+  private val dockerPullStdoutRegexp = "(?s).*[\n ](.+)".r
 
   // pull a Docker image from a repository - requires Docker client to be installed
   def pullImage(name: String, maxRetries: Int = 3): String = {
     def pull(retry: Int): Option[String] = {
       try {
-        // --quiet option was added in docker 19.03
-        val quietOpt =
-          Option.when(dockerVersionCompare(Vector(19, 3, 0)) >= 0)("--quiet ").getOrElse("")
-        // stdout will be the full image name
-        val (_, stdout, stderr) = SysUtils.execCommand(s"docker pull ${quietOpt}${name}")
-        logger.trace(
-            s"""|output:
-                |${stdout}
-                |stderr:
-                |${stderr}""".stripMargin
-        )
-        return Some(stdout.trim)
+        // the last line of stdout ends with the full image name
+        SysUtils.execCommand(s"docker pull ${name}") match {
+          case (0, dockerPullStdoutRegexp(imageName), _) => Some(imageName.trim)
+          case other =>
+            throw new Exception(s"unexpected output from 'docker pull': ${other}")
+        }
       } catch {
-        // ideally should catch specific exception.
-        case t: Throwable =>
+        case t: CommandExecError =>
           logger.trace(
               s"Failed to pull docker image: ${name}. Retrying... ${maxRetries - retry}",
               exception = Some(t)
           )
           Thread.sleep(1000)
+          None
       }
-      None
     }
 
     (0 to maxRetries)
@@ -124,8 +119,8 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
   // TODO: I'm not sure that the manifest should take priority over the output of 'docker load'
   def getImage(nameOrUri: String): String = {
     val (protocol, name) = nameOrUri match {
-      case imageRegexp(protocol, name) if protocol == null => (None, name)
-      case imageRegexp(protocol, name)                     => (Some(protocol), name)
+      case imageRegexp(null, name)     => (None, name)
+      case imageRegexp(protocol, name) => (Some(protocol), name)
       case _ =>
         throw new Exception(s"invalid image name or URL ${nameOrUri}")
     }
@@ -135,7 +130,7 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
       // 2. open the tar archive
       // 2. load into the local docker cache
       // 3. figure out the image name
-      logger.traceLimited(s"downloading docker tarball to ${DOCKER_TARBALLS_DIR}")
+      logger.traceLimited(s"downloading docker tarball ${nameOrUri} to ${DOCKER_TARBALLS_DIR}")
       val localTarSrc =
         try {
           fileResolver.resolve(nameOrUri)
@@ -144,7 +139,7 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
             throw new Exception(s"Could not resolve docker image URI ${nameOrUri}", e)
         }
       val localTar = localTarSrc.localizeToDir(DOCKER_TARBALLS_DIR, overwrite = true)
-      logger.traceLimited("figuring out the image name")
+      logger.traceLimited("determining image name from tarball manifest")
       val (_, mContent, _) = SysUtils.execCommand(s"tar --to-stdout -xf ${localTar} manifest.json")
       logger.traceLimited(
           s"""|manifest content:
@@ -176,6 +171,7 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
         case Some(r) => r
       }
     } else if (protocol.forall(_ == "docker")) {
+      // the protocol is 'docker' or there is no protocol ('docker' by default)
       pullImage(name)
     } else {
       throw new Exception(s"Only docker images are currently supported; cannot pull ${nameOrUri}")

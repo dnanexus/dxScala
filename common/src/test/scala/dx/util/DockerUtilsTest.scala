@@ -1,6 +1,7 @@
 package dx.util
 
 import org.scalatest.Inside
+import org.scalatest.exceptions.TestCanceledException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -28,5 +29,16 @@ class DockerUtilsTest extends AnyFlatSpec with Matchers with Inside {
 
     val repo = dockerUtils.readManifestGetDockerImageName(buf)
     repo should equal(Some("ubuntu_18_04_minimal:latest"))
+  }
+
+  it should "pull an image" in {
+    val imageName =
+      try {
+        dockerUtils.pullImage("ubuntu:xenial-20210611")
+      } catch {
+        case t: Throwable =>
+          throw new TestCanceledException("docker not available", t, 0)
+      }
+    imageName shouldBe "docker.io/library/ubuntu:xenial-20210611"
   }
 }

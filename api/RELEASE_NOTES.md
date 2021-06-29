@@ -1,5 +1,9 @@
 # dxApi
 
+## 0.5.2 (2021-06-29)
+
+* Fixes `DxApi.getWorkingDir`
+
 ## 0.5.1 (2021-06-28)
 
 * Normalizes any object/folder paths
