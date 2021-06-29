@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Trace logs the API request to `findDataObjects` when called without a project
+
 ## 0.5.1 (2021-06-28)
 
 * Normalizes any object/folder paths
