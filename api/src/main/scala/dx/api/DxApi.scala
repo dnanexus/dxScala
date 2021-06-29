@@ -69,7 +69,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   def getWorkingDir: (String, String) = {
     SysUtils.execCommand("dx pwd") match {
       case (_, projectAndPathRegexp(projName, path), _) => (projName, path)
-      case other                                        => throw new Exception(s"unexpected 'dx pwd' output ${other}")
+      case other =>
+        throw new Exception(s"unexpected 'dx pwd' output ${other}")
     }
   }
 
