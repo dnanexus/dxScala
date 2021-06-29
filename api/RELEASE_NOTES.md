@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.5.2 (2021-06-29)
 
 * Fixes `DxApi.getWorkingDir`
 

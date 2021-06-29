@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.5.2 (2021-06-29)
 
 * No longer uses `--quiet` option with `docker pull` in `DockerUtils.pullImage`
 
