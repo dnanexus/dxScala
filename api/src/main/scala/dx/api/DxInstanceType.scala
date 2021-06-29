@@ -540,8 +540,7 @@ object InstanceTypeDB extends DefaultJsonProtocol {
               """|Warning: insufficient permissions to retrieve the
                  |instance price list. This will result in suboptimal machine choices,
                  |incurring higher costs when running workflows.
-                 |""".stripMargin.replaceAll("\n", " "),
-              exception = Some(ex)
+                 |""".stripMargin.replaceAll("\n", " ")
           )
           (allInstanceTypes, false)
       }
