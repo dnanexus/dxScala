@@ -769,11 +769,13 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       val allResultsById = allResults.groupBy(_.id)
       val multiple = allResultsById.filter(_._2.size > 1)
       if (multiple.nonEmpty) {
-        throw new Exception(s"id(s) with more than one result: ${multiple}")
+        throw new Exception(
+            s"One or more file IDs did not have a project specified and returned multiple search results: ${multiple}"
+        )
       }
       val missing = filesById.keySet.diff(allResultsById.keySet)
       if (missing.nonEmpty) {
-        throw new Exception(s"id(s) not found: ${missing.mkString(",")}")
+        throw new Exception(s"One or more file id(s) were not found: ${missing.mkString(",")}")
       }
     }
 
