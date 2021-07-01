@@ -1,8 +1,8 @@
 # dxApi
 
-## in develop
+## 0.5.2 (2021-06-29)
 
-* Trace logs the API request to `findDataObjects` when called without a project
+* Fixes `DxApi.getWorkingDir`
 
 ## 0.5.1 (2021-06-28)
 
