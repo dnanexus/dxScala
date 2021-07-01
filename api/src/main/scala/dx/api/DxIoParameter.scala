@@ -74,24 +74,6 @@ final case class IOParameterSuggestionFile(name: Option[String],
                                            path: Option[String])
     extends IOParameterSuggestion
 
-// Types for the IO 'type' section
-object DxConstraint {
-  val And = "$and"
-  val Or = "$or"
-}
-
-object ConstraintOper extends Enum {
-  type ConstraintOper = Value
-  val And, Or = Value
-}
-
-sealed abstract class IOParameterTypeConstraint
-sealed case class IOParameterTypeConstraintString(constraint: String)
-    extends IOParameterTypeConstraint
-sealed case class IOParameterTypeConstraintOper(oper: ConstraintOper.Value,
-                                                constraints: Vector[IOParameterTypeConstraint])
-    extends IOParameterTypeConstraint
-
 // Types for the IO 'default' section
 sealed abstract class IOParameterDefault
 final case class IOParameterDefaultString(value: String) extends IOParameterDefault
@@ -112,7 +94,7 @@ case class IOParameter(
     patterns: Option[IOParameterPattern] = None,
     choices: Option[Vector[IOParameterChoice]] = None,
     suggestions: Option[Vector[IOParameterSuggestion]] = None,
-    dx_type: Option[IOParameterTypeConstraint] = None,
+    dx_type: Option[DxConstraint] = None,
     default: Option[IOParameterDefault] = None
 )
 
@@ -224,7 +206,7 @@ object IOParameter {
       case _ => None
     }
 
-    val dx_type = jsv.asJsObject.fields.get(DxIOSpec.Type) match {
+    val dxType = jsv.asJsObject.fields.get(DxIOSpec.Type) match {
       case Some(v: JsValue) => Some(ioParamTypeFromJs(v))
       case _                => None
     }
@@ -248,23 +230,23 @@ object IOParameter {
         patterns = patterns,
         choices = choices,
         suggestions = suggestions,
-        dx_type = dx_type,
+        dx_type = dxType,
         default = default
     )
   }
 
-  def ioParamTypeFromJs(value: JsValue): IOParameterTypeConstraint = {
+  def ioParamTypeFromJs(value: JsValue): DxConstraint = {
     value match {
-      case JsString(s) => IOParameterTypeConstraintString(s)
+      case JsString(s) => DxConstraintString(s)
       case JsObject(fields) =>
         if (fields.size != 1) {
           throw new Exception("Constraint hash must have exactly one '$and' or '$or' key")
         }
         fields.head match {
-          case (DxConstraint.And, JsArray(array)) =>
-            IOParameterTypeConstraintOper(ConstraintOper.And, array.map(ioParamTypeFromJs))
-          case (DxConstraint.Or, JsArray(array)) =>
-            IOParameterTypeConstraintOper(ConstraintOper.Or, array.map(ioParamTypeFromJs))
+          case (DxConstraintOper.And.name, JsArray(array)) =>
+            DxConstraintBool(DxConstraintOper.And, DxConstraintArray(array.map(ioParamTypeFromJs)))
+          case (DxConstraintOper.Or.name, JsArray(array)) =>
+            DxConstraintBool(DxConstraintOper.Or, DxConstraintArray(array.map(ioParamTypeFromJs)))
           case _ =>
             throw new Exception(
                 "Constraint must have key '$and' or '$or' and an array value"
