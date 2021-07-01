@@ -504,6 +504,10 @@ public class DXEnvironment {
         return projectContextId;
     }
 
+    public String getWorkspace() {
+        return workspaceId;
+    }
+
     /**
      * Returns the security context JSON.
      *

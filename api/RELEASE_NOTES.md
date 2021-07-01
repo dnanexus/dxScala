@@ -2,7 +2,12 @@
 
 ## in develop
 
-* Trace logs the API request to `findDataObjects` when called without a project
+* Adds option to `DxApi.describeFilesBulk` to search first in the workspace container
+* `DxApi.resolveDataObject` now searches in the current workspace and/or project if the project is not specified explicitly
+
+## 0.5.2 (2021-06-29)
+
+* Fixes `DxApi.getWorkingDir`
 
 ## 0.5.1 (2021-06-28)
 
