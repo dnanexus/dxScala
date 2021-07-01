@@ -164,10 +164,10 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       dxProject: Option[DxProject],
       cursor: JsValue,
       klass: Option[String],
-      tagConstraints: Vector[String],
-      nameConstraints: Vector[String],
+      tagConstraints: Set[String],
+      nameConstraints: Set[String],
       withInputOutputSpec: Boolean,
-      idConstraints: Vector[String],
+      idConstraints: Set[String],
       state: Option[DxState.DxState],
       defaultFields: Boolean,
       extraFields: Set[Field.Value]
@@ -203,23 +203,22 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
     }
     val classField = klass.map(k => Map("class" -> JsString(k))).getOrElse(Map.empty)
     val tagsField = tagConstraints.map(JsString(_)) match {
-      case tags if tags.nonEmpty => Map("tagsArray" -> JsArray(tags))
+      case tags if tags.nonEmpty => Map("tagsArray" -> JsArray(tags.toVector))
       case _                     => Map.empty
     }
-    val nameField = nameConstraints match {
-      case Vector(constraint) =>
-        // Just one name, no need to use regular expressions
-        Map("name" -> JsString(constraint))
-      case constraints if constraints.nonEmpty =>
-        // Make a conjunction of all the legal names. For example:
-        // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
-        val orRegexp = nameConstraints.map(x => s"^${x}$$").mkString("|")
-        Map("name" -> JsObject("regexp" -> JsString(orRegexp)))
-      case _ =>
-        Map.empty
+    val nameField = if (nameConstraints.isEmpty) {
+      Map.empty
+    } else if (nameConstraints.size == 1) {
+      // Just one name, no need to use regular expressions
+      Map("name" -> JsString(nameConstraints.head))
+    } else {
+      // Make a conjunction of all the legal names. For example:
+      // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
+      val orRegexp = nameConstraints.map(x => s"^${x}$$").mkString("|")
+      Map("name" -> JsObject("regexp" -> JsString(orRegexp)))
     }
     val idField = idConstraints match {
-      case v if v.nonEmpty => Map("id" -> JsArray(v.map(x => JsString(x))))
+      case v if v.nonEmpty => Map("id" -> JsArray(v.map(JsString(_)).toVector))
       case _               => Map.empty
     }
     val stateField =
@@ -267,10 +266,10 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
             folder: Option[String],
             recurse: Boolean,
             classRestriction: Option[String] = None,
-            withTags: Vector[String] = Vector.empty,
-            nameConstraints: Vector[String] = Vector.empty,
+            withTags: Set[String] = Set.empty,
+            nameConstraints: Set[String] = Set.empty,
             withInputOutputSpec: Boolean = false,
-            idConstraints: Vector[String] = Vector.empty,
+            idConstraints: Set[String] = Set.empty,
             state: Option[DxState.DxState] = None,
             defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
@@ -311,9 +310,8 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       allResults
     } else {
       // Ensure the the data objects have names in the allowed set
-      val allowedNames = nameConstraints.toSet
       allResults.filter {
-        case (_, desc) => allowedNames.contains(desc.name)
+        case (_, desc) => nameConstraints.contains(desc.name)
       }
     }
   }
