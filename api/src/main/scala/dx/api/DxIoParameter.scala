@@ -94,7 +94,7 @@ case class IOParameter(
     patterns: Option[IOParameterPattern] = None,
     choices: Option[Vector[IOParameterChoice]] = None,
     suggestions: Option[Vector[IOParameterSuggestion]] = None,
-    dx_type: Option[DxConstraint] = None,
+    dxType: Option[DxConstraint] = None,
     default: Option[IOParameterDefault] = None
 )
 
@@ -230,7 +230,7 @@ object IOParameter {
         patterns = patterns,
         choices = choices,
         suggestions = suggestions,
-        dx_type = dxType,
+        dxType = dxType,
         default = default
     )
   }
