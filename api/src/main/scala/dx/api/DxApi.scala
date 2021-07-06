@@ -734,7 +734,6 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         .grouped(limit)
         .flatMap { chunk =>
           val constraints = baseConstraints.copy(project = project, ids = chunk)
-          println(constraints)
           dxFindDataObjects
             .query(constraints, withInputOutputSpec = true, extraFields = extraFields)
             .keys
@@ -762,7 +761,6 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     val allResults = workspaceResults ++ remaining.groupBy(_.project).flatMap {
       case (proj, files) => submitRequest(files.map(_.id).toSet, proj)
     }
-    println(allResults)
 
     if (validate) {
       val allResultsById = allResults.groupBy(_.id)
