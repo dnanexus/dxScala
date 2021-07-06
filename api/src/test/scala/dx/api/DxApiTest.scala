@@ -5,6 +5,7 @@ import Tags.ApiTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import dx.util.Logger
+import spray.json._
 
 class DxApiTest extends AnyFlatSpec with Matchers {
   assume(isLoggedIn)
@@ -12,7 +13,7 @@ class DxApiTest extends AnyFlatSpec with Matchers {
   private val dxApi: DxApi = DxApi()(logger)
   private val testProject = "dxCompiler_playground"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
-  private val testFile = "file-FJ1qyg80ffP9v6gVPxKz9pQ7"
+  private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
 
   private lazy val dxTestProject: DxProject = {
     try {
@@ -28,15 +29,21 @@ class DxApiTest extends AnyFlatSpec with Matchers {
 
   ignore should "describe a record with details" taggedAs ApiTest in {
     val record = dxApi.record(testRecord, Some(dxTestProject))
-    logger.ignore(record.describe(Set(Field.Details)))
+    record.describe(Set(Field.Details)).details shouldBe Some(
+        JsObject(
+            "archiveFileId" -> JsObject(
+                "$dnanexus_link" -> JsString("file-Fgk7V100f9Jgp3fb5PPp24vg")
+            )
+        )
+    )
   }
 
-  ignore should "describe a file with details" taggedAs ApiTest in {
+  ignore should "describe a file" taggedAs ApiTest in {
     val record = dxApi.file(testFile, Some(dxTestProject))
-    logger.ignore(record.describe())
+    record.describe().name shouldBe "fileA"
   }
 
-  it should "download files as bytes" in {
+  it should "resolve a file by name and download bytes" taggedAs ApiTest in {
     val results =
       dxApi.resolveDataObjectBulk(Vector(s"dx://${testProject}:/test_data/fileA"), dxTestProject)
     results.size shouldBe 1
@@ -45,5 +52,20 @@ class DxApiTest extends AnyFlatSpec with Matchers {
 
     val value = new String(dxApi.downloadBytes(dxFile))
     value shouldBe "The fibonacci series includes 0,1,1,2,3,5\n"
+  }
+
+  it should "bulk describe files" taggedAs ApiTest in {
+    val query = Vector(DxFile(testFile, Some(dxTestProject))(dxApi))
+    val result = dxApi.describeFilesBulk(query, validate = true)
+    result.size shouldBe 1
+    result.head.hasCachedDesc shouldBe true
+    result.head.describe().name shouldBe "fileA"
+  }
+
+  it should "bulk describe and fail to validate missing file" taggedAs ApiTest in {
+    val query = Vector(DxFile("file-XXXXXXXXXXXXXXXXXXXXXXXX", Some(dxTestProject))(dxApi))
+    assertThrows[Exception] {
+      dxApi.describeFilesBulk(query, validate = true)
+    }
   }
 }
