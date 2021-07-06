@@ -1,7 +1,12 @@
 package dx.api
 
-import dx.util.Logger
+import dx.util.{Enum, Logger}
 import spray.json._
+
+object DxVisibility extends Enum {
+  type DxVisibility = Value
+  val Visible, Hidden, Either = Value
+}
 
 case class DxFindDataObjectsConstraints(
     project: Option[DxProject] = None,
@@ -11,12 +16,16 @@ case class DxFindDataObjectsConstraints(
     tags: Set[String] = Set.empty,
     properties: Option[DxConstraint] = None,
     names: Set[String] = Set.empty,
+    nameRegexp: Option[String] = None,
+    nameRegexpCaseInsensitive: Boolean = false,
+    nameGlob: Option[String] = None,
     ids: Set[String] = Set.empty,
     state: Option[DxState.DxState] = None,
     createdBefore: Option[java.util.Date] = None,
     createdAfter: Option[java.util.Date] = None,
     modifiedBefore: Option[java.util.Date] = None,
-    modifiedAfter: Option[java.util.Date] = None
+    modifiedAfter: Option[java.util.Date] = None,
+    visibility: DxVisibility.DxVisibility = DxVisibility.Either
 ) {
   def validate(): Unit = {
     val invalidClasses = objectClass.filterNot(DxFindDataObjectsConstraints.AllowedClasses.contains)
@@ -40,16 +49,38 @@ case class DxFindDataObjectsConstraints(
       Map("tagsArray" -> JsArray(tags.map(JsString(_)).toVector))
     }
     val propertiesField = properties.map(constraint => Map("properties" -> constraint.toJson))
-    val nameField = Option.when(names.nonEmpty) {
-      if (names.size == 1) {
-        // Just one name, no need to use regular expressions
-        Map("name" -> JsString(names.head))
-      } else {
-        // Make a conjunction of all the legal names. For example:
-        // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
-        val orRegexp = names.map(x => s"^${x}$$").mkString("|")
-        Map("name" -> JsObject("regexp" -> JsString(orRegexp)))
-      }
+    val nameField = Vector(
+        Option
+          .when(names.nonEmpty) {
+            if (names.size == 1) {
+              // Just one name, no need to use regular expressions
+              JsString(names.head)
+            } else {
+              // Make a conjunction of all the legal names. For example:
+              // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
+              val orRegexp = names.map(x => s"^${x}$$").mkString("|")
+              JsObject(
+                  Vector(
+                      Some("regexp" -> JsString(orRegexp)),
+                      Option.when(nameRegexpCaseInsensitive)("flags" -> JsString("i"))
+                  ).flatten.toMap
+              )
+            }
+          },
+        nameRegexp.map(regexp =>
+          JsObject(
+              Vector(
+                  Some("regexp" -> JsString(regexp)),
+                  Option.when(nameRegexpCaseInsensitive)("flags" -> JsString("i"))
+              ).flatten.toMap
+          )
+        ),
+        nameGlob.map(glob => JsObject("glob" -> JsString(glob)))
+    ).flatten match {
+      case Vector(arg) => Some(Map("name" -> arg))
+      case Vector()    => None
+      case _ =>
+        throw new Exception("only one of 'names', 'nameRegexp', and 'nameGlob' may be defined")
     }
     val idField = Option.when(ids.nonEmpty) {
       Map("id" -> JsArray(ids.map(JsString(_)).toVector))
@@ -63,6 +94,7 @@ case class DxFindDataObjectsConstraints(
                           createdAfter.map(d => Map("after" -> JsNumber(d.getTime)))).flatten
     val modifiedField =
       Option.when(modified.nonEmpty)(Map("modified" -> JsObject(modified.flatten.toMap)))
+    val visibilityField = Some(Map("visibility" -> JsString(visibility.toString.toLowerCase())))
     Vector(scopeField,
            classField,
            tagsField,
@@ -71,7 +103,8 @@ case class DxFindDataObjectsConstraints(
            idField,
            stateField,
            createdField,
-           modifiedField).flatten.flatten.toMap
+           modifiedField,
+           visibilityField).flatten.flatten.toMap
   }
 }
 
@@ -251,6 +284,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
 
   def query(constraints: DxFindDataObjectsConstraints,
             withInputOutputSpec: Boolean = false,
+            describe: Boolean = true,
             defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
     constraints.validate()
@@ -262,7 +296,6 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
         Set.empty
       }
     val requiredFields = Map(
-        "visibility" -> JsString("either"),
         "describe" -> JsObject(
             "fields" -> DxObject.requestFields(
                 DxFindDataObjects.RequiredDescFields ++ ioDescFields ++ extraFields
@@ -320,17 +353,20 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
             defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
     val constraints = DxFindDataObjectsConstraints(
-        dxProject,
-        folder,
-        recurse,
-        classRestriction,
-        withTags,
-        None,
-        nameConstraints,
-        idConstraints,
-        state
+        project = dxProject,
+        folder = folder,
+        recurse = recurse,
+        objectClass = classRestriction,
+        tags = withTags,
+        names = nameConstraints,
+        ids = idConstraints,
+        state = state
     )
-    query(constraints, withInputOutputSpec, defaultFields, extraFields)
+    query(constraints = constraints,
+          withInputOutputSpec = withInputOutputSpec,
+          describe = true,
+          defaultFields = defaultFields,
+          extraFields = extraFields)
   }
 }
 
