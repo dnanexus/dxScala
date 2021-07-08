@@ -711,6 +711,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   def describeFilesBulk(
       files: Vector[DxFile],
       extraFields: Set[Field.Value] = Set.empty,
+      extraConstraints: Option[DxFindDataObjectsConstraints] = None,
       searchWorkspaceFirst: Boolean = false,
       validate: Boolean = false
   ): Vector[DxFile] = {
@@ -721,6 +722,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
 
     val dxFindDataObjects = DxFindDataObjects(this, None)
+    val baseConstraints = extraConstraints
+      .getOrElse(DxFindDataObjectsConstraints())
+      .copy(folder = None, recurse = true, objectClass = Some("file"))
 
     // Describe a large number of platform files in bulk. Chunk files
     // to limit the number of objects in one API request. DxFindDataObjects
@@ -729,16 +733,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       ids
         .grouped(limit)
         .flatMap { chunk =>
+          val constraints = baseConstraints.copy(project = project, ids = chunk)
           dxFindDataObjects
-            .apply(
-                dxProject = project,
-                folder = None,
-                recurse = true,
-                classRestriction = Some("file"),
-                withInputOutputSpec = true,
-                idConstraints = chunk,
-                extraFields = extraFields
-            )
+            .query(constraints, withInputOutputSpec = true, extraFields = extraFields)
             .keys
         }
         .map {
