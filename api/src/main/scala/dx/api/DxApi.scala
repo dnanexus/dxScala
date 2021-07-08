@@ -7,7 +7,7 @@ import com.dnanexus.{DXAPI, DXEnvironment}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import dx.api.DxPath.DxPathComponents
 import dx.AppInternalException
-import dx.util.{FileUtils, Logger, SysUtils, TraceLevel}
+import dx.util.{FileUtils, JsUtils, Logger, SysUtils, TraceLevel}
 import dx.util.CollectionUtils.IterableOnceExtensions
 import spray.json._
 
@@ -593,43 +593,36 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   }
 
   private def submitResolutionRequest(dxPaths: Vector[DxPathComponents],
-                                      dxProject: DxProject): Map[String, DxDataObject] = {
+                                      dxProject: DxProject,
+                                      mustExist: Boolean = true): Map[String, DxDataObject] = {
     val objectReqs: Vector[JsValue] = dxPaths.map(createResolutionRequest)
     val request = Map("objects" -> JsArray(objectReqs), "project" -> JsString(dxProject.id))
     val responseJs = resolveDataObjects(request)
-    val resultsPerObj: Vector[JsValue] = responseJs.fields.get("results") match {
-      case Some(JsArray(x)) => x
-      case other            => throw new Exception(s"API call returned invalid data ${other}")
-    }
-    resultsPerObj.zipWithIndex.map {
-      case (descJs: JsValue, i) =>
-        val path = dxPaths(i).sourcePath
-        val o = descJs match {
-          case JsArray(x) if x.isEmpty =>
-            throw new Exception(
-                s"Path ${path} not found req=${objectReqs(i)}, i=${i}, project=${dxProject.id}"
-            )
-          case JsArray(x) if x.length == 1 => x(0)
-          case JsArray(_) =>
-            throw new Exception(s"Found more than one dx object in path ${path}")
-          case obj: JsObject => obj
-          case other         => throw new Exception(s"malformed json ${other}")
-        }
-        val fields = o.asJsObject.fields
-        val dxid = fields.get("id") match {
-          case Some(JsString(x)) => x
-          case _                 => throw new Exception("no id returned")
-        }
-
-        // could be a container, not a project
-        val dxContainer: Option[DxProject] = fields.get("project") match {
-          case Some(JsString(x)) => Some(project(x))
-          case _                 => None
-        }
-
-        // safe conversion to a dx-object
-        path -> dataObject(dxid, dxContainer)
-    }.toMap
+    JsUtils
+      .getValues(responseJs.fields, "results")
+      .zipWithIndex
+      .flatMap {
+        case (descJs, i) =>
+          val path = dxPaths(i).sourcePath
+          val result = descJs match {
+            case JsArray(Vector()) if mustExist =>
+              throw new Exception(
+                  s"Path ${path} not found req=${objectReqs(i)}, i=${i}, project=${dxProject.id}"
+              )
+            case JsArray(Vector())              => None
+            case JsArray(Vector(obj: JsObject)) => Some(obj)
+            case JsArray(_) =>
+              throw new Exception(s"Found more than one dx object in path ${path}")
+            case obj: JsObject => Some(obj)
+            case other         => throw new Exception(s"malformed json ${other}")
+          }
+          result.map { obj =>
+            val dxId = JsUtils.getString(obj.fields, "id")
+            val dxContainer = JsUtils.getOptionalString(obj.fields, "project").map(project)
+            path -> dataObject(dxId, dxContainer)
+          }
+      }
+      .toMap
   }
 
   def resolveDataObject(dxPath: String,
@@ -645,7 +638,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
           Vector(
               currentWorkspace,
               currentProject
-          ).flatten
+          ).flatten.distinct
       )
 
     // peel off objects that have already been resolved
@@ -657,15 +650,14 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
         )
       case Right(dxPathsToResolve) =>
         searchContainers.iterator
-          .map { proj =>
-            (submitResolutionRequest(Vector(dxPathsToResolve), proj).values.toVector, proj)
-          }
-          .collectFirst {
-            case (Vector(result), _) => result
-            case (result, proj) if result.size > 1 =>
+          .collectFirstDefined { proj =>
+            val result = submitResolutionRequest(Vector(dxPathsToResolve), proj, mustExist = false)
+            if (result.size > 1) {
               throw new Exception(
-                  s"Found more than one dx:object for path ${dxPath} in project=${proj}"
+                  s"Found more than one object for path ${dxPath} in project ${proj}"
               )
+            }
+            result.headOption.map(_._2)
           }
           .getOrElse(
               throw new Exception(s"Could not find ${dxPath} in any of ${searchContainers}")
