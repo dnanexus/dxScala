@@ -307,7 +307,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
     val request = requiredFields ++ limitField ++ constraints.toJson
     if (constraints.project.isEmpty) {
       logger.warning(
-          """Calling findDataObjects without a project can cause result in longer response times 
+          """Calling findDataObjects without a project can cause result in longer response times
             |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
       )
       if (logger.isVerbose) {

@@ -45,12 +45,18 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     val limit: Int = DxApi.ResultsPerCallLimit
 ) {
   require(limit > 0 && limit <= DxApi.ResultsPerCallLimit)
+  // Constants for context project, workspace, and job - these will not
+  // change for the duration of the program (e.g. calling `dx select` will
+  // have no effect)
   val currentProjectId: Option[String] = Option(dxEnv.getProjectContext)
   lazy val currentProject: Option[DxProject] = currentProjectId.map(DxProject(_)(this))
-  val currentWorkspaceId: Option[String] = Option(dxEnv.getWorkspace)
-  lazy val currentWorkspace: Option[DxProject] = currentWorkspaceId.map(DxProject(_)(this))
   val currentJobId: Option[String] = Option(dxEnv.getJob)
   lazy val currentJob: Option[DxJob] = currentJobId.map(DxJob(_)(this))
+  // The current workspace if we are running in an execution environment,
+  // otherwise the current project.
+  val currentWorkspaceId: Option[String] =
+    Option(dxEnv.getWorkspace).orElse(Option.when(currentJobId.isEmpty)(currentProjectId))
+  lazy val currentWorkspace: Option[DxProject] = currentWorkspaceId.map(DxProject(_)(this))
   // Convert from spray-json to jackson JsonNode
   // Used to convert into the JSON datatype used by dxjava
   private lazy val objMapper: ObjectMapper = new ObjectMapper()
@@ -58,6 +64,12 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   private val UploadRetryLimit = 3
   private val UploadWaitMillis = 1000
   private val projectAndPathRegexp = "(?:(.+):)?(.+)\\s*".r
+
+  /**
+    * Whether we are running in an execution environment, i.e.
+    * in the context of a job.
+    */
+  def inExecutionEnvironment: Boolean = currentJobId.isDefined
 
   /**
     * Calls 'dx pwd' and returns a tuple of (projectName, folder).
@@ -703,8 +715,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     * they are passed.
     * @param files files to describe
     * @param extraFields extra fields to describe
-    * @param searchWorkspaceFirst whether to search for files by ID in the current
-    *                             DX_WORKSPACE before searching by project
+    * @param searchWorkspaceFirst if true: if we are in an execution environment then
+    *                             all files will be searched in the job workspace
+    *                             before searching in the project specified for each file;
+    *                             otherwise, any files with no project specified will be
+    *                             searched in the currently selected project (if any).
     * @param validate check that exaclty one result is returned for each file
     * @return
     */
@@ -747,19 +762,23 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
 
     lazy val filesById: Map[String, DxFile] = files.map(f => f.id -> f).toMap
 
-    val (workspaceResults, remaining) = if (searchWorkspaceFirst && currentWorkspace.isDefined) {
-      val workspaceResults = submitRequest(filesById.keySet, currentWorkspace)
-      val workspaceFileIds = workspaceResults.map(_.id).toSet
-      val remaining = filesById.collect {
-        case (id, file) if !workspaceFileIds.contains(id) => file
+    val (workspaceResults, remaining) =
+      if (searchWorkspaceFirst && inExecutionEnvironment && currentWorkspaceId.isDefined) {
+        val workspaceResults = submitRequest(filesById.keySet, currentWorkspace)
+        val workspaceFileIds = workspaceResults.map(_.id).toSet
+        val remaining = filesById.collect {
+          case (id, file) if !workspaceFileIds.contains(id) => file
+        }
+        (workspaceResults, remaining)
+      } else {
+        (Vector.empty, files)
       }
-      (workspaceResults, remaining)
-    } else {
-      (Vector.empty, files)
-    }
 
     val allResults = workspaceResults ++ remaining.groupBy(_.project).flatMap {
-      case (proj, files) => submitRequest(files.map(_.id).toSet, proj)
+      case (None, files) if !inExecutionEnvironment && currentProjectId.isDefined =>
+        submitRequest(files.map(_.id).toSet, currentProject)
+      case (proj, files) =>
+        submitRequest(files.map(_.id).toSet, proj)
     }
 
     if (validate) {
