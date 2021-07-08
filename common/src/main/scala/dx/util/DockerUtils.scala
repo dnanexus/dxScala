@@ -157,6 +157,7 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
               |${errstr}""".stripMargin
       )
       repo match {
+        case Some(r) => r
         case None =>
           val dockerRepoRegexp = "^Loaded image: (.+)$".r
           val dockerHashRegexp = "^Loaded image ID: (.+)$".r
@@ -168,7 +169,6 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
                   s"Could not determine the repo name from either the manifest or the 'docker load' output ${outstr}"
               )
           }
-        case Some(r) => r
       }
     } else if (protocol.forall(_ == "docker")) {
       // the protocol is 'docker' or there is no protocol ('docker' by default)
