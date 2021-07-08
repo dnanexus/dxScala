@@ -32,6 +32,7 @@ import dx.util.Enum.enumFormat
 import spray.json.{RootJsonFormat, _}
 
 import scala.collection.immutable.ListMap
+import scala.util.{Failure, Success, Try}
 
 object DiskType extends Enum {
   type DiskType = Value
@@ -480,28 +481,40 @@ object InstanceTypeDB extends DefaultJsonProtocol {
   // view the user account. The compiler may not have these
   // permissions, causing this method to throw an exception.
   // TODO: move this to DxOrg and DxUser objects
-  private def getPricingModel(dxApi: DxApi, billTo: String, region: String): Map[String, Float] = {
+  private def getPricingModel(dxApi: DxApi,
+                              billTo: String,
+                              region: String): Option[Map[String, Float]] = {
     val request = Map("fields" -> JsObject("pricingModelsByRegion" -> JsTrue))
-    val response = billTo match {
-      case _ if billTo.startsWith("org") =>
-        dxApi.orgDescribe(billTo, request)
-      case _ if billTo.startsWith("user") =>
-        dxApi.userDescribe(billTo, request)
-      case _ =>
-        throw new Exception(s"Invalid billTo ${billTo}")
-    }
-    val pricingModelsByRegion = JsUtils.getFields(response, Some("pricingModelsByRegion"))
-    val computeRatesPerHour =
-      JsUtils.getFields(pricingModelsByRegion(region), Some("computeRatesPerHour"))
-    // convert from JsValue to a Map
-    computeRatesPerHour.map {
-      case (name, jsValue) =>
-        val hourlyRate: Float = jsValue match {
-          case JsNumber(x) => x.toFloat
-          case JsString(x) => x.toFloat
-          case _           => throw new Exception(s"compute rate is not a number ${jsValue.prettyPrint}")
-        }
-        name -> hourlyRate
+    Try {
+      billTo match {
+        case _ if billTo.startsWith("org") =>
+          dxApi.orgDescribe(billTo, request)
+        case _ if billTo.startsWith("user") =>
+          dxApi.userDescribe(billTo, request)
+        case _ =>
+          throw new Exception(s"Invalid billTo ${billTo}")
+      }
+    } match {
+      case Success(response) =>
+        JsUtils
+          .getOptionalFields(response, "pricingModelsByRegion")
+          .flatMap(_.get(region))
+          .flatMap(JsUtils.getOptionalFields(_, "computeRatesPerHour"))
+          .filter(_.nonEmpty)
+          .map { computeRatesPerHour =>
+            computeRatesPerHour.map {
+              case (name, jsValue) =>
+                val hourlyRate: Float = jsValue match {
+                  case JsNumber(x) => x.toFloat
+                  case JsString(x) => x.toFloat
+                  case _ =>
+                    throw new Exception(s"compute rate is not a number ${jsValue.prettyPrint}")
+                }
+                name -> hourlyRate
+            }
+          }
+      case Failure(_: dx.PermissionDeniedException) => None
+      case Failure(ex)                              => throw ex
     }
   }
 
@@ -524,29 +537,28 @@ object InstanceTypeDB extends DefaultJsonProtocol {
             )
         )
     )
-    val (availableInstanceTypes, pricingAvailable) =
-      try {
-        val pricingModel = getPricingModel(api, projectDesc.billTo.get, projectDesc.region.get)
-        val instanceTypesWithPrices = allInstanceTypes.keySet
-          .intersect(pricingModel.keySet)
-          .map { name =>
-            name -> allInstanceTypes(name).copy(price = pricingModel.get(name))
-          }
-          .toMap
-        (instanceTypesWithPrices, true)
-      } catch {
-        case ex: Throwable =>
-          logger.warning(
-              """|Warning: insufficient permissions to retrieve the
-                 |instance price list. This will result in suboptimal machine choices,
-                 |incurring higher costs when running workflows.
-                 |""".stripMargin.replaceAll("\n", " ")
-          )
-          (allInstanceTypes, false)
+    val availableInstanceTypes =
+      getPricingModel(api, projectDesc.billTo.get, projectDesc.region.get)
+        .map { pricingModel =>
+          allInstanceTypes.keySet
+            .intersect(pricingModel.keySet)
+            .map { name =>
+              name -> allInstanceTypes(name).copy(price = pricingModel.get(name))
+            }
+            .toMap
+        }
+    val usableInstanceTypes = availableInstanceTypes
+      .getOrElse {
+        logger.warning(
+            """|Warning: insufficient permissions to retrieve the instance price list.
+               |This may result in suboptimal instance type choices, incurring higher 
+               |costs when running workflows.""".stripMargin.replaceAll("\n", " ")
+        )
+        allInstanceTypes
       }
-    val usableInstanceTypes = availableInstanceTypes.filter {
-      case (_, instanceType) => instanceTypeFilter(instanceType)
-    }
-    InstanceTypeDB(usableInstanceTypes, pricingAvailable = pricingAvailable)
+      .filter {
+        case (_, instanceType) => instanceTypeFilter(instanceType)
+      }
+    InstanceTypeDB(usableInstanceTypes, pricingAvailable = availableInstanceTypes.isDefined)
   }
 }

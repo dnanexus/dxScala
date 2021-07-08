@@ -4,6 +4,7 @@
 
 * Adds option to `DxApi.describeFilesBulk` to search first in the workspace container
 * `DxApi.resolveDataObject` now searches in the current workspace and/or project if the project is not specified explicitly
+* Better handles insufficient permissions when requesting instance type price list
 
 ## 0.5.2 (2021-06-29)
 
