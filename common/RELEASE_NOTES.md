@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Adds `getLocalPathForSource` function to `LocalizationDisambiguator` for handling non-addressable `FileSource`s 
+
 ## 0.5.2 (2021-06-29)
 
 * No longer uses `--quiet` option with `docker pull` in `DockerUtils.pullImage`
