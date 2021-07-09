@@ -380,6 +380,13 @@ case class LocalFileSource(
     FileUtils.readFileBytes(canonicalPath)
   }
 
+  /**
+    * Creates a symbolic link from `source` to `canonicalPath`.
+    */
+  def linkFrom(source: Path): Unit = {
+    Files.createSymbolicLink(source, canonicalPath)
+  }
+
   // TODO: assess whether it is okay to link instead of copy
   override protected def localizeTo(file: Path): Unit = {
     if (canonicalPath == file) {

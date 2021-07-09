@@ -3,6 +3,7 @@
 ## in develop
 
 * Adds `getLocalPathForSource` function to `LocalizationDisambiguator` for handling non-addressable `FileSource`s 
+* Adds `linkFrom` method to `LocalFileSource`
 
 ## 0.5.2 (2021-06-29)
 
