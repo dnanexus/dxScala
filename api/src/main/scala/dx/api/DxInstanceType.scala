@@ -483,7 +483,8 @@ object InstanceTypeDB extends DefaultJsonProtocol {
   // TODO: move this to DxOrg and DxUser objects
   private def getPricingModel(dxApi: DxApi,
                               billTo: String,
-                              region: String): Option[Map[String, Float]] = {
+                              region: String,
+                              logger: Logger): Option[Map[String, Float]] = {
     val request = Map("fields" -> JsObject("pricingModelsByRegion" -> JsTrue))
     Try {
       billTo match {
@@ -514,7 +515,9 @@ object InstanceTypeDB extends DefaultJsonProtocol {
             }
           }
       case Failure(_: dx.PermissionDeniedException) => None
-      case Failure(ex)                              => throw ex
+      case Failure(ex) =>
+        logger.error(s"Error retrieving the pricing model for billTo ${billTo}", Some(ex))
+        None
     }
   }
 
@@ -538,7 +541,7 @@ object InstanceTypeDB extends DefaultJsonProtocol {
         )
     )
     val availableInstanceTypes =
-      getPricingModel(api, projectDesc.billTo.get, projectDesc.region.get)
+      getPricingModel(api, projectDesc.billTo.get, projectDesc.region.get, logger)
         .map { pricingModel =>
           allInstanceTypes.keySet
             .intersect(pricingModel.keySet)
