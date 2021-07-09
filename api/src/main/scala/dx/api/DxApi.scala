@@ -55,7 +55,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
   // The current workspace if we are running in an execution environment,
   // otherwise the current project.
   val currentWorkspaceId: Option[String] =
-    Option(dxEnv.getWorkspace).orElse(Option.when(currentJobId.isEmpty)(currentProjectId))
+    Option(dxEnv.getWorkspace).orElse(Option.when(currentJobId.isEmpty)(currentProjectId).flatten)
   lazy val currentWorkspace: Option[DxProject] = currentWorkspaceId.map(DxProject(_)(this))
   // Convert from spray-json to jackson JsonNode
   // Used to convert into the JSON datatype used by dxjava
