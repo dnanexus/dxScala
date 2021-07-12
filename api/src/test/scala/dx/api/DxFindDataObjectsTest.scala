@@ -33,7 +33,7 @@ class DxFindDataObjectsTest extends AnyFlatSpec with Matchers {
                                    folder = Some("/test_data"),
                                    nameGlob = Some("*.txt"))
     val results = findDataObjects.query(constraints)
-    results.size shouldBe 6
+    results.size shouldBe 7
   }
 
   it should "find all text files recursively" taggedAs ApiTest in {
@@ -43,7 +43,7 @@ class DxFindDataObjectsTest extends AnyFlatSpec with Matchers {
                                    recurse = true,
                                    nameGlob = Some("*.txt"))
     val results = findDataObjects.query(constraints)
-    results.size shouldBe 15
+    results.size shouldBe 16
   }
 
   it should "find files with specific names" taggedAs ApiTest in {

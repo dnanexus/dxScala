@@ -150,8 +150,9 @@ class DxFileTest extends AnyFlatSpec with Matchers {
   }
 
   it should "bulk describe file which is in two projects, project where to search is not given" taggedAs ApiTest in {
+    // describeFilesBulk looks first in the currently selected project if a project is not specified
     val results = dxApi.describeFilesBulk(Vector(FILE_IN_TWO_PROJS_WO_PROJ))
     results.forall(_.hasCachedDesc) shouldBe true
-    results.size shouldBe 2
+    results.size shouldBe 1
   }
 }
