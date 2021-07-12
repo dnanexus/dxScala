@@ -50,23 +50,12 @@ object SysUtils {
     def getStds: (String, String) = (outStream.toString, errStream.toString)
 
     val procLogger = ProcessLogger(
-        (o: String) => { outStream.append(o ++ "\n") },
-        (e: String) => { errStream.append(e ++ "\n") }
+        (o: String) => { outStream.append(o).append("\n") },
+        (e: String) => { errStream.append(e).append("\n") }
     )
     val p: Process = Process(cmds).run(procLogger, connectInput = false)
 
     timeout match {
-      case None =>
-        // blocks, and returns the exit code. Does NOT connect
-        // the standard in of the child job to the parent
-        val retcode = p.exitValue()
-        val (stdout, stderr) = getStds
-        if (!allowedReturnCodes.contains(retcode)) {
-          if (exceptionOnFailure) {
-            throw CommandExecError("Error running command", command, retcode, stdout, stderr)
-          }
-        }
-        (retcode, stdout, stderr)
       case Some(nSec) =>
         val f = Future(blocking(p.exitValue()))
         try {
@@ -78,6 +67,15 @@ object SysUtils {
             p.destroy()
             throw CommandTimeout(s"Timeout exceeded (${nSec} seconds)", command, nSec)
         }
+      case None =>
+        // blocks, and returns the exit code. Does NOT connect
+        // the standard in of the child job to the parent
+        val retcode = p.exitValue()
+        val (stdout, stderr) = getStds
+        if (exceptionOnFailure && !allowedReturnCodes.contains(retcode)) {
+          throw CommandExecError("Error running command", command, retcode, stdout, stderr)
+        }
+        (retcode, stdout, stderr)
     }
   }
 

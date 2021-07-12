@@ -1,7 +1,116 @@
 package dx.api
 
-import dx.util.Logger
+import dx.util.{Enum, Logger}
 import spray.json._
+
+object DxVisibility extends Enum {
+  type DxVisibility = Value
+  val Visible, Hidden, Either = Value
+}
+
+case class DxFindDataObjectsConstraints(
+    project: Option[DxProject] = None,
+    folder: Option[String] = None,
+    recurse: Boolean = false,
+    objectClass: Option[String] = None,
+    tags: Set[String] = Set.empty,
+    properties: Option[DxConstraint] = None,
+    names: Set[String] = Set.empty,
+    nameRegexp: Option[String] = None,
+    nameRegexpCaseInsensitive: Boolean = false,
+    nameGlob: Option[String] = None,
+    ids: Set[String] = Set.empty,
+    state: Option[DxState.DxState] = None,
+    createdBefore: Option[java.util.Date] = None,
+    createdAfter: Option[java.util.Date] = None,
+    modifiedBefore: Option[java.util.Date] = None,
+    modifiedAfter: Option[java.util.Date] = None,
+    visibility: DxVisibility.DxVisibility = DxVisibility.Either
+) {
+  def validate(): Unit = {
+    val invalidClasses = objectClass.filterNot(DxFindDataObjectsConstraints.AllowedClasses.contains)
+    if (invalidClasses.nonEmpty) {
+      throw new Exception(
+          s"""invalid class limitation ${invalidClasses.mkString(",")}; must be one of
+             |${DxFindDataObjectsConstraints.AllowedClasses.mkString(",")}""".stripMargin
+            .replaceAll("\n", " ")
+      )
+    }
+  }
+
+  lazy val toJson: Map[String, JsValue] = {
+    val scopeField = project.map { proj =>
+      val requiredFields = Map("project" -> JsString(proj.id), "recurse" -> JsBoolean(recurse))
+      val folderFields = folder.map(path => Map("folder" -> JsString(path))).getOrElse(Map.empty)
+      Map("scope" -> JsObject(requiredFields ++ folderFields))
+    }
+    val classField = objectClass.map(k => Map("class" -> JsString(k)))
+    val tagsField = Option.when(tags.nonEmpty) {
+      Map("tagsArray" -> JsArray(tags.map(JsString(_)).toVector))
+    }
+    val propertiesField = properties.map(constraint => Map("properties" -> constraint.toJson))
+    val nameField = Vector(
+        Option
+          .when(names.nonEmpty) {
+            if (names.size == 1) {
+              // Just one name, no need to use regular expressions
+              JsString(names.head)
+            } else {
+              // Make a conjunction of all the legal names. For example:
+              // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
+              val orRegexp = names.map(x => s"^${x}$$").mkString("|")
+              JsObject(
+                  Vector(
+                      Some("regexp" -> JsString(orRegexp)),
+                      Option.when(nameRegexpCaseInsensitive)("flags" -> JsString("i"))
+                  ).flatten.toMap
+              )
+            }
+          },
+        nameRegexp.map(regexp =>
+          JsObject(
+              Vector(
+                  Some("regexp" -> JsString(regexp)),
+                  Option.when(nameRegexpCaseInsensitive)("flags" -> JsString("i"))
+              ).flatten.toMap
+          )
+        ),
+        nameGlob.map(glob => JsObject("glob" -> JsString(glob)))
+    ).flatten match {
+      case Vector(arg) => Some(Map("name" -> arg))
+      case Vector()    => None
+      case _ =>
+        throw new Exception("only one of 'names', 'nameRegexp', and 'nameGlob' may be defined")
+    }
+    val idField = Option.when(ids.nonEmpty) {
+      Map("id" -> JsArray(ids.map(JsString(_)).toVector))
+    }
+    val stateField = state.map(s => Map("state" -> JsString(s.toString.toLowerCase)))
+    val created = Vector(createdBefore.map(d => Map("before" -> JsNumber(d.getTime))),
+                         createdAfter.map(d => Map("after" -> JsNumber(d.getTime)))).flatten
+    val createdField =
+      Option.when(created.nonEmpty)(Map("created" -> JsObject(created.flatten.toMap)))
+    val modified = Vector(createdBefore.map(d => Map("before" -> JsNumber(d.getTime))),
+                          createdAfter.map(d => Map("after" -> JsNumber(d.getTime)))).flatten
+    val modifiedField =
+      Option.when(modified.nonEmpty)(Map("modified" -> JsObject(modified.flatten.toMap)))
+    val visibilityField = Some(Map("visibility" -> JsString(visibility.toString.toLowerCase())))
+    Vector(scopeField,
+           classField,
+           tagsField,
+           propertiesField,
+           nameField,
+           idField,
+           stateField,
+           createdField,
+           modifiedField,
+           visibilityField).flatten.flatten.toMap
+  }
+}
+
+object DxFindDataObjectsConstraints {
+  val AllowedClasses = Set("record", "file", "applet", "workflow")
+}
 
 case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
                              limit: Option[Int] = None,
@@ -149,84 +258,16 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
     }
   }
 
-  private def createScope(dxProject: DxProject,
-                          folder: Option[String],
-                          recurse: Boolean): JsValue = {
-    val requiredFields =
-      Map("project" -> JsString(dxProject.id), "recurse" -> JsBoolean(recurse))
-    val folderFields = folder.map(path => Map("folder" -> JsString(path))).getOrElse(Map.empty)
-    JsObject(requiredFields ++ folderFields)
-  }
-
   // Submit a request for a limited number of objects
   private def submitRequest(
-      scope: Option[JsValue],
-      dxProject: Option[DxProject],
-      cursor: JsValue,
-      klass: Option[String],
-      tagConstraints: Vector[String],
-      nameConstraints: Vector[String],
-      withInputOutputSpec: Boolean,
-      idConstraints: Vector[String],
-      state: Option[DxState.DxState],
-      defaultFields: Boolean,
-      extraFields: Set[Field.Value]
+      request: Map[String, JsValue],
+      cursor: JsValue
   ): (Map[DxDataObject, DxObjectDescribe], JsValue) = {
-    val requiredDescFields = Set(Field.Name,
-                                 Field.Folder,
-                                 Field.Size,
-                                 Field.State,
-                                 Field.ArchivalState,
-                                 Field.Properties,
-                                 Field.Created,
-                                 Field.Modified) ++ extraFields
-    val ioDescFields =
-      if (withInputOutputSpec && klass.forall(Set("applet", "workflow").contains)) {
-        Set(Field.InputSpec, Field.OutputSpec)
-      } else {
-        Set.empty
-      }
-    val requiredFields =
-      Map(
-          "visibility" -> JsString("either"),
-          "describe" -> JsObject(
-              "fields" -> DxObject.requestFields(requiredDescFields ++ ioDescFields),
-              "defaultFields" -> JsBoolean(defaultFields)
-          )
-      )
-    val projectField = dxProject.map(p => Map("project" -> JsString(p.id))).getOrElse(Map.empty)
-    val scopeField = scope.map(s => Map("scope" -> s)).getOrElse(Map.empty)
-    val limitField = limit.map(l => Map("limit" -> JsNumber(l))).getOrElse(Map.empty)
     val cursorField = cursor match {
       case JsNull => Map.empty
       case _      => Map("starting" -> cursor)
     }
-    val classField = klass.map(k => Map("class" -> JsString(k))).getOrElse(Map.empty)
-    val tagsField = tagConstraints.map(JsString(_)) match {
-      case tags if tags.nonEmpty => Map("tagsArray" -> JsArray(tags))
-      case _                     => Map.empty
-    }
-    val nameField = nameConstraints match {
-      case Vector(constraint) =>
-        // Just one name, no need to use regular expressions
-        Map("name" -> JsString(constraint))
-      case constraints if constraints.nonEmpty =>
-        // Make a conjunction of all the legal names. For example:
-        // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
-        val orRegexp = nameConstraints.map(x => s"^${x}$$").mkString("|")
-        Map("name" -> JsObject("regexp" -> JsString(orRegexp)))
-      case _ =>
-        Map.empty
-    }
-    val idField = idConstraints match {
-      case v if v.nonEmpty => Map("id" -> JsArray(v.map(x => JsString(x))))
-      case _               => Map.empty
-    }
-    val stateField =
-      state.map(s => Map("state" -> JsString(s.toString.toLowerCase))).getOrElse(Map.empty)
-    val request = requiredFields ++ projectField ++ scopeField ++ cursorField ++ limitField ++ classField ++
-      tagsField ++ nameField ++ idField ++ stateField
-    val responseJs = dxApi.findDataObjects(request)
+    val responseJs = dxApi.findDataObjects(request ++ cursorField)
     val next: JsValue = responseJs.fields.get("next") match {
       case None | Some(JsNull) => JsNull
       case Some(obj: JsObject) => obj
@@ -239,6 +280,52 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
         case Some(other)            => throw new Exception(s"malformed results field ${other.prettyPrint}")
       }
     (results.toMap, next)
+  }
+
+  def query(constraints: DxFindDataObjectsConstraints,
+            withInputOutputSpec: Boolean = false,
+            describe: Boolean = true,
+            defaultFields: Boolean = false,
+            extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
+    constraints.validate()
+    val ioDescFields =
+      if (withInputOutputSpec && constraints.objectClass
+            .forall(Set("applet", "workflow").contains)) {
+        Set(Field.InputSpec, Field.OutputSpec)
+      } else {
+        Set.empty
+      }
+    val requiredFields = Map(
+        "describe" -> JsObject(
+            "fields" -> DxObject.requestFields(
+                DxFindDataObjects.RequiredDescFields ++ ioDescFields ++ extraFields
+            ),
+            "defaultFields" -> JsBoolean(defaultFields)
+        )
+    )
+    val limitField = limit.map(l => Map("limit" -> JsNumber(l))).getOrElse(Map.empty)
+    val request = requiredFields ++ limitField ++ constraints.toJson
+    if (constraints.project.isEmpty) {
+      logger.warning(
+          """Calling findDataObjects without a project can cause result in longer response times
+            |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
+      )
+      if (logger.isVerbose) {
+        logger.traceLimited(JsObject(request).prettyPrint)
+      }
+    }
+    Iterator
+      .unfold[Map[DxDataObject, DxObjectDescribe], Option[JsValue]](Some(JsNull)) {
+        case None => None
+        case Some(cursor: JsValue) =>
+          submitRequest(request, cursor) match {
+            case (results, _) if results.isEmpty => None
+            case (results, JsNull)               => Some(results, None)
+            case (results, next)                 => Some(results, Some(next))
+          }
+      }
+      .flatten
+      .toMap
   }
 
   /**
@@ -258,62 +345,38 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
             folder: Option[String],
             recurse: Boolean,
             classRestriction: Option[String] = None,
-            withTags: Vector[String] = Vector.empty,
-            nameConstraints: Vector[String] = Vector.empty,
+            withTags: Set[String] = Set.empty,
+            nameConstraints: Set[String] = Set.empty,
             withInputOutputSpec: Boolean = false,
-            idConstraints: Vector[String] = Vector.empty,
+            idConstraints: Set[String] = Set.empty,
             state: Option[DxState.DxState] = None,
             defaultFields: Boolean = false,
             extraFields: Set[Field.Value] = Set.empty): Map[DxDataObject, DxObjectDescribe] = {
-    val allowedClasses = Set("record", "file", "applet", "workflow")
-    val invalidClasses = classRestriction.filterNot(allowedClasses.contains)
-    if (invalidClasses.nonEmpty) {
-      throw new Exception(
-          s"invalid class limitation ${invalidClasses.mkString(",")}; must be one of {record, file, applet, workflow}"
-      )
-    }
-    val scope: Option[JsValue] = dxProject match {
-      case Some(proj) => Some(createScope(proj, folder, recurse))
-      case None =>
-        logger.warning(
-            """Calling findDataObjects without a project can cause result in longer response times 
-              |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
-        )
-        None
-    }
-    val allResults: Map[DxDataObject, DxObjectDescribe] = Iterator
-      .unfold[Map[DxDataObject, DxObjectDescribe], Option[JsValue]](Some(JsNull)) {
-        case None => None
-        case Some(cursor: JsValue) =>
-          submitRequest(
-              scope,
-              dxProject,
-              cursor,
-              classRestriction,
-              withTags,
-              nameConstraints,
-              withInputOutputSpec,
-              idConstraints,
-              state,
-              defaultFields,
-              extraFields
-          ) match {
-            case (results, _) if results.isEmpty => None
-            case (results, JsNull)               => Some(results, None)
-            case (results, next)                 => Some(results, Some(next))
-          }
-      }
-      .flatten
-      .toMap
-
-    if (nameConstraints.isEmpty) {
-      allResults
-    } else {
-      // Ensure the the data objects have names in the allowed set
-      val allowedNames = nameConstraints.toSet
-      allResults.filter {
-        case (_, desc) => allowedNames.contains(desc.name)
-      }
-    }
+    val constraints = DxFindDataObjectsConstraints(
+        project = dxProject,
+        folder = folder,
+        recurse = recurse,
+        objectClass = classRestriction,
+        tags = withTags,
+        names = nameConstraints,
+        ids = idConstraints,
+        state = state
+    )
+    query(constraints = constraints,
+          withInputOutputSpec = withInputOutputSpec,
+          describe = true,
+          defaultFields = defaultFields,
+          extraFields = extraFields)
   }
+}
+
+object DxFindDataObjects {
+  val RequiredDescFields = Set(Field.Name,
+                               Field.Folder,
+                               Field.Size,
+                               Field.State,
+                               Field.ArchivalState,
+                               Field.Properties,
+                               Field.Created,
+                               Field.Modified)
 }

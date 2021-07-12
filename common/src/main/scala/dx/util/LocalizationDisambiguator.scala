@@ -8,7 +8,26 @@ import java.util.UUID
 trait LocalizationDisambiguator {
 
   /**
-    * Returns a unique local path for a single source file.
+    * Returns a unique local path for a single source file/directory.
+    * @param fileNode the `FileSource to localize`
+    * @param sourceContainer the source container of the file/directory (e.g. the
+    *                        directory/folder it is coming from) - this must be
+    *                        globally unique, to disambiguate between two identically
+    *                        named folders in different file systems. All files from
+    *                        from the same source container are localized to the
+    *                        same directory.
+    * @param version an optional file version, in the case that the source file system
+    *                uses versioning
+    * @param localizationDir optional directory where files must be localized;
+    *                        and exception is thrown if there is a name collision
+    */
+  def getLocalPathForSource(fileNode: FileSource,
+                            sourceContainer: String,
+                            version: Option[String] = None,
+                            localizationDir: Option[Path] = None): Path
+
+  /**
+    * Returns a unique local path for a single source file/directory.
     * @param fileSource `AddressableFileSource` to localize
     * @param localizationDir optional directory where files must be localized;
     *                        and exception is thrown if there is a name collision
@@ -16,7 +35,7 @@ trait LocalizationDisambiguator {
   def getLocalPath(fileSource: AddressableFileSource, localizationDir: Option[Path] = None): Path
 
   /**
-    * Returns a mapping of file source to unique local path.
+    * Returns a mapping of file/directory source to unique local path.
     * This method is only meant to be called a single time for a given instance.
     * @param fileSources `AddressableFileSource`s to localize
     * @param localizationDir optional directory where files must be localized;
@@ -32,12 +51,18 @@ trait LocalizationDisambiguator {
   * - two input files with the same name must be located separately, to avoid name collision
   * - two input files that originated in the same storage directory must also be localized into
   *   the same directory for task execution
+  *
   * @param rootDir the root dir - files are localize to subdirectories under this directory
   * @param existingPaths optional Set of paths that should be assumed to already exist locally
   * @param separateDirsBySource whether to always separate files from each source dir into
   *                             separate target dirs (true), or to minimize the number of
   *                              dirs used by putting all files in a single directory by default
-  *                              but create additional directories to avoid name collision.
+  *                              but create additional directories to avoid name collision. This
+  *                              is ignored when using the single file functions
+  *                              (`getLocalPathForSource` and `getLocalPath`) because we have to
+  *                              keep together files from the same source folder and there's no way
+  *                              to know in advance if there will be another file from the same source
+  *                              folder as this file and whether it will have a name collision.
   * @param createDirs whether to create the directories - set to true unless you are just using
   *                   this class to create unique names for files that will be synced e.g. using
   *                   a FUSE filesystem.
@@ -121,16 +146,16 @@ case class SafeLocalizationDisambiguator(
     *                  they name-collide with another file in the directory;
     *                  if None, each sourceContainer will map to a separate
     *                  local directory.
-    * @param force whether to force the use of `defaultDir` - if true and there is a name
-    *              collision, an exception is thrown rather than using a disambiguation
-    *              directory.
+    * @param force whether to force the use of `defaultDir` - if true and defaultDir is
+    *              specified and there is a name collision, an exception is thrown rather
+    *              than using a disambiguation directory.
     * @return the local path
     */
-  private[util] def localize(name: String,
-                             sourceContainer: String,
-                             version: Option[String] = None,
-                             defaultDir: Option[Path] = None,
-                             force: Boolean = false): Path = {
+  private[util] def resolve(name: String,
+                            sourceContainer: String,
+                            version: Option[String] = None,
+                            defaultDir: Option[Path] = None,
+                            force: Boolean = false): Path = {
     logger.trace(s"getting local path for '${name}' from source container '${sourceContainer}''")
     val namePath = FileUtils.getPath(name)
     if (namePath.isAbsolute) {
@@ -219,24 +244,18 @@ case class SafeLocalizationDisambiguator(
     localPath
   }
 
-  /**
-    * Because we have to keep together files from the same source folder,
-    * and there's no way to know in advance if there will be another file
-    * from the same source folder as this file and whether it will have a
-    * name collision, a separate disambiguation dir is created for each
-    * source folder regardless of the value of `separateDirsBySource`.
-    */
-  override def getLocalPath(source: AddressableFileSource,
-                            localizationDir: Option[Path] = None): Path = {
-    localize(source.name, source.container, source.version, localizationDir, force = true)
+  override def getLocalPathForSource(source: FileSource,
+                                     sourceContainer: String,
+                                     version: Option[String],
+                                     localizationDir: Option[Path]): Path = {
+    resolve(source.name, sourceContainer, version, localizationDir, force = true)
   }
 
-  /**
-    * If `separateDirsBySource` is `false`, then we use a common disambiguation
-    * directory for all files unless there is a naming collision, in which case
-    * the file with a collision is placed in a separate dir along with any other
-    * files that came from the same source.
-    */
+  override def getLocalPath(source: AddressableFileSource,
+                            localizationDir: Option[Path] = None): Path = {
+    resolve(source.name, source.container, source.version, localizationDir, force = true)
+  }
+
   override def getLocalPaths[T <: AddressableFileSource](
       fileSources: Iterable[T],
       localizationDir: Option[Path] = None
@@ -251,7 +270,7 @@ case class SafeLocalizationDisambiguator(
         val duplicateFolders = duplicates.values.flatten.map(_.folder).toSet
         val (separate, default) = fileSources.partition(fs => duplicateFolders.contains(fs.folder))
         (separate.map { fs =>
-          fs -> localize(fs.name, fs.folder, defaultDir = localizationDir, force = true)
+          fs -> resolve(fs.name, fs.folder, defaultDir = localizationDir, force = true)
         }.toMap, default)
       } else {
         (Map.empty[T, Path], singletons.values.flatten)
@@ -262,7 +281,7 @@ case class SafeLocalizationDisambiguator(
       }
       val commonSourceToPath =
         addToDefault.map { fs =>
-          fs -> localize(fs.name, fs.container, fs.version, Some(defaultDir), force)
+          fs -> resolve(fs.name, fs.container, fs.version, Some(defaultDir), force)
         }.toMap
       commonSourceToPath ++ separateSourceToPath
     }

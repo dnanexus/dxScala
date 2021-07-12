@@ -1,5 +1,13 @@
 # dxApi
 
+## 0.6.0 (2021-07-12)
+
+* Adds option to `DxApi.describeFilesBulk` to search first in the workspace container
+* `DxApi.resolveDataObject` now searches in the current workspace and/or project if the project is not specified explicitly
+* Refactors `DxFindDataObjects` to use separate `DxFindDataObjectsConstraints` class for specifying constraints
+* Uses the currently select project ID as the workspace ID when not running in a job.
+* Better handles insufficient permissions when requesting instance type price list
+
 ## 0.5.2 (2021-06-29)
 
 * Fixes `DxApi.getWorkingDir`
