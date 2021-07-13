@@ -186,6 +186,8 @@ object IOParameter {
                   )
               }
               IOParameterChoiceFile(dxFile, name)
+            case (DxIOClass.File | DxIOClass.FileArray, JsString(s)) =>
+              IOParameterChoiceFile(dxApi.resolveFile(s))
             case (DxIOClass.String | DxIOClass.StringArray, JsString(s)) =>
               IOParameterChoiceString(s)
             case (DxIOClass.Int | DxIOClass.IntArray, JsNumber(n)) if n.isValidLong =>
