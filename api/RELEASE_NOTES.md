@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Add tags field to `DxFileDescribe`
+
 ## 0.6.0 (2021-07-12)
 
 * Adds option to `DxApi.describeFilesBulk` to search first in the workspace container

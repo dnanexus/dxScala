@@ -42,6 +42,7 @@ case class DxFileDescribe(project: String,
                           size: Long,
                           state: DxState.DxState,
                           archivalState: DxArchivalState.DxArchivalState,
+                          tags: Option[Set[String]],
                           properties: Option[Map[String, String]],
                           details: Option[JsValue],
                           parts: Option[Map[Int, DxFilePart]])
@@ -50,6 +51,7 @@ case class DxFileDescribe(project: String,
     // all default fields must be specified to create this object,
     // so we only need to check non-default fields
     fields.diff(DxFileDescribe.DefaultFields).forall {
+      case Field.Tags       => tags.isDefined
       case Field.Properties => properties.isDefined
       case Field.Details    => details.isDefined
       case Field.Parts      => parts.isDefined
@@ -184,10 +186,10 @@ object DxFile {
               DxArchivalState.withNameIgnoreCase(archivalState),
               None,
               None,
+              None,
               None
           )
-        case _ =>
-          throw new Exception(s"Malformed JSON ${descJs}")
+        case _ => throw new Exception(s"Malformed JSON ${descJs}")
       }
 
     // populate the size field. It is missing from files that are in the open or closing states.
@@ -199,10 +201,18 @@ object DxFile {
 
     // optional fields
     val details = descJs.fields.get("details")
-    val props = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
+    val tags = descJs.fields.get("tags").map {
+      case JsArray(array) =>
+        array.map {
+          case JsString(tag) => tag
+          case other         => throw new Exception(s"invalid tag ${other}")
+        }.toSet
+      case other => throw new Exception(s"unexpected tags value ${other}")
+    }
+    val properties = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
     val parts = descJs.fields.get("parts").map(DxFile.parseFileParts)
 
-    desc.copy(size = size, details = details, properties = props, parts = parts)
+    desc.copy(size = size, details = details, tags = tags, properties = properties, parts = parts)
   }
 
   // Parse the parts from a description of a file
