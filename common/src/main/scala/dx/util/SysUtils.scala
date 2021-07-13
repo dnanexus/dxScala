@@ -94,7 +94,6 @@ object SysUtils {
 
   /**
     * Times the execution of a block of code.
-    * TODO: move this to dxCommon SysUtils
     * @param block the block to execute
     * @tparam R the return value type
     * @return (return value, time in seconds)
