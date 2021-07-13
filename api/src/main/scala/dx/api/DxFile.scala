@@ -201,14 +201,7 @@ object DxFile {
 
     // optional fields
     val details = descJs.fields.get("details")
-    val tags = descJs.fields.get("tags").map {
-      case JsArray(array) =>
-        array.map {
-          case JsString(tag) => tag
-          case other         => throw new Exception(s"invalid tag ${other}")
-        }.toSet
-      case other => throw new Exception(s"unexpected tags value ${other}")
-    }
+    val tags = descJs.fields.get("tags").map(DxObject.parseJsonTags)
     val properties = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
     val parts = descJs.fields.get("parts").map(DxFile.parseFileParts)
 
