@@ -31,5 +31,12 @@ object CollectionUtils {
         }
         .map(_._2.get)
     }
+
+    def partitionEither[B, T](p: A => Either[T, B]): (Vector[B], Vector[T]) = {
+      iterableOnce.iterator.map(p).foldLeft(Vector.empty[B], Vector.empty[T]) {
+        case ((right, left), Right(item)) => (right :+ item, left)
+        case ((right, left), Left(item))  => (right, left :+ item)
+      }
+    }
   }
 }
