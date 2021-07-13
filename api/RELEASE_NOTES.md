@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Unifies parsing of `choices` and `suggestions` in `DxIOParameter`
+
 ## 0.6.0 (2021-07-12)
 
 * Adds option to `DxApi.describeFilesBulk` to search first in the workspace container
