@@ -10,10 +10,8 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       case None                 => throw new Exception("name field missing")
       case other                => throw new Exception(s"malformed name field ${other}")
     }
-    val properties: Map[String, String] = fields.get("properties") match {
-      case None        => Map.empty
-      case Some(props) => DxObject.parseJsonProperties(props)
-    }
+    val tags = fields.get("tags").map(DxObject.parseJsonTags)
+    val properties = fields.get("properties").map(DxObject.parseJsonProperties)
     val inputSpec: Option[Vector[IOParameter]] = fields.get("inputSpec") match {
       case None         => None
       case Some(JsNull) => None
@@ -42,7 +40,7 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
     }
     val details: Option[JsValue] = fields.get("details")
 
-    DxAppDescribe(id, name, created, modified, Some(properties), details, inputSpec, outputSpec)
+    DxAppDescribe(id, name, created, modified, tags, properties, details, inputSpec, outputSpec)
   }
 
   private def parseOneResult(jsv: JsValue): DxApp = {

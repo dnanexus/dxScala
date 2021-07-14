@@ -3,6 +3,7 @@
 ## in develop
 
 * Unifies parsing of `choices` and `suggestions` in `DxIOParameter`
+* Add tags field to `DxFileDescribe`
 
 ## 0.6.0 (2021-07-12)
 

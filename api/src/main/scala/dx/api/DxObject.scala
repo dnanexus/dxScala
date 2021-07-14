@@ -33,6 +33,17 @@ trait DxObject {
 }
 
 object DxObject {
+  def parseJsonTags(tags: JsValue): Set[String] = {
+    tags match {
+      case JsArray(array) =>
+        array.map {
+          case JsString(tag) => tag
+          case other         => throw new Exception(s"invalid tag ${other}")
+        }.toSet
+      case other => throw new Exception(s"unexpected tags value ${other}")
+    }
+  }
+
   def parseJsonProperties(props: JsValue): Map[String, String] = {
     props.asJsObject.fields.map {
       case (k, JsString(v)) => k -> v
