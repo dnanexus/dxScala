@@ -9,7 +9,7 @@ import spray.json._
 
 class DxApiTest extends AnyFlatSpec with Matchers {
   assume(isLoggedIn)
-  private val logger = Logger.Quiet
+  private val logger = Logger.Verbose
   private val dxApi: DxApi = DxApi()(logger)
   private val testProject = "dxCompiler_playground"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
