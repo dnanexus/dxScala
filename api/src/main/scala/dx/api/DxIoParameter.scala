@@ -171,12 +171,26 @@ object IOParameter {
                 case Some(obj @ JsObject(fields)) if fields.contains(DxUtils.DxLinkKey) =>
                   DxFile.fromJson(dxApi, obj)
                 case None if project.isDefined && path.isDefined =>
-                  dxApi.resolveDataObject(path.get, project) match {
+                  val resolved =
+                    try {
+                      dxApi.resolveDataObject(path.get, project)
+                    } catch {
+                      case t: Throwable =>
+                        throw new Exception(s"Error resolving ${project.get.id}:${path.get}", t)
+                    }
+                  resolved match {
                     case file: DxFile => file
                     case other        => throw new Exception(s"expected object of type file, not ${other}")
                   }
                 case None if project.isDefined && name.isDefined =>
-                  dxApi.resolveDataObject(s"/${name.get}", project) match {
+                  val resolved =
+                    try {
+                      dxApi.resolveDataObject(s"/${name.get}", project)
+                    } catch {
+                      case t: Throwable =>
+                        throw new Exception(s"Error resolving ${project.get.id}:/${name.get}", t)
+                    }
+                  resolved match {
                     case file: DxFile => file
                     case other        => throw new Exception(s"expected object of type file, not ${other}")
                   }

@@ -47,7 +47,13 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
     jsv.asJsObject.getFields("id", "describe") match {
       case Seq(JsString(dxid), desc) =>
         val dxApp = dxApi.app(dxid)
-        val dxDesc = parseDescribe(dxApp.id, desc)
+        val dxDesc =
+          try {
+            parseDescribe(dxApp.id, desc)
+          } catch {
+            case t: Throwable =>
+              throw new Exception(s"Error parsing describe for app ${dxid}", t)
+          }
         dxApp.cacheDescribe(dxDesc)
         dxApp
       case _ =>

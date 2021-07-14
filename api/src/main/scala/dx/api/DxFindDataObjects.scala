@@ -249,7 +249,13 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       case Seq(JsString(projectId), JsString(objectId), desc) =>
         val dxProject = dxApi.project(projectId)
         val dxDataObject = dxApi.dataObject(objectId, Some(dxProject))
-        val dxDesc = parseDescribe(desc, dxDataObject, dxProject)
+        val dxDesc =
+          try {
+            parseDescribe(desc, dxDataObject, dxProject)
+          } catch {
+            case t: Throwable =>
+              throw new Exception(s"Error parsing describe for ${dxDataObject}", t)
+          }
         dxDataObject match {
           case dataObject: CachingDxObject[_] =>
             dataObject.cacheDescribe(dxDesc)
