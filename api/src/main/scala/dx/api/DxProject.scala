@@ -22,7 +22,7 @@ object ProjectType extends Enum {
 }
 
 // A project is a subtype of a container
-case class DxProject(id: String)(val dxApi: DxApi = DxApi.get) extends DxDataObject {
+case class DxProject(id: String)(val dxApi: DxApi = DxApi.get) extends DxObject {
   val projectType: ProjectType.ProjectType = id match {
     case _ if id.startsWith("project-") =>
       ProjectType.Project

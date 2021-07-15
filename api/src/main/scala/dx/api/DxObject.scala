@@ -115,7 +115,9 @@ object DxObject {
   }
 }
 
-trait DxDataObject extends DxObject
+trait DxDataObject extends DxObject {
+  val project: Option[DxProject]
+}
 
 // Objects that can be run on the platform. These are apps, applets, and workflows.
 trait DxExecutable extends DxObject

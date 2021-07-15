@@ -4,7 +4,9 @@
 
 * Unifies parsing of `choices`, `suggestions`, and `default` in `DxIOParameter`
 * No longer attempt to resolve files/projects/folders when parsing a `DxIOParameter`
-* Add tags field to `DxFileDescribe`
+* Adds tags field to `DxFileDescribe`
+* `DxProject` now extends `DxObject` rather than `DxDataObject`
+* Adds `DxApi.dataObjectFromJson` method
 
 ## 0.6.0 (2021-07-12)
 

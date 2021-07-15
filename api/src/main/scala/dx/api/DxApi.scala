@@ -112,6 +112,37 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
   }
 
+  def dataObjectFromJson(jsValue: JsValue): DxDataObject = {
+    val link = jsValue match {
+      case JsObject(fields) if fields.contains(DxUtils.DxLinkKey) =>
+        fields(DxUtils.DxLinkKey)
+      case _ =>
+        throw new AppInternalException(
+            s"An object with key '$$dnanexus_link' is expected, not $jsValue"
+        )
+    }
+
+    val (objectId, projectId): (String, Option[String]) = link match {
+      case JsString(id) =>
+        // We just have an object id
+        (id, None)
+      case JsObject(linkFields) =>
+        // object id and project id
+        val id = linkFields.get("id") match {
+          case Some(JsString(s)) => s
+          case _                 => throw new AppInternalException(s"No ID found in $jsValue")
+        }
+        val project = linkFields.get("project").map {
+          case JsString(project: String) => project
+          case other                     => throw new Exception(s"invalid project ${other}")
+        }
+        (id, project)
+      case _ => throw new AppInternalException(s"Could not parse a dxlink from $link")
+    }
+
+    dataObject(objectId, projectId.map(project))
+  }
+
   def isDataObjectId(id: String): Boolean = {
     try {
       dataObject(id)

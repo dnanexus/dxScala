@@ -1,6 +1,5 @@
 package dx.api
 
-import dx.AppInternalException
 import dx.api.DxPath.DxScheme
 import spray.json._
 import dx.util.{Enum, FileUtils}
@@ -256,37 +255,9 @@ object DxFile {
   //   DxUtils.DxLinkKey: "file-F0J6JbQ0ZvgVz1J9q5qKfkqP"
   // }
   def fromJson(dxApi: DxApi, jsValue: JsValue): DxFile = {
-    val innerObj = jsValue match {
-      case JsObject(fields) if fields.contains(DxUtils.DxLinkKey) =>
-        fields(DxUtils.DxLinkKey)
-      case _ =>
-        throw new AppInternalException(
-            s"An object with key '$$dnanexus_link' is expected, not $jsValue"
-        )
-    }
-
-    val (fid, projId): (String, Option[String]) = innerObj match {
-      case JsString(fid) =>
-        // We just have a file-id
-        (fid, None)
-      case JsObject(linkFields) =>
-        // file-id and project-id
-        val fid =
-          linkFields.get("id") match {
-            case Some(JsString(s)) => s
-            case _                 => throw new AppInternalException(s"No file ID found in $jsValue")
-          }
-        linkFields.get("project") match {
-          case Some(JsString(pid: String)) => (fid, Some(pid))
-          case _                           => (fid, None)
-        }
-      case _ =>
-        throw new AppInternalException(s"Could not parse a dxlink from $innerObj")
-    }
-
-    projId match {
-      case None      => DxFile(fid, None)(dxApi)
-      case Some(pid) => DxFile(fid, Some(DxProject(pid)(dxApi)))(dxApi)
+    dxApi.dataObjectFromJson(jsValue) match {
+      case dxFile: DxFile => dxFile
+      case other          => throw new Exception(s"Not a file object ${other}")
     }
   }
 
