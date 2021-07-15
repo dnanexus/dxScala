@@ -36,6 +36,7 @@ jobs:
           common_version_id=`echo $common_version_json | jq ".data.repository.packages.nodes[0].version.id"`
           if [ "$common_version_id" != "null" ]; then
             common_delete_query="{\"query\": \"mutation { deletePackageVersion(input:{packageVersionId:${common_version_id}}) { success }}\"}"
+            echo "$common_delete_query"
             common_delete_json=`curl -X POST \
               -H "Accept: application/vnd.github.package-deletes-preview+json" \
               -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
