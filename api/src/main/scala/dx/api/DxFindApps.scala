@@ -16,7 +16,7 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       case None         => None
       case Some(JsNull) => None
       case Some(JsArray(iSpecVec)) =>
-        Some(iSpecVec.map(iSpec => IOParameter.parseIoParam(dxApi, iSpec)))
+        Some(iSpecVec.map(iSpec => IOParameter.parse(dxApi, iSpec)))
       case Some(other) =>
         throw new Exception(s"malformed inputSpec field ${other}")
     }
@@ -24,7 +24,7 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       case None         => None
       case Some(JsNull) => None
       case Some(JsArray(oSpecVec)) =>
-        Some(oSpecVec.map(oSpec => IOParameter.parseIoParam(dxApi, oSpec)))
+        Some(oSpecVec.map(oSpec => IOParameter.parse(dxApi, oSpec)))
       case Some(other) =>
         throw new Exception(s"malformed output field ${other}")
     }
