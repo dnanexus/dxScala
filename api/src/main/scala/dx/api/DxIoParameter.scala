@@ -74,7 +74,7 @@ final case class IOParameterValueFile(id: String,
     DxFile(id, project.map(dxApi.project))(dxApi)
   }
 }
-final case class DxIoParameterValueFolder(project: String, path: String, name: Option[String])
+final case class DxIoParameterValuePath(project: String, path: String, name: Option[String])
     extends IOParameterValue
 
 object IOParameterValue {
@@ -95,7 +95,7 @@ object IOParameterValue {
       case DxIOSpec.Suggestions if id.isDefined && path.isEmpty =>
         IOParameterValueFile(id.get, project, name)
       case DxIOSpec.Suggestions if id.isEmpty && project.isDefined && path.isDefined =>
-        DxIoParameterValueFolder(project.get, path.get, name)
+        DxIoParameterValuePath(project.get, path.get, name)
       case DxIOSpec.Suggestions =>
         throw new Exception("suggestion file value requires either file ID or project and path")
       case _ =>
