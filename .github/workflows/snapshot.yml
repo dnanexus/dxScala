@@ -33,7 +33,7 @@ jobs:
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$common_query" \
             https://api.github.com/graphql`
-          common_version_id=`echo $common_version_json | jq .data.repository.packages.nodes[0].version.id`
+          common_version_id=`echo $common_version_json | jq ".data.repository.packages.nodes[0].version.id"`
 
           api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf`
           if [ -z "$api_version" ]; then
@@ -47,7 +47,7 @@ jobs:
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$api_query" \
             https://api.github.com/graphql`
-          api_version_id=`echo $api_version_json | jq .data.repository.packages.nodes[0].version.id`
+          api_version_id=`echo $api_version_json | jq ".data.repository.packages.nodes[0].version.id"`
 
           protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf`
           if [ -z "$protocols_version" ]; then
@@ -61,7 +61,7 @@ jobs:
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$protocols_query" \
             https://api.github.com/graphql`
-          protocols_version_id=`echo $protocols_version_json | jq .data.repository.packages.nodes[0].version.id`
+          protocols_version_id=`echo $protocols_version_json | jq ".data.repository.packages.nodes[0].version.id"`
 
           echo ::set-output name=common_version_id::"${common_version_id}"
           echo ::set-output name=api_version_id::"${api_version_id}"
