@@ -206,7 +206,7 @@ object IOParameter {
     val choices = JsUtils.getOptionalValues(jsv, DxIOSpec.Choices).map { array =>
       array.map(item => parseValue(DxIOSpec.Choices, item))
     }
-    val suggestions = JsUtils.getOptionalValues(jsv, DxIOSpec.Choices).map { array =>
+    val suggestions = JsUtils.getOptionalValues(jsv, DxIOSpec.Suggestions).map { array =>
       array.map(item => parseValue(DxIOSpec.Suggestions, item))
     }
     val default = JsUtils.getOptional(jsv, DxIOSpec.Default).flatMap { value =>
