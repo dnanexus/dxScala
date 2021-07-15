@@ -156,14 +156,14 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
     }
     val inputSpec: Option[Vector[IOParameter]] = fields.get("inputSpec") match {
       case Some(JsArray(iSpecVec)) =>
-        Some(iSpecVec.map(iSpec => IOParameter.parseIoParam(dxApi, iSpec)))
+        Some(iSpecVec.map(iSpec => IOParameter.parse(dxApi, iSpec)))
       case None | Some(JsNull) => None
       case Some(other) =>
         throw new Exception(s"malformed inputSpec field ${other}")
     }
     val outputSpec: Option[Vector[IOParameter]] = fields.get("outputSpec") match {
       case Some(JsArray(oSpecVec)) =>
-        Some(oSpecVec.map(oSpec => IOParameter.parseIoParam(dxApi, oSpec)))
+        Some(oSpecVec.map(oSpec => IOParameter.parse(dxApi, oSpec)))
       case None | Some(JsNull) => None
       case Some(other) =>
         throw new Exception(s"malformed output field ${other}")
@@ -249,7 +249,13 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       case Seq(JsString(projectId), JsString(objectId), desc) =>
         val dxProject = dxApi.project(projectId)
         val dxDataObject = dxApi.dataObject(objectId, Some(dxProject))
-        val dxDesc = parseDescribe(desc, dxDataObject, dxProject)
+        val dxDesc =
+          try {
+            parseDescribe(desc, dxDataObject, dxProject)
+          } catch {
+            case t: Throwable =>
+              throw new Exception(s"Error parsing describe for ${dxDataObject}", t)
+          }
         dxDataObject match {
           case dataObject: CachingDxObject[_] =>
             dataObject.cacheDescribe(dxDesc)
