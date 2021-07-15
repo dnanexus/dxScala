@@ -27,24 +27,30 @@ jobs:
             exit 1
           fi
           common_query="{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxcommon\\\"], first:1) { nodes { version(version:\\\"${common_version}\\\") { id } } } } }\" }"
+          echo "$common_query"
           common_version_json=`curl \
             -X POST \
             -H "Accept: application/vnd.github.package-deletes-preview+json" \
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$common_query" \
             https://api.github.com/graphql`
+          echo "$common_version_json"
           common_version_id=`echo $common_version_json | jq ".data.repository.packages.nodes[0].version.id"`
+          echo "$common_version_id"
           if [ "$common_version_id" != "null" ]; then
             common_delete_query="{\"query\": \"mutation { deletePackageVersion(input:{packageVersionId:\\\"${common_version_id}\\\"}) { success }}\"}"
-            common_response=`curl -X POST \
+            echo "$common_delete_query"
+            common_delete_json=`curl -X POST \
               -H "Accept: application/vnd.github.package-deletes-preview+json" \
               -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
               -d "$common_delete_query" \
               https://api.github.com/graphql`
-            common_result=`echo $common_response | jq ".data.deletePackageVersion.success"`
+            echo "$common_delete_json"
+            common_result=`echo $common_delete_json | jq ".data.deletePackageVersion.success"`
+            echo "$common_result"
             if [ "$common_result" != "true" ]; then
               echo "could not delete dxCommon version ${common_version} with package ID ${common_version_id}"
-              echo "$common_response"
+              echo "$common_delete_json"
               exit 1
             fi
           fi
