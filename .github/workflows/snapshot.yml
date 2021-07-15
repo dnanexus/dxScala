@@ -35,10 +35,11 @@ jobs:
             https://api.github.com/graphql`
           common_version_id=`echo $common_version_json | jq ".data.repository.packages.nodes[0].version.id"`
           if [ "$common_version_id" != "null" ]; then
+            common_delete_query="{\"query\": \"mutation { deletePackageVersion(input:{packageVersionId:\\\"${common_version_id}\\\"}) { success }}\"}"
             common_response=`curl -X POST \
               -H "Accept: application/vnd.github.package-deletes-preview+json" \
               -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -d '{"query":"mutation { deletePackageVersion(input:{packageVersionId:\"${common_version_id}\"}) { success }}"}' \
+              -d "$common_delete_query" \
               https://api.github.com/graphql`
             common_result=`echo $common_response | jq ".data.deletePackageVersion.success"`
             if [ "$common_result" != "true ]; then
@@ -61,10 +62,11 @@ jobs:
             https://api.github.com/graphql`
           api_version_id=`echo $api_version_json | jq ".data.repository.packages.nodes[0].version.id"`
           if [ "$api_version_id" != "null" ]; then
+            api_delete_query="{\"query\": \"mutation { deletePackageVersion(input:{packageVersionId:\\\"${api_version_id}\\\"}) { success }}\"}"
             api_response=`curl -X POST \
               -H "Accept: application/vnd.github.package-deletes-preview+json" \
               -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -d '{"query":"mutation { deletePackageVersion(input:{packageVersionId:\"${api_version_id}\"}) { success }}"}' \
+              -d "$api_delete_query" \
               https://api.github.com/graphql`
             api_result=`echo $api_response | jq ".data.deletePackageVersion.success"`
             if [ "$api_result" != "true ]; then
@@ -87,10 +89,11 @@ jobs:
             https://api.github.com/graphql`
           protocols_version_id=`echo $protocols_version_json | jq ".data.repository.packages.nodes[0].version.id"`
           if [ "$protocols_version_id" != "null" ]; then
+            protocols_delete_query="{\"query\": \"mutation { deletePackageVersion(input:{packageVersionId:\\\"${protocols_version_id}\\\"}) { success }}\"}"
             protocols_response=`curl -X POST \
               -H "Accept: application/vnd.github.package-deletes-preview+json" \
               -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -d '{"query":"mutation { deletePackageVersion(input:{packageVersionId:\"${protocols_version_id}\"}) { success }}"}' \
+              -d "$protocols_delete_query" \
               https://api.github.com/graphql`
             protocols_result=`echo $protocols_response | jq ".data.deletePackageVersion.success"`
             if [ "$protocols_result" != "true ]; then
