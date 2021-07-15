@@ -44,6 +44,7 @@ jobs:
             common_result=`echo $common_response | jq ".data.deletePackageVersion.success"`
             if [ "$common_result" != "true" ]; then
               echo "could not delete dxCommon version ${common_version} with package ID ${common_version_id}"
+              echo "$common_response"
               exit 1
             fi
           fi
@@ -71,6 +72,7 @@ jobs:
             api_result=`echo $api_response | jq ".data.deletePackageVersion.success"`
             if [ "$api_result" != "true" ]; then
               echo "could not delete dxApi version ${api_version} with package ID ${api_version_id}"
+              echo "$api_repsonse"
               exit 1
             fi
           fi
@@ -98,6 +100,7 @@ jobs:
             protocols_result=`echo $protocols_response | jq ".data.deletePackageVersion.success"`
             if [ "$protocols_result" != "true" ]; then
               echo "could not delete dxFileAccessProtocols version ${protocols_version} with package ID ${protocols_version_id}"
+              echo "$protocols_response"
               exit 1
             fi
           fi
