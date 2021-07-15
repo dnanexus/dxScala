@@ -42,7 +42,7 @@ jobs:
               -d "$common_delete_query" \
               https://api.github.com/graphql`
             common_result=`echo $common_response | jq ".data.deletePackageVersion.success"`
-            if [ "$common_result" != "true ]; then
+            if [ "$common_result" != "true" ]; then
               echo "could not delete dxCommon version ${common_version} with package ID ${common_version_id}"
               exit 1
             fi
@@ -69,7 +69,7 @@ jobs:
               -d "$api_delete_query" \
               https://api.github.com/graphql`
             api_result=`echo $api_response | jq ".data.deletePackageVersion.success"`
-            if [ "$api_result" != "true ]; then
+            if [ "$api_result" != "true" ]; then
               echo "could not delete dxApi version ${api_version} with package ID ${api_version_id}"
               exit 1
             fi
@@ -96,7 +96,7 @@ jobs:
               -d "$protocols_delete_query" \
               https://api.github.com/graphql`
             protocols_result=`echo $protocols_response | jq ".data.deletePackageVersion.success"`
-            if [ "$protocols_result" != "true ]; then
+            if [ "$protocols_result" != "true" ]; then
               echo "could not delete dxFileAccessProtocols version ${protocols_version} with package ID ${protocols_version_id}"
               exit 1
             fi
