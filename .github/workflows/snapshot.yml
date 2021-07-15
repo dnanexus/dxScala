@@ -18,7 +18,7 @@ jobs:
       - name: Install other dependencies
         run: |
           sudo apt update -y && sudo apt install -y jq
-      - name: Get snapshot versions
+      - name: Delete existing snapshot versions
         id: versions
         run: |
           common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./common/src/main/resources/application.conf`
@@ -33,7 +33,19 @@ jobs:
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$common_query" \
             https://api.github.com/graphql`
-          common_version_id=`echo $common_version_json | jq .data.repository.packages.nodes[0].version.id`
+          common_version_id=`echo $common_version_json | jq ".data.repository.packages.nodes[0].version.id"`
+          if [ "$common_version_id" != "null" ]; then
+            common_response=`curl -X POST \
+              -H "Accept: application/vnd.github.package-deletes-preview+json" \
+              -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -d '{"query":"mutation { deletePackageVersion(input:{packageVersionId:\"${common_version_id}\"}) { success }}"}' \
+              https://api.github.com/graphql`
+            common_result=`echo $common_response | jq ".data.deletePackageVersion.success"`
+            if [ "$common_result" != "true ]; then
+              echo "could not delete dxCommon version ${common_version} with package ID ${common_version_id}"
+              exit 1
+            fi
+          fi
 
           api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf`
           if [ -z "$api_version" ]; then
@@ -47,7 +59,19 @@ jobs:
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$api_query" \
             https://api.github.com/graphql`
-          api_version_id=`echo $api_version_json | jq .data.repository.packages.nodes[0].version.id`
+          api_version_id=`echo $api_version_json | jq ".data.repository.packages.nodes[0].version.id"`
+          if [ "$api_version_id" != "null" ]; then
+            api_response=`curl -X POST \
+              -H "Accept: application/vnd.github.package-deletes-preview+json" \
+              -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -d '{"query":"mutation { deletePackageVersion(input:{packageVersionId:\"${api_version_id}\"}) { success }}"}' \
+              https://api.github.com/graphql`
+            api_result=`echo $api_response | jq ".data.deletePackageVersion.success"`
+            if [ "$api_result" != "true ]; then
+              echo "could not delete dxApi version ${api_version} with package ID ${api_version_id}"
+              exit 1
+            fi
+          fi
 
           protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf`
           if [ -z "$protocols_version" ]; then
@@ -61,32 +85,19 @@ jobs:
             -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d "$protocols_query" \
             https://api.github.com/graphql`
-          protocols_version_id=`echo $protocols_version_json | jq .data.repository.packages.nodes[0].version.id`
-
-          echo ::set-output name=common_version_id::"${common_version_id}"
-          echo ::set-output name=api_version_id::"${api_version_id}"
-          echo ::set-output name=protocols_version_id::"${protocols_version_id}"
-      - name: Delete existing common snapshot
-        uses: actions/delete-package-versions@v1
-        if: ${{ steps.versions.outputs.common_version_id != 'null' }}
-        with:
-          repo: dnanexus
-          package-name: com.dnanexus.dxcommon
-          package-version-ids: ${{ steps.versions.outputs.common_version_id }}
-      - name: Delete existing api snapshot
-        uses: actions/delete-package-versions@v1
-        if: ${{ steps.versions.outputs.api_version_id != 'null' }}
-        with:
-          repo: dnanexus
-          package-name: com.dnanexus.dxapi
-          package-version-ids: ${{ steps.versions.outputs.api_version_id }}
-      - name: Delete existing protocols snapshot
-        uses: actions/delete-package-versions@v1
-        if: ${{ steps.versions.outputs.protocols_version_id != 'null' }}
-        with:
-          repo: com.dnanexus.dnanexus
-          package-name: dxfileaccessprotocols
-          package-version-ids: ${{ steps.versions.outputs.protocols_version_id }}
+          protocols_version_id=`echo $protocols_version_json | jq ".data.repository.packages.nodes[0].version.id"`
+          if [ "$protocols_version_id" != "null" ]; then
+            protocols_response=`curl -X POST \
+              -H "Accept: application/vnd.github.package-deletes-preview+json" \
+              -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -d '{"query":"mutation { deletePackageVersion(input:{packageVersionId:\"${protocols_version_id}\"}) { success }}"}' \
+              https://api.github.com/graphql`
+            protocols_result=`echo $protocols_response | jq ".data.deletePackageVersion.success"`
+            if [ "$protocols_result" != "true ]; then
+              echo "could not delete dxFileAccessProtocols version ${protocols_version} with package ID ${protocols_version_id}"
+              exit 1
+            fi
+          fi
       - name: Publish Snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
