@@ -66,15 +66,19 @@ final case class IOParameterValueString(value: String) extends IOParameterValue
 final case class IOParameterValueNumber(value: BigDecimal) extends IOParameterValue
 final case class IOParameterValueBoolean(value: Boolean) extends IOParameterValue
 final case class IOParameterValueArray(array: Vector[IOParameterValue]) extends IOParameterValue
-final case class IOParameterValueFile(id: String,
-                                      project: Option[String] = None,
-                                      name: Option[String] = None)
+final case class IOParameterValueDataObject(id: String,
+                                            project: Option[String] = None,
+                                            name: Option[String] = None,
+                                            region: Option[String] = None)
     extends IOParameterValue {
-  def resolve(dxApi: DxApi = DxApi.get): DxFile = {
-    DxFile(id, project.map(dxApi.project))(dxApi)
+  def resolve(dxApi: DxApi = DxApi.get): DxDataObject = {
+    dxApi.dataObject(id, project.map(dxApi.project))
   }
 }
-final case class DxIoParameterValuePath(project: String, path: String, name: Option[String])
+final case class DxIoParameterValuePath(project: String,
+                                        path: String,
+                                        name: Option[String],
+                                        region: Option[String] = None)
     extends IOParameterValue
 
 object IOParameterValue {
@@ -82,20 +86,21 @@ object IOParameterValue {
                    id: Option[String],
                    project: Option[String] = None,
                    name: Option[String] = None,
-                   path: Option[String] = None): IOParameterValue = {
+                   path: Option[String] = None,
+                   region: Option[String] = None): IOParameterValue = {
     field match {
-      case DxIOSpec.Default if id.isDefined && Seq(name, project, path).forall(_.isEmpty) =>
-        IOParameterValueFile(id.get)
+      case DxIOSpec.Default if id.isDefined && Seq(name, project, path, region).forall(_.isEmpty) =>
+        IOParameterValueDataObject(id.get)
       case DxIOSpec.Default =>
         throw new Exception("default file value may not have name, project, or path")
       case DxIOSpec.Choices if id.isDefined && path.isEmpty =>
-        IOParameterValueFile(id.get, project, name)
+        IOParameterValueDataObject(id.get, project, name, region)
       case DxIOSpec.Choices =>
         throw new Exception("choice file value requires a file ID and may not have path")
       case DxIOSpec.Suggestions if id.isDefined && path.isEmpty =>
-        IOParameterValueFile(id.get, project, name)
+        IOParameterValueDataObject(id.get, project, name, region)
       case DxIOSpec.Suggestions if id.isEmpty && project.isDefined && path.isDefined =>
-        DxIoParameterValuePath(project.get, path.get, name)
+        DxIoParameterValuePath(project.get, path.get, name, region)
       case DxIOSpec.Suggestions =>
         throw new Exception("suggestion file value requires either file ID or project and path")
       case _ =>
@@ -132,20 +137,21 @@ object IOParameter {
             if fields.contains(DxUtils.DxLinkKey) =>
           val dxFile = DxFile.fromJson(dxApi, link)
           IOParameterValue.forFileField(key, Some(dxFile.id), dxFile.project.map(_.id))
-        case (DxIOClass.File | DxIOClass.FileArray, JsObject(fields)) if key != DxIOSpec.Default =>
-          val dxFile = fields.get("value").map {
+        case (DxIOClass.File | DxIOClass.FileArray | DxIOClass.Other, JsObject(fields))
+            if key != DxIOSpec.Default =>
+          val dxObj = fields.get("value").map {
             case obj @ JsObject(fields) if fields.contains(DxUtils.DxLinkKey) =>
-              DxFile.fromJson(dxApi, obj)
+              dxApi.dataObjectFromJson(obj)
             case other =>
               throw new Exception(s"invalid file ${key} value ${other}")
           }
           val project =
-            JsUtils.getOptionalString(fields, "project").orElse(dxFile.flatMap(_.project.map(_.id)))
+            JsUtils.getOptionalString(fields, "project").orElse(dxObj.flatMap(_.project.map(_.id)))
           val name = JsUtils.getOptionalString(fields, "name")
           val path = Option
             .when(key == DxIOSpec.Suggestions)(JsUtils.getOptionalString(fields, "path"))
             .flatten
-          IOParameterValue.forFileField(key, dxFile.map(_.id), project, name, path)
+          IOParameterValue.forFileField(key, dxObj.map(_.id), project, name, path)
         case (DxIOClass.File | DxIOClass.FileArray, JsString(s)) if key != DxIOSpec.Default =>
           val parsed = DxPath.parse(s)
           IOParameterValue.forFileField(key, Some(parsed.name), parsed.projName)
