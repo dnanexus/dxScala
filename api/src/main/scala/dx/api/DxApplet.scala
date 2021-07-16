@@ -21,7 +21,8 @@ case class DxAppletDescribe(project: String,
                             tags: Option[Set[String]] = None,
                             runSpec: Option[JsValue] = None,
                             access: Option[JsValue] = None,
-                            ignoreReuse: Option[Boolean] = None)
+                            ignoreReuse: Option[Boolean] = None,
+                            hidden: Option[Boolean] = None)
     extends DxObjectDescribe {
   override def containsAll(fields: Set[Field.Value]): Boolean = {
     fields.diff(DxAppletDescribe.RequiredFields).forall {
@@ -102,6 +103,7 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
     val runSpec = descFields.get("runSpec")
     val access = descFields.get("access")
     val ignoreReuse = descFields.get("ignoreReuse").flatMap(unwrapBoolean)
+    val hidden = descFields.get("hidden").flatMap(unwrapBoolean)
     desc.copy(
         details = details,
         properties = props,
@@ -113,7 +115,8 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
         tags = tags,
         runSpec = runSpec,
         access = access,
-        ignoreReuse = ignoreReuse
+        ignoreReuse = ignoreReuse,
+        hidden = hidden
     )
   }
 

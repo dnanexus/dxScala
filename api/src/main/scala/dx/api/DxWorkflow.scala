@@ -37,7 +37,8 @@ case class DxWorkflowDescribe(project: String,
                               tags: Option[Set[String]] = None,
                               types: Option[Vector[String]] = None,
                               inputs: Option[Vector[IOParameter]] = None,
-                              outputs: Option[Vector[IOParameter]] = None)
+                              outputs: Option[Vector[IOParameter]] = None,
+                              hidden: Option[Boolean] = None)
     extends DxObjectDescribe
 
 object DxWorkflowDescribe {
@@ -131,6 +132,7 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
       case Some(JsArray(outs)) => Some(IOParameter.parseIOSpec(dxApi, outs))
       case _                   => None
     }
+    val hidden = descFields.get("hidden").flatMap(unwrapBoolean)
     desc.copy(
         inputSpec = inputSpec,
         outputSpec = outputSpec,
@@ -143,7 +145,8 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
         types = types,
         tags = tags,
         inputs = inputs,
-        outputs = outputs
+        outputs = outputs,
+        hidden = hidden
     )
   }
 
@@ -158,6 +161,13 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
     jsValue match {
       case JsArray(array) => Some(array.flatMap(unwrapString))
       case _              => None
+    }
+  }
+
+  def unwrapBoolean(jsValue: JsValue): Option[Boolean] = {
+    jsValue match {
+      case JsBoolean(value) => Some(value)
+      case _                => None
     }
   }
 
