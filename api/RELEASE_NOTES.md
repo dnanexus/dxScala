@@ -5,6 +5,7 @@
 * Unifies parsing of `choices`, `suggestions`, and `default` in `DxIOParameter`
 * No longer attempt to resolve files/projects/folders when parsing a `DxIOParameter`
 * Add tags field to `DxFileDescribe`
+* Add hidden field to `DxWorkflowDescribe`, `DxAppletDescribe`
 
 ## 0.6.0 (2021-07-12)
 
