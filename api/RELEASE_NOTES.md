@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.7.0 (2021-07-16)
 
 * Unifies parsing of `choices`, `suggestions`, and `default` in `DxIOParameter`
 * No longer attempts to resolve files/projects/folders when parsing a `DxIOParameter`
