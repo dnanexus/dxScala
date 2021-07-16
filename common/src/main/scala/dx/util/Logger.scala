@@ -1,7 +1,9 @@
 package dx.util
 
+import spray.json._
+
 import java.io.PrintStream
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 object LogLevel {
   // show messages at least as severe as INFO
@@ -36,10 +38,10 @@ object TraceLevel {
   */
 case class Logger(level: Int,
                   traceLevel: Int,
-                  keywords: Set[String],
-                  traceIndenting: Int,
-                  logFile: Option[Path],
-                  hideStackTraces: Option[Boolean]) {
+                  keywords: Set[String] = Set.empty,
+                  traceIndenting: Int = 0,
+                  logFile: Option[Path] = None,
+                  hideStackTraces: Option[Boolean] = None) {
   private val stream: PrintStream = logFile match {
     case Some(path) =>
       val fileStream = new PrintStream(path.toFile)
@@ -152,11 +154,11 @@ case class Logger(level: Int,
   }
 }
 
-object Logger {
-  lazy val Silent: Logger = Logger.create(level = LogLevel.Silent, traceLevel = TraceLevel.None)
-  lazy val Quiet: Logger = Logger.create(level = LogLevel.Error, traceLevel = TraceLevel.None)
-  lazy val Normal: Logger = Logger.create(level = LogLevel.Warning, traceLevel = TraceLevel.None)
-  lazy val Verbose: Logger = Logger.create(level = LogLevel.Info, traceLevel = TraceLevel.Verbose)
+object Logger extends DefaultJsonProtocol {
+  lazy val Silent: Logger = Logger(level = LogLevel.Silent, traceLevel = TraceLevel.None)
+  lazy val Quiet: Logger = Logger(level = LogLevel.Error, traceLevel = TraceLevel.None)
+  lazy val Normal: Logger = Logger(level = LogLevel.Warning, traceLevel = TraceLevel.None)
+  lazy val Verbose: Logger = Logger(level = LogLevel.Info, traceLevel = TraceLevel.Verbose)
   private var instance: Logger = Normal
 
   def get: Logger = instance
@@ -172,34 +174,28 @@ object Logger {
     curDefaultLogger
   }
 
-  def set(quiet: Boolean = false,
+  def set(level: Int,
           traceLevel: Int = TraceLevel.None,
           keywords: Set[String] = Set.empty,
           traceIndenting: Int = 0,
           logFile: Option[Path] = None,
           hideStackTraces: Option[Boolean] = None): Logger = {
-    set(Logger(quiet, traceLevel, keywords, traceIndenting, logFile, hideStackTraces))
+    set(Logger(level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces))
   }
 
-  // this function provides backward compatibility
-  def apply(quiet: Boolean,
-            traceLevel: Int,
-            keywords: Set[String] = Set.empty,
-            traceIndenting: Int = 0,
-            logFile: Option[Path] = None,
-            hideStackTraces: Option[Boolean] = None): Logger = {
-    val level = if (quiet) LogLevel.Error else LogLevel.Info
-    apply(level = level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces)
-  }
+  implicit object PathFormat extends RootJsonFormat[Path] {
+    override def read(jsv: JsValue): Path = {
+      jsv match {
+        case JsString(path) => Paths.get(path)
+        case other          => throw new Exception(s"invalid path ${other}")
+      }
+    }
 
-  def create(level: Int,
-             traceLevel: Int,
-             keywords: Set[String] = Set.empty,
-             traceIndenting: Int = 0,
-             logFile: Option[Path] = None,
-             hideStackTraces: Option[Boolean] = None): Logger = {
-    apply(level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces)
+    override def write(path: Path): JsValue = {
+      JsString(path.toString)
+    }
   }
+  implicit val loggerFormat: RootJsonFormat[Logger] = jsonFormat6(Logger.apply)
 
   // print a warning message in yellow
   def warning(msg: String,
