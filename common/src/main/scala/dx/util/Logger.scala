@@ -154,7 +154,7 @@ case class Logger(level: Int,
   }
 }
 
-object Logger extends DefaultJsonProtocol {
+object Logger {
   lazy val Silent: Logger = Logger(level = LogLevel.Silent, traceLevel = TraceLevel.None)
   lazy val Quiet: Logger = Logger(level = LogLevel.Error, traceLevel = TraceLevel.None)
   lazy val Normal: Logger = Logger(level = LogLevel.Warning, traceLevel = TraceLevel.None)
@@ -183,20 +183,6 @@ object Logger extends DefaultJsonProtocol {
     set(Logger(level, traceLevel, keywords, traceIndenting, logFile, hideStackTraces))
   }
 
-  implicit object PathFormat extends RootJsonFormat[Path] {
-    override def read(jsv: JsValue): Path = {
-      jsv match {
-        case JsString(path) => Paths.get(path)
-        case other          => throw new Exception(s"invalid path ${other}")
-      }
-    }
-
-    override def write(path: Path): JsValue = {
-      JsString(path.toString)
-    }
-  }
-  implicit val loggerFormat: RootJsonFormat[Logger] = jsonFormat6(Logger.apply)
-
   // print a warning message in yellow
   def warning(msg: String,
               exception: Option[Throwable] = None,
@@ -216,4 +202,20 @@ object Logger extends DefaultJsonProtocol {
         errorMessage(s"${Console.RED}[error] ${msg}${Console.RESET}", exception, stackTrace)
     )
   }
+}
+
+object LoggerProtocol extends DefaultJsonProtocol {
+  implicit object PathFormat extends RootJsonFormat[Path] {
+    override def read(jsv: JsValue): Path = {
+      jsv match {
+        case JsString(path) => Paths.get(path)
+        case other          => throw new Exception(s"invalid path ${other}")
+      }
+    }
+
+    override def write(path: Path): JsValue = {
+      JsString(path.toString)
+    }
+  }
+  implicit val loggerFormat: RootJsonFormat[Logger] = jsonFormat6(Logger.apply)
 }

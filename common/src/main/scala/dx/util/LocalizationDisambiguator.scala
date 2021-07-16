@@ -1,6 +1,7 @@
 package dx.util
 
 import dx.util.CollectionUtils.IterableOnceExtensions
+import dx.util.LoggerProtocol._
 import spray.json._
 
 import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
@@ -319,6 +320,21 @@ case class SafeLocalizationDisambiguator(
 }
 
 object SafeLocalizationDisambiguator {
+  def create(rootDir: Path,
+             existingPaths: Set[Path] = Set.empty,
+             separateDirsBySource: Boolean = false,
+             createDirs: Boolean = true,
+             subdirPrefix: String = "input",
+             disambiguationDirLimit: Int = 200,
+             logger: Logger = Logger.get): SafeLocalizationDisambiguator = {
+    SafeLocalizationDisambiguator(rootDir,
+                                  separateDirsBySource,
+                                  createDirs,
+                                  subdirPrefix,
+                                  disambiguationDirLimit,
+                                  logger)(localizedPaths = existingPaths)
+  }
+
   def fromJson(jsv: JsValue): SafeLocalizationDisambiguator = {
     jsv.asJsObject.getFields(
         "rootDir",
@@ -354,6 +370,7 @@ object SafeLocalizationDisambiguator {
                 val version = JsUtils.getOptionalString(item, "version")
                 val path = JsUtils.getString(item, "path")
                 (container, version) -> Paths.get(path)
+              case other => throw new Exception(s"Invalid sourceToTarget item ${other}")
             }.toMap,
             disambiguationDirs.map {
               case JsString(path) => Paths.get(path)
