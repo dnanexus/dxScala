@@ -10,15 +10,13 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       case None                 => throw new Exception("name field missing")
       case other                => throw new Exception(s"malformed name field ${other}")
     }
-    val properties: Map[String, String] = fields.get("properties") match {
-      case None        => Map.empty
-      case Some(props) => DxObject.parseJsonProperties(props)
-    }
+    val tags = fields.get("tags").map(DxObject.parseJsonTags)
+    val properties = fields.get("properties").map(DxObject.parseJsonProperties)
     val inputSpec: Option[Vector[IOParameter]] = fields.get("inputSpec") match {
       case None         => None
       case Some(JsNull) => None
       case Some(JsArray(iSpecVec)) =>
-        Some(iSpecVec.map(iSpec => IOParameter.parseIoParam(dxApi, iSpec)))
+        Some(iSpecVec.map(iSpec => IOParameter.parse(dxApi, iSpec)))
       case Some(other) =>
         throw new Exception(s"malformed inputSpec field ${other}")
     }
@@ -26,7 +24,7 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       case None         => None
       case Some(JsNull) => None
       case Some(JsArray(oSpecVec)) =>
-        Some(oSpecVec.map(oSpec => IOParameter.parseIoParam(dxApi, oSpec)))
+        Some(oSpecVec.map(oSpec => IOParameter.parse(dxApi, oSpec)))
       case Some(other) =>
         throw new Exception(s"malformed output field ${other}")
     }
@@ -42,14 +40,20 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
     }
     val details: Option[JsValue] = fields.get("details")
 
-    DxAppDescribe(id, name, created, modified, Some(properties), details, inputSpec, outputSpec)
+    DxAppDescribe(id, name, created, modified, tags, properties, details, inputSpec, outputSpec)
   }
 
   private def parseOneResult(jsv: JsValue): DxApp = {
     jsv.asJsObject.getFields("id", "describe") match {
       case Seq(JsString(dxid), desc) =>
         val dxApp = dxApi.app(dxid)
-        val dxDesc = parseDescribe(dxApp.id, desc)
+        val dxDesc =
+          try {
+            parseDescribe(dxApp.id, desc)
+          } catch {
+            case t: Throwable =>
+              throw new Exception(s"Error parsing describe for app ${dxid}", t)
+          }
         dxApp.cacheDescribe(dxDesc)
         dxApp
       case _ =>

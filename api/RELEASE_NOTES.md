@@ -1,5 +1,14 @@
 # dxApi
 
+## 0.7.0 (2021-07-16)
+
+* Unifies parsing of `choices`, `suggestions`, and `default` in `DxIOParameter`
+* No longer attempts to resolve files/projects/folders when parsing a `DxIOParameter`
+* Adds tags field to `DxFileDescribe`
+* Adds hidden field to `DxWorkflowDescribe`, `DxAppletDescribe`
+* `DxProject` now extends `DxObject` rather than `DxDataObject`
+* Adds `DxApi.dataObjectFromJson` method
+
 ## 0.6.0 (2021-07-12)
 
 * Adds option to `DxApi.describeFilesBulk` to search first in the workspace container

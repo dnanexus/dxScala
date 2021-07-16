@@ -7,6 +7,7 @@ case class DxAppDescribe(id: String,
                          name: String,
                          created: Long,
                          modified: Long,
+                         tags: Option[Set[String]],
                          properties: Option[Map[String, String]],
                          details: Option[JsValue],
                          inputSpec: Option[Vector[IOParameter]],
@@ -107,14 +108,16 @@ object DxApp {
                         modified.toLong,
                         None,
                         None,
+                        None,
                         Some(IOParameter.parseIOSpec(dxApi, inputSpec)),
                         Some(IOParameter.parseIOSpec(dxApi, outputSpec)))
         case _ =>
           throw new Exception(s"Malformed JSON ${descJs}")
       }
     val details = descJs.fields.get("details")
-    val props = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
+    val tags = descJs.fields.get("tags").map(DxObject.parseJsonTags)
+    val properties = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
     val access = descJs.fields.get("access")
-    desc.copy(details = details, properties = props, access = access)
+    desc.copy(details = details, tags = tags, properties = properties, access = access)
   }
 }

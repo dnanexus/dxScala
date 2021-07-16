@@ -1,12 +1,12 @@
 package dx.api
 
 import spray.json._
-import dx.util.Enum
+import dx.util.{Enum, JsUtils, Logger}
 
 object DxIOClass extends Enum {
   type DxIOClass = Value
   val Int, Float, String, Boolean, File, IntArray, FloatArray, StringArray, BooleanArray, FileArray,
-      Hash, Other = Value
+      Hash, HashArray, Other = Value
 
   def fromString(s: String): DxIOClass.Value = {
     s.toLowerCase match {
@@ -25,11 +25,16 @@ object DxIOClass extends Enum {
       case "array:file"    => FileArray
 
       // hash
-      case "hash" => Hash
+      case "hash"       => Hash
+      case "array:hash" => HashArray
 
       // we don't deal with anything else
       case _ => Other
     }
+  }
+
+  def isArray(cls: DxIOClass): Boolean = {
+    Set(IntArray, FloatArray, StringArray, BooleanArray, HashArray).contains(cls)
   }
 }
 
@@ -48,40 +53,61 @@ object DxIOSpec {
 }
 
 // Types for the IO spec pattern section
-sealed abstract class IOParameterPattern
+sealed trait IOParameterPattern
 case class IOParameterPatternArray(patterns: Vector[String]) extends IOParameterPattern
 case class IOParameterPatternObject(name: Option[Vector[String]],
                                     klass: Option[String],
                                     tag: Option[Vector[String]])
     extends IOParameterPattern
 
-// Types for the IO choices section
-sealed abstract class IOParameterChoice
-final case class IOParameterChoiceString(value: String) extends IOParameterChoice
-final case class IOParameterChoiceNumber(value: BigDecimal) extends IOParameterChoice
-final case class IOParameterChoiceBoolean(value: Boolean) extends IOParameterChoice
-final case class IOParameterChoiceFile(value: DxFile, name: Option[String])
-    extends IOParameterChoice
+// Types for the IO choices/suggestions/default
+sealed trait IOParameterValue
+final case class IOParameterValueString(value: String) extends IOParameterValue
+final case class IOParameterValueNumber(value: BigDecimal) extends IOParameterValue
+final case class IOParameterValueBoolean(value: Boolean) extends IOParameterValue
+final case class IOParameterValueArray(array: Vector[IOParameterValue]) extends IOParameterValue
+final case class IOParameterValueDataObject(id: String,
+                                            project: Option[String] = None,
+                                            name: Option[String] = None,
+                                            region: Option[String] = None)
+    extends IOParameterValue {
+  def resolve(dxApi: DxApi = DxApi.get): DxDataObject = {
+    dxApi.dataObject(id, project.map(dxApi.project))
+  }
+}
+final case class DxIoParameterValuePath(project: String,
+                                        path: String,
+                                        name: Option[String],
+                                        region: Option[String] = None)
+    extends IOParameterValue
 
-// Types for the IO suggestions section
-sealed abstract class IOParameterSuggestion
-final case class IOParameterSuggestionString(value: String) extends IOParameterSuggestion
-final case class IOParameterSuggestionNumber(value: BigDecimal) extends IOParameterSuggestion
-final case class IOParameterSuggestionBoolean(value: Boolean) extends IOParameterSuggestion
-final case class IOParameterSuggestionFile(name: Option[String],
-                                           value: Option[DxFile],
-                                           project: Option[DxProject],
-                                           path: Option[String])
-    extends IOParameterSuggestion
-
-// Types for the IO 'default' section
-sealed abstract class IOParameterDefault
-final case class IOParameterDefaultString(value: String) extends IOParameterDefault
-final case class IOParameterDefaultNumber(value: BigDecimal) extends IOParameterDefault
-final case class IOParameterDefaultBoolean(value: Boolean) extends IOParameterDefault
-final case class IOParameterDefaultFile(value: DxFile) extends IOParameterDefault
-final case class IOParameterDefaultArray(array: Vector[IOParameterDefault])
-    extends IOParameterDefault
+object IOParameterValue {
+  def forFileField(field: String,
+                   id: Option[String],
+                   project: Option[String] = None,
+                   name: Option[String] = None,
+                   path: Option[String] = None,
+                   region: Option[String] = None): IOParameterValue = {
+    field match {
+      case DxIOSpec.Default if id.isDefined && Seq(name, project, path, region).forall(_.isEmpty) =>
+        IOParameterValueDataObject(id.get)
+      case DxIOSpec.Default =>
+        throw new Exception("default file value may not have name, project, or path")
+      case DxIOSpec.Choices if id.isDefined && path.isEmpty =>
+        IOParameterValueDataObject(id.get, project, name, region)
+      case DxIOSpec.Choices =>
+        throw new Exception("choice file value requires a file ID and may not have path")
+      case DxIOSpec.Suggestions if id.isDefined && path.isEmpty =>
+        IOParameterValueDataObject(id.get, project, name, region)
+      case DxIOSpec.Suggestions if id.isEmpty && project.isDefined && path.isDefined =>
+        DxIoParameterValuePath(project.get, path.get, name, region)
+      case DxIOSpec.Suggestions =>
+        throw new Exception("suggestion file value requires either file ID or project and path")
+      case _ =>
+        throw new Exception(s"unrecognized field ${field}")
+    }
+  }
+}
 
 // Representation of the IO spec
 case class IOParameter(
@@ -92,138 +118,117 @@ case class IOParameter(
     help: Option[String] = None,
     label: Option[String] = None,
     patterns: Option[IOParameterPattern] = None,
-    choices: Option[Vector[IOParameterChoice]] = None,
-    suggestions: Option[Vector[IOParameterSuggestion]] = None,
+    choices: Option[Vector[IOParameterValue]] = None,
+    suggestions: Option[Vector[IOParameterValue]] = None,
     dxType: Option[DxConstraint] = None,
-    default: Option[IOParameterDefault] = None
+    default: Option[IOParameterValue] = None
 )
 
 object IOParameter {
-  def parseIoParam(dxApi: DxApi, jsv: JsValue): IOParameter = {
-    val ioParam = jsv.asJsObject.getFields(DxIOSpec.Name, DxIOSpec.Class) match {
-      case Seq(JsString(name), JsString(klass)) =>
-        val ioClass = DxIOClass.fromString(klass)
-        IOParameter(name, ioClass, optional = false)
-      case other =>
-        throw new Exception(s"Malformed io spec ${other}")
+  def parse(dxApi: DxApi, jsv: JsValue): IOParameter = {
+    val fields = jsv.asJsObject.fields
+    val ioClass = DxIOClass.fromString(JsUtils.getString(fields, DxIOSpec.Class))
+
+    def parseValue(key: String, value: JsValue): IOParameterValue = {
+      (ioClass, value) match {
+        case (cls, JsArray(array)) if key == DxIOSpec.Default && DxIOClass.isArray(cls) =>
+          IOParameterValueArray(array.map(value => parseValue(key, value)))
+        case (DxIOClass.File | DxIOClass.FileArray, link @ JsObject(fields))
+            if fields.contains(DxUtils.DxLinkKey) =>
+          val dxFile = DxFile.fromJson(dxApi, link)
+          IOParameterValue.forFileField(key, Some(dxFile.id), dxFile.project.map(_.id))
+        case (DxIOClass.File | DxIOClass.FileArray | DxIOClass.Other, JsObject(fields))
+            if key != DxIOSpec.Default =>
+          val dxObj = fields.get("value").map {
+            case obj @ JsObject(fields) if fields.contains(DxUtils.DxLinkKey) =>
+              dxApi.dataObjectFromJson(obj)
+            case other =>
+              throw new Exception(s"invalid file ${key} value ${other}")
+          }
+          val project =
+            JsUtils.getOptionalString(fields, "project").orElse(dxObj.flatMap(_.project.map(_.id)))
+          val name = JsUtils.getOptionalString(fields, "name")
+          val path = Option
+            .when(key == DxIOSpec.Suggestions)(JsUtils.getOptionalString(fields, "path"))
+            .flatten
+          IOParameterValue.forFileField(key, dxObj.map(_.id), project, name, path)
+        case (DxIOClass.File | DxIOClass.FileArray, JsString(s)) if key != DxIOSpec.Default =>
+          val parsed = DxPath.parse(s)
+          IOParameterValue.forFileField(key, Some(parsed.name), parsed.projName)
+        case (DxIOClass.String | DxIOClass.StringArray, JsString(s)) =>
+          IOParameterValueString(s)
+        case (DxIOClass.Int | DxIOClass.IntArray, JsNumber(n)) if n.isValidLong =>
+          IOParameterValueNumber(n)
+        case (DxIOClass.Float | DxIOClass.FloatArray, JsNumber(n)) =>
+          IOParameterValueNumber(n)
+        case (DxIOClass.Boolean | DxIOClass.BooleanArray, JsBoolean(b)) =>
+          IOParameterValueBoolean(b)
+        case _ =>
+          throw new Exception(s"Unexpected ${key} value ${jsv} of type ${ioClass}")
+      }
     }
 
-    val optFlag = jsv.asJsObject.fields.get(DxIOSpec.Optional) match {
-      case Some(JsBoolean(b)) => b
-      case None               => false
+    def parseType(value: JsValue): DxConstraint = {
+      value match {
+        case JsString(s) => DxConstraintString(s)
+        case JsObject(fields) =>
+          if (fields.size != 1) {
+            throw new Exception("Constraint hash must have exactly one '$and' or '$or' key")
+          }
+          fields.head match {
+            case (DxConstraintOper.And.name, JsArray(array)) =>
+              DxConstraintBool(DxConstraintOper.And, DxConstraintArray(array.map(parseType)))
+            case (DxConstraintOper.Or.name, JsArray(array)) =>
+              DxConstraintBool(DxConstraintOper.Or, DxConstraintArray(array.map(parseType)))
+            case _ =>
+              throw new Exception(
+                  "Constraint must have key '$and' or '$or' and an array value"
+              )
+          }
+        case _ => throw new Exception(s"Invalid paramter type value ${value}")
+      }
     }
 
-    val group = jsv.asJsObject.fields.get(DxIOSpec.Group) match {
-      case Some(JsString(s)) => Some(s)
-      case _                 => None
-    }
-
-    val help = jsv.asJsObject.fields.get(DxIOSpec.Help) match {
-      case Some(JsString(s)) => Some(s)
-      case _                 => None
-    }
-
-    val label = jsv.asJsObject.fields.get(DxIOSpec.Label) match {
-      case Some(JsString(s)) => Some(s)
-      case _                 => None
-    }
-
-    val patterns = jsv.asJsObject.fields.get(DxIOSpec.Patterns) match {
-      case Some(JsArray(a)) =>
-        Some(IOParameterPatternArray(a.flatMap {
-          case JsString(s) => Some(s)
-          case _           => None
-        }))
-      case Some(JsObject(obj)) =>
-        val name = obj.get("name") match {
-          case Some(JsArray(array)) =>
-            Some(array.flatMap {
-              case JsString(s) => Some(s)
-              case _           => None
-            })
-          case _ => None
+    val name = JsUtils.getString(fields, DxIOSpec.Name)
+    val optional = JsUtils.getOptionalBoolean(fields, DxIOSpec.Optional).getOrElse(false)
+    val group = JsUtils.getOptionalString(fields, DxIOSpec.Group)
+    val help = JsUtils.getOptionalString(fields, DxIOSpec.Help)
+    val label = JsUtils.getOptionalString(fields, DxIOSpec.Label)
+    val patterns = JsUtils.getOptional(fields, DxIOSpec.Patterns).map {
+      case JsArray(array) => IOParameterPatternArray(array.map(JsUtils.getString(_)))
+      case JsObject(obj) =>
+        val name = obj.get("name").map {
+          case JsArray(array) => array.map(JsUtils.getString(_))
+          case other          => throw new Exception(s"invalid pattern name ${other}")
         }
-        val tag = obj.get("tag") match {
-          case Some(JsArray(array)) =>
-            Some(array.flatMap {
-              case JsString(s) => Some(s)
-              case _           => None
-            })
-          case _ =>
-            None
+        val tag = obj.get("tag").map {
+          case JsArray(array) => array.map(JsUtils.getString(_))
+          case other          => throw new Exception(s"invalid pattern tag ${other}")
         }
-        val klass = obj.get("class") match {
-          case Some(JsString(s)) => Some(s)
-          case _                 => None
-        }
-        Some(IOParameterPatternObject(name, klass, tag))
-      case _ => None
+        val cls = obj.get("class").map(JsUtils.getString(_))
+        IOParameterPatternObject(name, cls, tag)
+      case other => throw new Exception(s"invalid patterns ${other}")
     }
-
-    val choices = jsv.asJsObject.fields.get(DxIOSpec.Choices) match {
-      case Some(JsArray(a)) =>
-        Some(a.map {
-          case JsObject(fields) =>
-            val nameStr: Option[String] = fields.get("name") match {
-              case Some(JsString(s)) => Some(s)
-              case _                 => None
-            }
-            IOParameterChoiceFile(name = nameStr, value = DxFile.fromJson(dxApi, fields("value")))
-          case JsString(s)  => IOParameterChoiceString(s)
-          case JsNumber(n)  => IOParameterChoiceNumber(n)
-          case JsBoolean(b) => IOParameterChoiceBoolean(b)
-          case _            => throw new Exception("Unsupported choice value")
-        })
-      case _ => None
+    val choices = JsUtils.getOptionalValues(jsv, DxIOSpec.Choices).map { array =>
+      array.map(item => parseValue(DxIOSpec.Choices, item))
     }
-
-    val suggestions = jsv.asJsObject.fields.get(DxIOSpec.Suggestions) match {
-      case Some(JsArray(a)) =>
-        Some(a.map {
-          case JsObject(fields) =>
-            val name: Option[String] = fields.get("name") match {
-              case Some(JsString(s)) => Some(s)
-              case _                 => None
-            }
-            val value: Option[DxFile] = fields.get("value") match {
-              case Some(v: JsValue) => Some(DxFile.fromJson(dxApi, v))
-              case _                => None
-            }
-            val project: Option[DxProject] = fields.get("project") match {
-              case Some(JsString(p)) => Some(DxProject(p)(dxApi))
-              case _                 => None
-            }
-            val path: Option[String] = fields.get("path") match {
-              case Some(JsString(s)) => Some(s)
-              case _                 => None
-            }
-            IOParameterSuggestionFile(name, value, project, path)
-          case JsString(s)  => IOParameterSuggestionString(s)
-          case JsNumber(n)  => IOParameterSuggestionNumber(n)
-          case JsBoolean(b) => IOParameterSuggestionBoolean(b)
-          case _            => throw new Exception("Unsupported suggestion value")
-        })
-      case _ => None
+    val suggestions = JsUtils.getOptionalValues(jsv, DxIOSpec.Suggestions).map { array =>
+      array.map(item => parseValue(DxIOSpec.Suggestions, item))
     }
-
-    val dxType = jsv.asJsObject.fields.get(DxIOSpec.Type) match {
-      case Some(v: JsValue) => Some(ioParamTypeFromJs(v))
-      case _                => None
+    val default = JsUtils.getOptional(jsv, DxIOSpec.Default).flatMap { value =>
+      try {
+        Some(parseValue(DxIOSpec.Default, value))
+      } catch {
+        case _: Exception =>
+          Logger.get.warning(s"unable to parse field ${name} default value ${value}")
+          None
+      }
     }
-
-    val default = jsv.asJsObject.fields.get(DxIOSpec.Default) match {
-      case Some(v: JsValue) =>
-        try {
-          Some(ioParamDefaultFromJs(dxApi, v))
-        } catch {
-          // Currently, some valid defaults won't parse, so we ignore them for now
-          case _: Exception => None
-        }
-      case _ => None
-    }
-
-    ioParam.copy(
-        optional = optFlag,
+    val dxType = JsUtils.getOptional(fields, DxIOSpec.Type).map(parseType)
+    IOParameter(
+        name = name,
+        ioClass = ioClass,
+        optional = optional,
         group = group,
         help = help,
         label = label,
@@ -235,40 +240,7 @@ object IOParameter {
     )
   }
 
-  def ioParamTypeFromJs(value: JsValue): DxConstraint = {
-    value match {
-      case JsString(s) => DxConstraintString(s)
-      case JsObject(fields) =>
-        if (fields.size != 1) {
-          throw new Exception("Constraint hash must have exactly one '$and' or '$or' key")
-        }
-        fields.head match {
-          case (DxConstraintOper.And.name, JsArray(array)) =>
-            DxConstraintBool(DxConstraintOper.And, DxConstraintArray(array.map(ioParamTypeFromJs)))
-          case (DxConstraintOper.Or.name, JsArray(array)) =>
-            DxConstraintBool(DxConstraintOper.Or, DxConstraintArray(array.map(ioParamTypeFromJs)))
-          case _ =>
-            throw new Exception(
-                "Constraint must have key '$and' or '$or' and an array value"
-            )
-        }
-      case _ => throw new Exception(s"Invalid paramter type value ${value}")
-    }
-  }
-
-  def ioParamDefaultFromJs(dxApi: DxApi, value: JsValue): IOParameterDefault = {
-    value match {
-      case JsString(s)       => IOParameterDefaultString(s)
-      case JsNumber(n)       => IOParameterDefaultNumber(n)
-      case JsBoolean(b)      => IOParameterDefaultBoolean(b)
-      case fileObj: JsObject => IOParameterDefaultFile(DxFile.fromJson(dxApi, fileObj))
-      case JsArray(array) =>
-        IOParameterDefaultArray(array.map(value => ioParamDefaultFromJs(dxApi, value)))
-      case other => throw new Exception(s"Unsupported default value type ${other}")
-    }
-  }
-
   def parseIOSpec(dxApi: DxApi, specs: Vector[JsValue]): Vector[IOParameter] = {
-    specs.map(ioSpec => parseIoParam(dxApi, ioSpec))
+    specs.map(ioSpec => parse(dxApi, ioSpec))
   }
 }

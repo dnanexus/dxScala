@@ -93,7 +93,7 @@ val protocols = project
 lazy val dependencies =
   new {
     val dxCommonVersion = "0.6.0"
-    val dxApiVersion = "0.6.0"
+    val dxApiVersion = "0.7.0"
     val typesafeVersion = "1.3.3"
     val sprayVersion = "1.3.5"
     val scalatestVersion = "3.1.1"
