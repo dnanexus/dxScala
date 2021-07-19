@@ -93,7 +93,7 @@ object IOParameterValue {
       case DxIOSpec.Default if id.isDefined && Seq(name, path, region).forall(_.isEmpty) =>
         IOParameterValueDataObject(id.get)
       case DxIOSpec.Default =>
-        throw new Exception("default file value may not have name, project, or path")
+        throw new Exception("default file value may not have name, path, or region")
       case DxIOSpec.Choices if id.isDefined && path.isEmpty =>
         IOParameterValueDataObject(id.get, project, name, region)
       case DxIOSpec.Choices =>
