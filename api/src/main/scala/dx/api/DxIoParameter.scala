@@ -75,6 +75,7 @@ final case class IOParameterValueDataObject(id: String,
     dxApi.dataObject(id, project.map(dxApi.project))
   }
 }
+final case class DxIoParameterValueReference(fields: Map[String, String]) extends IOParameterValue
 final case class DxIoParameterValuePath(project: String,
                                         path: String,
                                         name: Option[String],
@@ -82,14 +83,14 @@ final case class DxIoParameterValuePath(project: String,
     extends IOParameterValue
 
 object IOParameterValue {
-  def forFileField(field: String,
-                   id: Option[String],
-                   project: Option[String] = None,
-                   name: Option[String] = None,
-                   path: Option[String] = None,
-                   region: Option[String] = None): IOParameterValue = {
+  def forDataObjectField(field: String,
+                         id: Option[String],
+                         project: Option[String] = None,
+                         name: Option[String] = None,
+                         path: Option[String] = None,
+                         region: Option[String] = None): IOParameterValue = {
     field match {
-      case DxIOSpec.Default if id.isDefined && Seq(name, project, path, region).forall(_.isEmpty) =>
+      case DxIOSpec.Default if id.isDefined && Seq(name, path, region).forall(_.isEmpty) =>
         IOParameterValueDataObject(id.get)
       case DxIOSpec.Default =>
         throw new Exception("default file value may not have name, project, or path")
@@ -135,8 +136,17 @@ object IOParameter {
           IOParameterValueArray(array.map(value => parseValue(key, value)))
         case (DxIOClass.File | DxIOClass.FileArray, link @ JsObject(fields))
             if fields.contains(DxUtils.DxLinkKey) =>
-          val dxFile = DxFile.fromJson(dxApi, link)
-          IOParameterValue.forFileField(key, Some(dxFile.id), dxFile.project.map(_.id))
+          try {
+            val dxObj = dxApi.dataObjectFromJson(link)
+            IOParameterValue.forDataObjectField(key, Some(dxObj.id), dxObj.project.map(_.id))
+          } catch {
+            case _: Throwable =>
+              // JBOR or some other reference
+              DxIoParameterValueReference(fields.map {
+                case (key, JsString(value)) => key -> value
+                case other                  => throw new Exception(s"Invalid link field ${other}")
+              })
+          }
         case (DxIOClass.File | DxIOClass.FileArray | DxIOClass.Other, JsObject(fields))
             if key != DxIOSpec.Default =>
           val dxObj = fields.get("value").map {
@@ -151,10 +161,10 @@ object IOParameter {
           val path = Option
             .when(key == DxIOSpec.Suggestions)(JsUtils.getOptionalString(fields, "path"))
             .flatten
-          IOParameterValue.forFileField(key, dxObj.map(_.id), project, name, path)
+          IOParameterValue.forDataObjectField(key, dxObj.map(_.id), project, name, path)
         case (DxIOClass.File | DxIOClass.FileArray, JsString(s)) if key != DxIOSpec.Default =>
           val parsed = DxPath.parse(s)
-          IOParameterValue.forFileField(key, Some(parsed.name), parsed.projName)
+          IOParameterValue.forDataObjectField(key, Some(parsed.name), parsed.projName)
         case (DxIOClass.String | DxIOClass.StringArray, JsString(s)) =>
           IOParameterValueString(s)
         case (DxIOClass.Int | DxIOClass.IntArray, JsNumber(n)) if n.isValidLong =>
