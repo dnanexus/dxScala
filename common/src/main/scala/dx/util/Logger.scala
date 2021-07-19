@@ -2,7 +2,7 @@ package dx.util
 
 import spray.json._
 
-import java.io.PrintStream
+import java.io.{FileOutputStream, PrintStream}
 import java.nio.file.{Path, Paths}
 
 object LogLevel {
@@ -42,17 +42,16 @@ case class Logger(level: Int,
                   traceIndenting: Int = 0,
                   logFile: Option[Path] = None,
                   hideStackTraces: Option[Boolean] = None) {
-  private val stream: PrintStream = logFile match {
-    case Some(path) =>
-      val fileStream = new PrintStream(path.toFile)
+  private val stream: PrintStream = logFile
+    .map { path =>
+      val fileStream = new PrintStream(new FileOutputStream(path.toFile, true))
       sys.addShutdownHook({
         fileStream.flush()
         fileStream.close()
       })
       fileStream
-    case None =>
-      System.err
-  }
+    }
+    .getOrElse(System.err)
   private val DefaultMessageLimit = 1000
   private lazy val keywordsLower: Set[String] = keywords.map(_.toLowerCase)
 
