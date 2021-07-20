@@ -1,5 +1,10 @@
 # dxCommon
 
+## in develop
+
+* Removes deprecated constructors from `Logger`
+* Adds converstion to/from JSON to `Logger` (implicit) and `LocalizationDisambiguator` (explicit)
+
 ## 0.6.0 (2021-07-12)
 
 * Adds `getLocalPathForSource` function to `LocalizationDisambiguator` for handling non-addressable `FileSource`s 
