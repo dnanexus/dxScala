@@ -145,8 +145,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       case JsNumber(size) => size.toLong
       case other          => throw new Exception(s"malformed size field ${other}")
     }
-    val properties: Map[String, String] =
-      fields.get("properties").map(DxObject.parseJsonProperties).getOrElse(Map.empty)
+    val properties = fields.get("properties").map(DxObject.parseJsonProperties)
     val tags = fields.get("tags").flatMap {
       case JsArray(array) =>
         Some(array.map {
@@ -157,14 +156,14 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
     }
     val inputSpec: Option[Vector[IOParameter]] = fields.get("inputSpec") match {
       case Some(JsArray(iSpecVec)) =>
-        Some(iSpecVec.map(iSpec => IOParameter.parseIoParam(dxApi, iSpec)))
+        Some(iSpecVec.map(iSpec => IOParameter.parse(dxApi, iSpec)))
       case None | Some(JsNull) => None
       case Some(other) =>
         throw new Exception(s"malformed inputSpec field ${other}")
     }
     val outputSpec: Option[Vector[IOParameter]] = fields.get("outputSpec") match {
       case Some(JsArray(oSpecVec)) =>
-        Some(oSpecVec.map(oSpec => IOParameter.parseIoParam(dxApi, oSpec)))
+        Some(oSpecVec.map(oSpec => IOParameter.parse(dxApi, oSpec)))
       case None | Some(JsNull) => None
       case Some(other) =>
         throw new Exception(s"malformed output field ${other}")
@@ -173,40 +172,47 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
 
     dxobj match {
       case _: DxApp =>
-        DxAppDescribe(dxobj.id,
-                      name,
-                      created,
-                      modified,
-                      Some(properties),
-                      details,
-                      inputSpec,
-                      outputSpec)
+        DxAppDescribe(
+            id = dxobj.id,
+            name = name,
+            created = created,
+            modified = modified,
+            tags = tags,
+            properties = properties,
+            details = details,
+            inputSpec = inputSpec,
+            outputSpec = outputSpec
+        )
       case _: DxApplet =>
-        DxAppletDescribe(dxProject.id,
-                         dxobj.id,
-                         name,
-                         folder,
-                         created,
-                         modified,
-                         Some(properties),
-                         details,
-                         inputSpec,
-                         outputSpec,
-                         tags = tags)
+        DxAppletDescribe(
+            project = dxProject.id,
+            id = dxobj.id,
+            name = name,
+            folder = folder,
+            created = created,
+            modified = modified,
+            tags = tags,
+            properties = properties,
+            details = details,
+            inputSpec = inputSpec,
+            outputSpec = outputSpec
+        )
       case _: DxWorkflow =>
         val stages = fields.get("stages").map(DxWorkflowDescribe.parseStages)
-        DxWorkflowDescribe(dxProject.id,
-                           dxobj.id,
-                           name,
-                           folder,
-                           created,
-                           modified,
-                           Some(properties),
-                           details,
-                           inputSpec,
-                           outputSpec,
-                           tags = tags,
-                           stages = stages)
+        DxWorkflowDescribe(
+            project = dxProject.id,
+            id = dxobj.id,
+            name = name,
+            folder = folder,
+            created = created,
+            modified = modified,
+            tags = tags,
+            properties = properties,
+            details = details,
+            inputSpec = inputSpec,
+            outputSpec = outputSpec,
+            stages = stages
+        )
       case _: DxFile =>
         val state = fields.get("state") match {
           case Some(JsString(x)) => DxState.withNameIgnoreCase(x)
@@ -219,18 +225,19 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
           case Some(other)       => throw new Exception(s"malformed archivalState field ${other}")
         }
         DxFileDescribe(
-            dxProject.id,
-            dxobj.id,
-            name,
-            folder,
-            created,
-            modified,
-            size.get,
-            state,
-            archivalState,
-            Some(properties),
-            details,
-            None
+            project = dxProject.id,
+            id = dxobj.id,
+            name = name,
+            folder = folder,
+            created = created,
+            modified = modified,
+            size = size.get,
+            state = state,
+            archivalState = archivalState,
+            tags = tags,
+            properties = properties,
+            details = details,
+            parts = None
         )
       case other =>
         throw new Exception(s"unsupported object ${other}")
@@ -242,7 +249,13 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       case Seq(JsString(projectId), JsString(objectId), desc) =>
         val dxProject = dxApi.project(projectId)
         val dxDataObject = dxApi.dataObject(objectId, Some(dxProject))
-        val dxDesc = parseDescribe(desc, dxDataObject, dxProject)
+        val dxDesc =
+          try {
+            parseDescribe(desc, dxDataObject, dxProject)
+          } catch {
+            case t: Throwable =>
+              throw new Exception(s"Error parsing describe for ${dxDataObject}", t)
+          }
         dxDataObject match {
           case dataObject: CachingDxObject[_] =>
             dataObject.cacheDescribe(dxDesc)

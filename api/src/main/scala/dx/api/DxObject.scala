@@ -8,9 +8,9 @@ object Field extends Enum {
   type Field = Value
   val Access, Analysis, App, Applet, ArchivalState, AvailableInstanceTypes, BillTo, Categories,
       Created, Description, Details, DependsOn, DeveloperNotes, Executable, ExecutableName, Folder,
-      Id, IgnoreReuse, Input, Inputs, InputSpec, InstanceType, Modified, Name, Output, Outputs,
-      OutputSpec, ParentJob, Parts, PricingModelsByRegion, Project, Properties, Region, RunSpec,
-      Size, Stages, State, Summary, Tags, Title, Types, Version = Value
+      Hidden, Id, IgnoreReuse, Input, Inputs, InputSpec, InstanceType, Modified, Name, Output,
+      Outputs, OutputSpec, ParentJob, Parts, PricingModelsByRegion, Project, Properties, Region,
+      RunSpec, Size, Stages, State, Summary, Tags, Title, Types, Version = Value
 }
 
 trait DxObjectDescribe {
@@ -33,6 +33,17 @@ trait DxObject {
 }
 
 object DxObject {
+  def parseJsonTags(tags: JsValue): Set[String] = {
+    tags match {
+      case JsArray(array) =>
+        array.map {
+          case JsString(tag) => tag
+          case other         => throw new Exception(s"invalid tag ${other}")
+        }.toSet
+      case other => throw new Exception(s"unexpected tags value ${other}")
+    }
+  }
+
   def parseJsonProperties(props: JsValue): Map[String, String] = {
     props.asJsObject.fields.map {
       case (k, JsString(v)) => k -> v
@@ -71,6 +82,7 @@ object DxObject {
       case Field.ExecutableName         => "executableName"
       case Field.Folder                 => "folder"
       case Field.Id                     => "id"
+      case Field.Hidden                 => "hidden"
       case Field.IgnoreReuse            => "ignoreReuse"
       case Field.Input                  => "input"
       case Field.Inputs                 => "inputs"
@@ -104,7 +116,9 @@ object DxObject {
   }
 }
 
-trait DxDataObject extends DxObject
+trait DxDataObject extends DxObject {
+  val project: Option[DxProject]
+}
 
 // Objects that can be run on the platform. These are apps, applets, and workflows.
 trait DxExecutable extends DxObject

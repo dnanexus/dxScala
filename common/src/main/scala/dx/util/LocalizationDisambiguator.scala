@@ -1,8 +1,10 @@
 package dx.util
 
 import dx.util.CollectionUtils.IterableOnceExtensions
+import dx.util.LoggerProtocol._
+import spray.json._
 
-import java.nio.file.{FileAlreadyExistsException, Files, Path}
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.util.UUID
 
 trait LocalizationDisambiguator {
@@ -43,6 +45,11 @@ trait LocalizationDisambiguator {
     */
   def getLocalPaths[T <: AddressableFileSource](fileSources: Iterable[T],
                                                 localizationDir: Option[Path] = None): Map[T, Path]
+
+  /**
+    * Convert LocalizationDisambiguator state to JSON.
+    */
+  def toJson: JsValue
 }
 
 /**
@@ -53,7 +60,6 @@ trait LocalizationDisambiguator {
   *   the same directory for task execution
   *
   * @param rootDir the root dir - files are localize to subdirectories under this directory
-  * @param existingPaths optional Set of paths that should be assumed to already exist locally
   * @param separateDirsBySource whether to always separate files from each source dir into
   *                             separate target dirs (true), or to minimize the number of
   *                              dirs used by putting all files in a single directory by default
@@ -68,24 +74,49 @@ trait LocalizationDisambiguator {
   *                   a FUSE filesystem.
   * @param subdirPrefix prefix to add to localization dirs
   * @param disambiguationDirLimit max number of disambiguation subdirs that can be created
+  * @param sourceToTarget mapping from source file container and version to local directory - this
+  *                       ensures that files that were originally from the same directory are
+  *                       localized to the same target directory
+  * @param disambiguationDirs Set of disambiguation dirs that have been created
+  * @param localizedPaths Set of paths that should already exist locally
   */
 case class SafeLocalizationDisambiguator(
     rootDir: Path,
-    existingPaths: Set[Path] = Set.empty,
     separateDirsBySource: Boolean = false,
     createDirs: Boolean = true,
     subdirPrefix: String = "input",
     disambiguationDirLimit: Int = 200,
     logger: Logger = Logger.get
+)(
+    private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty,
+    private var disambiguationDirs: Set[Path] = Set.empty,
+    private var localizedPaths: Set[Path] = Set.empty
 ) extends LocalizationDisambiguator {
-  // mapping from source file container and version to local directory - this
-  // ensures that files that were originally from the same directory are
-  // localized to the same target directory
-  private var sourceToTarget: Map[(String, Option[String]), Path] = Map.empty
-  // keep track of which disambiguation dirs we've created
-  private var disambiguationDirs: Set[Path] = Set.empty
-  // keep track of which Paths we've returned so we can detect collisions
-  private var localizedPaths: Set[Path] = existingPaths
+
+  override def toJson: JsValue = {
+    JsObject(
+        "rootDir" -> JsString(rootDir.toString),
+        "separateDirsBySource" -> JsBoolean(separateDirsBySource),
+        "createDirs" -> JsBoolean(createDirs),
+        "subdirPrefix" -> JsString(subdirPrefix),
+        "disambiguationDirLimit" -> JsNumber(disambiguationDirLimit),
+        "logger" -> logger.toJson,
+        "sourceToTarget" -> JsArray(
+            sourceToTarget.map {
+              case ((container, version), path) =>
+                JsObject(
+                    Vector(Some("container" -> JsString(container)),
+                           version.map(ver => "verison" -> JsString(ver)),
+                           Some("path" -> JsString(path.toString))).flatten.toMap
+                )
+            }.toVector
+        ),
+        "disambiguationDirs" -> JsArray(
+            disambiguationDirs.map(path => JsString(path.toString)).toVector
+        ),
+        "localizedPaths" -> JsArray(localizedPaths.map(path => JsString(path.toString)).toVector)
+    )
+  }
 
   def getLocalizedPaths: Set[Path] = localizedPaths
 
@@ -284,6 +315,75 @@ case class SafeLocalizationDisambiguator(
           fs -> resolve(fs.name, fs.container, fs.version, Some(defaultDir), force)
         }.toMap
       commonSourceToPath ++ separateSourceToPath
+    }
+  }
+}
+
+object SafeLocalizationDisambiguator {
+  def create(rootDir: Path,
+             existingPaths: Set[Path] = Set.empty,
+             separateDirsBySource: Boolean = false,
+             createDirs: Boolean = true,
+             subdirPrefix: String = "input",
+             disambiguationDirLimit: Int = 200,
+             logger: Logger = Logger.get): SafeLocalizationDisambiguator = {
+    SafeLocalizationDisambiguator(rootDir,
+                                  separateDirsBySource,
+                                  createDirs,
+                                  subdirPrefix,
+                                  disambiguationDirLimit,
+                                  logger)(localizedPaths = existingPaths)
+  }
+
+  def fromJson(jsv: JsValue): SafeLocalizationDisambiguator = {
+    jsv.asJsObject.getFields(
+        "rootDir",
+        "separateDirsBySource",
+        "createDirs",
+        "subdirPrefix",
+        "disambiguationDirLimit",
+        "logger",
+        "sourceToTarget",
+        "disambiguationDirs",
+        "localizedPaths"
+    ) match {
+      case Seq(
+          JsString(rootDir),
+          JsBoolean(separateDirsBySource),
+          JsBoolean(createDirs),
+          JsString(subdirPrefix),
+          JsNumber(disambiguationDirLimit),
+          logger,
+          JsArray(sourceToTarget),
+          JsArray(disambiguationDirs),
+          JsArray(localizedPaths)
+          ) =>
+        SafeLocalizationDisambiguator(Paths.get(rootDir),
+                                      separateDirsBySource,
+                                      createDirs,
+                                      subdirPrefix,
+                                      disambiguationDirLimit.toIntExact,
+                                      logger.convertTo[Logger])(
+            sourceToTarget.map {
+              case JsObject(item) =>
+                val container = JsUtils.getString(item, "container")
+                val version = JsUtils.getOptionalString(item, "version")
+                val path = JsUtils.getString(item, "path")
+                (container, version) -> Paths.get(path)
+              case other => throw new Exception(s"Invalid sourceToTarget item ${other}")
+            }.toMap,
+            disambiguationDirs.map {
+              case JsString(path) => Paths.get(path)
+              case other          => throw new Exception(s"Invalid disambiguation dir ${other}")
+
+            }.toSet,
+            localizedPaths.map {
+              case JsString(path) => Paths.get(path)
+              case other          => throw new Exception(s"Invalid localized path ${other}")
+            }.toSet
+        )
+      case _ =>
+        throw new Exception(s"Invalid serialized SafeLocalizationDisambiguator ${jsv}")
     }
   }
 }

@@ -2,7 +2,16 @@
 
 ## in develop
 
-* Unifies parsing of `choices` and `suggestions` in `DxIOParameter`
+* Fixes parsing of File-type default values that are a DNAnexus link with a project ID or field reference  
+
+## 0.7.0 (2021-07-16)
+
+* Unifies parsing of `choices`, `suggestions`, and `default` in `DxIOParameter`
+* No longer attempts to resolve files/projects/folders when parsing a `DxIOParameter`
+* Adds tags field to `DxFileDescribe`
+* Adds hidden field to `DxWorkflowDescribe`, `DxAppletDescribe`
+* `DxProject` now extends `DxObject` rather than `DxDataObject`
+* Adds `DxApi.dataObjectFromJson` method
 
 ## 0.6.0 (2021-07-12)
 

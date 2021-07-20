@@ -9,7 +9,7 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
   it should "disambiguate files" in {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
-    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val disambiguator = SafeLocalizationDisambiguator.create(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
     val p1 = FileUtils.getPath("/foo/bar.txt")
     val f1 = disambiguator.getLocalPath(fileResolver.fromFile(p1))
@@ -21,7 +21,7 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
   it should "disambiguate files using a common dir" in {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
-    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val disambiguator = SafeLocalizationDisambiguator.create(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
     val fs1 = fileResolver.fromFile(FileUtils.getPath("/foo/bar.txt"))
     val fs2 = fileResolver.fromFile(FileUtils.getPath("/baz/bar.txt"))
@@ -36,7 +36,7 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
   it should "place files from the same source container in the same target directory" in {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
-    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val disambiguator = SafeLocalizationDisambiguator.create(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
     val p1 = FileUtils.getPath("/foo/bar.txt")
     val f1 = disambiguator.getLocalPath(fileResolver.fromFile(p1))
@@ -48,7 +48,7 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
   it should "disambiguate the same file with different versions" in {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
-    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val disambiguator = SafeLocalizationDisambiguator.create(root, createDirs = false)
     val v1Path = disambiguator.resolve("foo.txt", "container", Some("1.0"))
     // the first file should not have a version specifier
     v1Path.getParent.getFileName.toString should not be "1.0"
@@ -67,7 +67,7 @@ class LocalizationDisambiguatorTest extends AnyFlatSpec with Matchers {
   it should "throw exception when files with the same name are forced to the same dir" in {
     val root = Files.createTempDirectory("root")
     root.toFile.deleteOnExit()
-    val disambiguator = SafeLocalizationDisambiguator(root, createDirs = false)
+    val disambiguator = SafeLocalizationDisambiguator.create(root, createDirs = false)
     val fileResolver = FileSourceResolver.get
     val fs1 = fileResolver.fromFile(FileUtils.getPath("/foo/bar.txt"))
     val fs2 = fileResolver.fromFile(FileUtils.getPath("/baz/bar.txt"))
