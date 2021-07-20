@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Fixes parsing of File-type default values that are a DNAnexus link with a project ID or field reference  
+
 ## 0.7.0 (2021-07-16)
 
 * Unifies parsing of `choices`, `suggestions`, and `default` in `DxIOParameter`
