@@ -2,7 +2,7 @@ package dx.util
 
 import java.lang.management.ManagementFactory
 import java.nio.file.Path
-
+import java.util.concurrent.TimeUnit
 import scala.annotation.nowarn
 import scala.concurrent.{Await, Future, TimeoutException, blocking, duration}
 import scala.concurrent.ExecutionContext.Implicits._
@@ -90,5 +90,18 @@ object SysUtils {
     val mbean = ManagementFactory.getOperatingSystemMXBean
       .asInstanceOf[com.sun.management.OperatingSystemMXBean]
     mbean.getTotalPhysicalMemorySize
+  }
+
+  /**
+    * Times the execution of a block of code.
+    * @param block the block to execute
+    * @tparam R the return value type
+    * @return (return value, time in seconds)
+    */
+  def time[R](timeUnit: TimeUnit = TimeUnit.SECONDS)(block: => R): (R, Long) = {
+    val t0 = System.nanoTime()
+    val result = block // call-by-name
+    val t1 = System.nanoTime()
+    (result, timeUnit.convert(t1 - t0, TimeUnit.NANOSECONDS))
   }
 }
