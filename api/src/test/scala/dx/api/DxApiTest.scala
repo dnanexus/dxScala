@@ -19,6 +19,28 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   private val testProject = "dxCompiler_playground"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
   private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
+  private val username = dxApi.whoami()
+  private val uploadPath = s"unit_tests/${username}/test_upload"
+  private val testDir = Files.createTempDirectory("test")
+  private val random = new Random(42)
+  private val files = Iterator
+    .range(0, 5)
+    .map { i =>
+      val path = testDir.resolve(s"file_${i}.txt")
+      val length = random.nextInt(1024 * 10)
+      val content = random.nextString(length)
+      FileUtils.writeFileContent(path, content)
+      val fileSize = content.getBytes().length
+      fileSize shouldBe Files.size(path)
+      (path, fileSize)
+    }
+    .toMap
+  private val fileTags = Set("A", "B")
+  private val fileProperties = Map("name" -> "Joe", "age" -> "42")
+
+  override protected def afterAll(): Unit = {
+    dxTestProject.removeFolder(s"/${uploadPath}/", recurse = true, force = true)
+  }
 
   private lazy val dxTestProject: DxProject = {
     try {
@@ -72,29 +94,6 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     assertThrows[Exception] {
       dxApi.describeFilesBulk(query, validate = true)
     }
-  }
-
-  private val username = dxApi.whoami()
-  private val uploadPath = s"unit_tests/${username}/test_upload"
-  private val testDir = Files.createTempDirectory("test")
-  private val random = new Random(42)
-  private val files = Iterator
-    .range(0, 5)
-    .map { i =>
-      val path = testDir.resolve(s"file_${i}.txt")
-      val length = random.nextInt(1024 * 10)
-      val content = random.nextString(length)
-      FileUtils.writeFileContent(path, content)
-      val fileSize = content.getBytes().length
-      fileSize shouldBe Files.size(path)
-      (path, fileSize)
-    }
-    .toMap
-  private val fileTags = Set("A", "B")
-  private val fileProperties = Map("name" -> "Joe", "age" -> "42")
-
-  override protected def afterAll(): Unit = {
-    dxTestProject.removeFolder(s"/${uploadPath}/", recurse = true, force = true)
   }
 
   it should "upload files in serial" in {
