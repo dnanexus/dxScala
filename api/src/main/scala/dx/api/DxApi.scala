@@ -28,6 +28,18 @@ case class FileUpload(source: Path,
                       properties: Map[String, String] = Map.empty)
 
 /**
+  * A String to upload as a file.
+  * @param content The file contents.
+  * @param destination The upload destination project and path.
+  * @param tags tags to add to the uploaded file.
+  * @param properties properties to add to the uploaded file.
+  */
+case class StringUpload(content: String,
+                        destination: String,
+                        tags: Set[String] = Set.empty,
+                        properties: Map[String, String] = Map.empty)
+
+/**
   * A directory to upload.
   * @param source The source directory
   * @param destination Optional destination project and/or folder; defaults to the
@@ -991,27 +1003,20 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
   }
 
-  private def silentFileDelete(p: Path): Unit = {
-    try {
-      Files.delete(p)
-    } catch {
-      case _: Throwable => ()
-    }
-  }
-
   // Read the contents of a platform file into a byte array
   def downloadBytes(dxFile: DxFile): Array[Byte] = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile(s"${dxFile.id}", ".tmp")
-    silentFileDelete(tempFile)
-    val content =
+    try {
+      downloadFile(tempFile, dxFile, overwrite = true)
+      FileUtils.readFileBytes(tempFile)
+    } finally {
       try {
-        downloadFile(tempFile, dxFile)
-        FileUtils.readFileBytes(tempFile)
-      } finally {
-        silentFileDelete(tempFile)
+        Files.delete(tempFile)
+      } catch {
+        case _: Throwable => ()
       }
-    content
+    }
   }
 
   /**
@@ -1084,18 +1089,6 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .getOrElse(throw new Exception(s"Failure to upload file ${path}"))
   }
 
-  def uploadString(content: String,
-                   destination: String,
-                   wait: Boolean = false,
-                   tags: Set[String] = Set.empty,
-                   properties: Map[String, String] = Map.empty): DxFile = {
-    // create a temporary file, and write the contents into it.
-    val tempFile: Path = Files.createTempFile("upload", ".tmp")
-    silentFileDelete(tempFile)
-    val path = FileUtils.writeFileContent(tempFile, content)
-    uploadFile(path, Some(destination), wait = wait, tags = tags, properties = properties)
-  }
-
   def uploadFiles(
       files: Iterable[FileUpload],
       waitOnUpload: Boolean = false,
@@ -1152,14 +1145,14 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       shutdown()
 
       // wait for all jobs to complete - throw exception if any of the uploads fail
-      futures.zipWithIndex.toMap.map {
-        case (f, index) =>
+      futures.zip(callables).toMap.map {
+        case (f, callable) =>
           try {
             f.get
           } catch {
             case t: Throwable =>
               shutdown(now = true)
-              throw new Exception(s"Error uploading ${callables(index).upload.source}", t)
+              throw new Exception(s"Error uploading ${callable.upload.source}", t)
           }
       }
     } else {
@@ -1172,6 +1165,66 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
                              properties = properties)
       }.toMap
     }
+  }
+
+  def uploadString(content: String,
+                   destination: String,
+                   wait: Boolean = false,
+                   tags: Set[String] = Set.empty,
+                   properties: Map[String, String] = Map.empty): DxFile = {
+    // create a temporary file, and write the contents into it.
+    val tempFile: Path = Files.createTempFile("upload", ".tmp")
+    val path = FileUtils.writeFileContent(tempFile, content, overwrite = true)
+    try {
+      uploadFile(path, Some(destination), wait = wait, tags = tags, properties = properties)
+    } finally {
+      try {
+        Files.delete(path)
+      } catch {
+        case _: Throwable => ()
+      }
+    }
+  }
+
+  /**
+    * Uploads one or more file literals (a file represented as its string contents).
+    * @param strings the strings to upload
+    * @param waitOnUpload whether to wait for uploads to complete
+    * @param parallel whether to upload in parallel
+    * @param maxConcurrent max concurrent uploads
+    * @return the DxFiles created by uploading the strings in the same order
+    */
+  def uploadStrings(
+      strings: Iterable[StringUpload],
+      waitOnUpload: Boolean = false,
+      parallel: Boolean = true,
+      maxConcurrent: Int = SysUtils.availableCores
+  ): Vector[DxFile] = {
+    val fileUploads = strings.zipWithIndex.map {
+      case (StringUpload(content, destination, tags, properties), index) =>
+        val tempFile: Path = Files.createTempFile("upload", ".tmp")
+        val path = FileUtils.writeFileContent(tempFile, content, overwrite = true)
+        index -> FileUpload(path, Some(destination), tags, properties)
+    }.toMap
+    val results =
+      try {
+        uploadFiles(fileUploads.values, waitOnUpload, parallel, maxConcurrent)
+      } finally {
+        fileUploads.values.foreach { upload =>
+          try {
+            Files.delete(upload.source)
+          } catch {
+            case _: Throwable => ()
+          }
+        }
+      }
+    fileUploads
+      .map {
+        case (index, upload) => (index, results(upload.source))
+      }
+      .toVector
+      .sortBy(_._1)
+      .map(_._2)
   }
 
   private def parseDestination(destination: Option[String]): (String, String) = {
