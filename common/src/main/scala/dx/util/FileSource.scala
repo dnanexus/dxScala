@@ -14,6 +14,7 @@ import java.nio.file.{
 }
 import java.nio.file.attribute.BasicFileAttributes
 import java.{util => javautil}
+
 import dx.util.FileUtils.{FileScheme, getUriScheme}
 
 import scala.io.Source
