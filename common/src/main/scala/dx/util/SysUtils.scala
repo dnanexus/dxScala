@@ -93,6 +93,11 @@ object SysUtils {
   }
 
   /**
+    * Number of avaialable CPU cores.
+    */
+  lazy val availableCores: Int = Runtime.getRuntime.availableProcessors()
+
+  /**
     * Times the execution of a block of code.
     * @param block the block to execute
     * @tparam R the return value type
