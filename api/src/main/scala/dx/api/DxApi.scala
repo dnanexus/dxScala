@@ -1321,7 +1321,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     * @return mapping of source path to (projectId, folder, uploaded files)
     */
   def uploadDirectories(
-      dirs: Set[DirectoryUpload],
+      dirs: Iterable[DirectoryUpload],
       waitOnUpload: Boolean = false,
       parallel: Boolean = true,
       maxConcurrent: Int = SysUtils.availableCores
