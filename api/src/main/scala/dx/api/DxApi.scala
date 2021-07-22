@@ -1315,14 +1315,14 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     * Uploads directories to the context project and folder.
     *
     * @param dirs directories to upload
-    * @param wait whether to wait for each upload to complete
+    * @param waitOnUpload whether to wait for each upload to complete
     * @param parallel whether to upload files in parallel
     * @param maxConcurrent maximum number of concurrent uploads
     * @return mapping of source path to (projectId, folder, uploaded files)
     */
   def uploadDirectories(
       dirs: Set[DirectoryUpload],
-      wait: Boolean = false,
+      waitOnUpload: Boolean = false,
       parallel: Boolean = true,
       maxConcurrent: Int = SysUtils.availableCores
   ): Map[Path, (String, String, Map[Path, DxFile])] = {
@@ -1354,7 +1354,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     val sourceFileToSourceDirMap = sourceFileToSourceDir.flatten.toMap
     val sourceDirToDestMap = sourceDirToDest.toMap
 
-    uploadFiles(fileUploads.flatten, wait, parallel, maxConcurrent)
+    uploadFiles(fileUploads.flatten, waitOnUpload, parallel, maxConcurrent)
       .map {
         case (sourceFile, dxFile) =>
           val sourceDir = sourceFileToSourceDirMap(sourceFile)
