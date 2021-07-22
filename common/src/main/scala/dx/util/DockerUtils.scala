@@ -111,12 +111,15 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
   }
 
   private val imageRegexp = "(?:(.+)://)?(.+)".r
+  private val dockerRepoRegexp = "^Loaded image: (.+)$".r
+  private val dockerHashRegexp = "^Loaded image ID: (.+)$".r
 
   // If `nameOrUri` is a URI, the Docker image tarball is downloaded using the fileResovler,
   // and loaded using `docker load`. The image name is preferentially taken from the tar
   // manifest, but the output of `docker load` is used as a fallback. Otherwise, it is assumed
   // to be an image name and is pulled with `pullImage`. Requires Docker client to be installed.
   // TODO: I'm not sure that the manifest should take priority over the output of 'docker load'
+  // TODO: handle single-layer images with `docker import` instead of `docker load`
   def getImage(nameOrUri: String): String = {
     val (protocol, name) = nameOrUri match {
       case imageRegexp(null, name)     => (None, name)
@@ -127,9 +130,8 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
     if (protocol.exists(fileResolver.canResolve)) {
       // a tarball created with "docker save".
       // 1. download it
-      // 2. open the tar archive
       // 2. load into the local docker cache
-      // 3. figure out the image name
+      // 3. figure out the image name from either the manifest or the output of `docker load`
       logger.traceLimited(s"downloading docker tarball ${nameOrUri} to ${DOCKER_TARBALLS_DIR}")
       val localTarSrc =
         try {
@@ -139,15 +141,6 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
             throw new Exception(s"Could not resolve docker image URI ${nameOrUri}", e)
         }
       val localTar = localTarSrc.localizeToDir(DOCKER_TARBALLS_DIR, overwrite = true)
-      logger.traceLimited("determining image name from tarball manifest")
-      val (_, mContent, _) = SysUtils.execCommand(s"tar --to-stdout -xf ${localTar} manifest.json")
-      logger.traceLimited(
-          s"""|manifest content:
-              |${mContent}
-              |""".stripMargin
-      )
-      val repo = readManifestGetDockerImageName(mContent)
-      logger.traceLimited(s"repository is ${repo}")
       logger.traceLimited(s"load tarball ${localTar} to docker", minLevel = TraceLevel.None)
       val (_, outstr, errstr) = SysUtils.execCommand(s"docker load --input ${localTar}")
       logger.traceLimited(
@@ -156,25 +149,39 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
               |stderr:
               |${errstr}""".stripMargin
       )
-      repo match {
-        case Some(r) => r
-        case None =>
-          val dockerRepoRegexp = "^Loaded image: (.+)$".r
-          val dockerHashRegexp = "^Loaded image ID: (.+)$".r
-          outstr.trim match {
-            case dockerRepoRegexp(r) => r
-            case dockerHashRegexp(h) => h
-            case _ =>
-              throw new Exception(
-                  s"Could not determine the repo name from either the manifest or the 'docker load' output ${outstr}"
-              )
-          }
+      val repo = Try {
+        logger.trace("trying to determine image name from tarball manifest")
+        val (_, mContent, _) =
+          SysUtils.execCommand(s"tar --to-stdout -xf ${localTar} manifest.json")
+        logger.traceLimited(
+            s"""|manifest content:
+                |${mContent}
+                |""".stripMargin
+        )
+        readManifestGetDockerImageName(mContent)
+      }.toOption.flatten.getOrElse {
+        logger.trace(
+            "unable to determine image name from tarball manifest; using docker load output instead"
+        )
+        outstr.trim match {
+          case dockerRepoRegexp(r) => r
+          case dockerHashRegexp(h) => h
+          case _ =>
+            throw new Exception(
+                s"Could not determine the repo name from either the manifest or the 'docker load' output"
+            )
+        }
       }
+      logger.traceLimited(s"repository is ${repo}")
+      repo
     } else if (protocol.forall(_ == "docker")) {
       // the protocol is 'docker' or there is no protocol ('docker' by default)
       pullImage(name)
     } else {
-      throw new Exception(s"Only docker images are currently supported; cannot pull ${nameOrUri}")
+      throw new Exception(
+          s"""Only Docker images in a repository or created via 'docker save' are 
+             |currently supported; cannot pull ${nameOrUri}""".stripMargin.replaceAll("\n", " ")
+      )
     }
   }
 
