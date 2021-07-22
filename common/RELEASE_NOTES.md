@@ -5,6 +5,7 @@
 * Removes deprecated constructors from `Logger`
 * Adds converstion to/from JSON to `Logger` (implicit) and `LocalizationDisambiguator` (explicit)
 * Adds `SysUtils.availableCores`
+* `DockerUtils.pullImage` now handles the case where a manifest file is not available for an image tarball 
 
 ## 0.6.0 (2021-07-12)
 
