@@ -31,7 +31,7 @@ object DxPath {
       case Some(proj) if proj.startsWith("file-") =>
         throw new Exception("""|Path ${dxPath} does not look like: dx://PROJECT_NAME:/FILE_PATH
                                |For example:
-                               |   dx://dxWDL_playground:/test_data/fileB
+                               |   dx://dxCompiler_playground:/test_data/fileB
                                |""".stripMargin)
       case _ => ()
     }
