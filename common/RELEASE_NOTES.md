@@ -4,6 +4,7 @@
 
 * Removes deprecated constructors from `Logger`
 * Adds converstion to/from JSON to `Logger` (implicit) and `LocalizationDisambiguator` (explicit)
+* Adds `SysUtils.availableCores`
 
 ## 0.6.0 (2021-07-12)
 

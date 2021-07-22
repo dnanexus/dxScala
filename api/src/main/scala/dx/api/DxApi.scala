@@ -11,6 +11,54 @@ import dx.util.{FileUtils, JsUtils, Logger, SysUtils, TraceLevel}
 import dx.util.CollectionUtils.IterableOnceExtensions
 import spray.json._
 
+import java.util.concurrent.{Callable, Executors, RejectedExecutionException}
+import scala.annotation.tailrec
+
+/**
+  * A file to upload.
+  * @param source The source file.
+  * @param destination Optional destination project and/or path; defaults to the
+  *                    context project and root folder.
+  * @param tags tags to add to the uploaded file.
+  * @param properties properties to add to the uploaded file.
+  */
+case class FileUpload(source: Path,
+                      destination: Option[String] = None,
+                      tags: Set[String] = Set.empty,
+                      properties: Map[String, String] = Map.empty)
+
+/**
+  * A String to upload as a file.
+  * @param content The file contents.
+  * @param destination The upload destination project and path.
+  * @param tags tags to add to the uploaded file.
+  * @param properties properties to add to the uploaded file.
+  */
+case class StringUpload(content: String,
+                        destination: String,
+                        tags: Set[String] = Set.empty,
+                        properties: Map[String, String] = Map.empty)
+
+/**
+  * A directory to upload.
+  * @param source The source directory
+  * @param destination Optional destination project and/or folder; defaults to the
+  *                    context project and root folder.
+  * @param recursive Whether to search recursively in `source` for files/directories
+  *                  to upload.
+  * @param listing Set of files/folders to include in the upload; if a folder is
+  *                included, all of its files and subfolders are included regardless
+  *                of whether they appear in the Set individually.
+  * @param tags tags to add to all the uploaded files.
+  * @param properties properties to add to all the uploaded files.
+  */
+case class DirectoryUpload(source: Path,
+                           destination: Option[String] = None,
+                           recursive: Boolean = true,
+                           listing: Option[Set[Path]] = None,
+                           tags: Set[String] = Set.empty,
+                           properties: Map[String, String] = Map.empty)
+
 object DxApi {
   val ResultsPerCallLimit: Int = 1000
   val MaxNumDownloadBytes: Long = 2 * 1024 * 1024 * 1024
@@ -955,27 +1003,20 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     }
   }
 
-  private def silentFileDelete(p: Path): Unit = {
-    try {
-      Files.delete(p)
-    } catch {
-      case _: Throwable => ()
-    }
-  }
-
   // Read the contents of a platform file into a byte array
   def downloadBytes(dxFile: DxFile): Array[Byte] = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile(s"${dxFile.id}", ".tmp")
-    silentFileDelete(tempFile)
-    val content =
+    try {
+      downloadFile(tempFile, dxFile, overwrite = true)
+      FileUtils.readFileBytes(tempFile)
+    } finally {
       try {
-        downloadFile(tempFile, dxFile)
-        FileUtils.readFileBytes(tempFile)
-      } finally {
-        silentFileDelete(tempFile)
+        Files.delete(tempFile)
+      } catch {
+        case _: Throwable => ()
       }
-    content
+    }
   }
 
   /**
@@ -1048,6 +1089,84 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       .getOrElse(throw new Exception(s"Failure to upload file ${path}"))
   }
 
+  def uploadFiles(
+      files: Iterable[FileUpload],
+      waitOnUpload: Boolean = false,
+      parallel: Boolean = true,
+      maxConcurrent: Int = SysUtils.availableCores
+  ): Map[Path, DxFile] = {
+    if (files.isEmpty) {
+      return Map.empty
+    }
+
+    if (parallel && files.size > 1) {
+      val executor = Executors.newFixedThreadPool(Math.min(files.size, maxConcurrent))
+
+      def shutdown(now: Boolean = false): Unit = {
+        try {
+          if (now) {
+            executor.shutdownNow()
+          } else {
+            executor.shutdown()
+          }
+        } catch {
+          case se: SecurityException =>
+            logger.warning(
+                "Unexpected security exception shutting down upload thread pool executor",
+                exception = Some(se)
+            )
+        }
+      }
+
+      case class UploadCallable(upload: FileUpload) extends Callable[(Path, DxFile)] {
+        override def call(): (Path, DxFile) = {
+          upload.source -> uploadFile(path = upload.source,
+                                      destination = upload.destination,
+                                      wait = waitOnUpload,
+                                      tags = upload.tags,
+                                      properties = upload.properties)
+        }
+      }
+
+      // submit all upload jobs
+      val callables = files.map(UploadCallable).toVector
+      val futures =
+        try {
+          callables.map { callable: Callable[(Path, DxFile)] =>
+            executor.submit(callable)
+          }
+        } catch {
+          case re: RejectedExecutionException =>
+            shutdown(now = true)
+            throw new Exception("Unexpected rejection of file upload task", re)
+        }
+
+      // try to shut down the threadpool gracefully - this will let the submitted jobs finish
+      shutdown()
+
+      // wait for all jobs to complete - throw exception if any of the uploads fail
+      futures.zip(callables).toMap.map {
+        case (f, callable) =>
+          try {
+            f.get
+          } catch {
+            case t: Throwable =>
+              shutdown(now = true)
+              throw new Exception(s"Error uploading ${callable.upload.source}", t)
+          }
+      }
+    } else {
+      files.map {
+        case FileUpload(path, dest, tags, properties) =>
+          path -> uploadFile(path = path,
+                             destination = dest,
+                             wait = waitOnUpload,
+                             tags = tags,
+                             properties = properties)
+      }.toMap
+    }
+  }
+
   def uploadString(content: String,
                    destination: String,
                    wait: Boolean = false,
@@ -1055,51 +1174,109 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
                    properties: Map[String, String] = Map.empty): DxFile = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile("upload", ".tmp")
-    silentFileDelete(tempFile)
-    val path = FileUtils.writeFileContent(tempFile, content)
-    uploadFile(path, Some(destination), wait = wait, tags = tags, properties = properties)
+    val path = FileUtils.writeFileContent(tempFile, content, overwrite = true)
+    try {
+      uploadFile(path, Some(destination), wait = wait, tags = tags, properties = properties)
+    } finally {
+      try {
+        Files.delete(path)
+      } catch {
+        case _: Throwable => ()
+      }
+    }
   }
 
-  private case class UploadFileVisitor(sourceDir: Path,
-                                       destination: Option[String],
-                                       waitOnUpload: Boolean,
-                                       filter: Option[Path => Boolean])
-      extends SimpleFileVisitor[Path] {
-    private def ensureEndsWithSlash(path: String): String = {
+  /**
+    * Uploads one or more file literals (a file represented as its string contents).
+    * @param strings the strings to upload
+    * @param waitOnUpload whether to wait for uploads to complete
+    * @param parallel whether to upload in parallel
+    * @param maxConcurrent max concurrent uploads
+    * @return the DxFiles created by uploading the strings in the same order
+    */
+  def uploadStrings(
+      strings: Iterable[StringUpload],
+      waitOnUpload: Boolean = false,
+      parallel: Boolean = true,
+      maxConcurrent: Int = SysUtils.availableCores
+  ): Vector[DxFile] = {
+    val fileUploads = strings.zipWithIndex.map {
+      case (StringUpload(content, destination, tags, properties), index) =>
+        val tempFile: Path = Files.createTempFile("upload", ".tmp")
+        val path = FileUtils.writeFileContent(tempFile, content, overwrite = true)
+        index -> FileUpload(path, Some(destination), tags, properties)
+    }.toMap
+    val results =
+      try {
+        uploadFiles(fileUploads.values, waitOnUpload, parallel, maxConcurrent)
+      } finally {
+        fileUploads.values.foreach { upload =>
+          try {
+            Files.delete(upload.source)
+          } catch {
+            case _: Throwable => ()
+          }
+        }
+      }
+    fileUploads
+      .map {
+        case (index, upload) => (index, results(upload.source))
+      }
+      .toVector
+      .sortBy(_._1)
+      .map(_._2)
+  }
+
+  private def parseDestination(destination: Option[String]): (String, String) = {
+    def ensureEndsWithSlash(path: String): String = {
       if (path.endsWith("/")) path else s"${path}/"
     }
 
-    val (projectId: Option[String], folder: String) = destination
+    destination
       .map { dest =>
         dest.split(":").toVector match {
           case Vector(projectId) if projectId.startsWith("project-") =>
-            (Some(projectId), "/")
+            (projectId, "/")
           case Vector(folder) =>
-            (None, ensureEndsWithSlash(folder))
+            (currentWorkspaceId.get, ensureEndsWithSlash(folder))
           case Vector(projectId, folder) =>
-            (Some(projectId), ensureEndsWithSlash(folder))
+            (projectId, ensureEndsWithSlash(folder))
           case _ =>
             throw new Exception(s"invalid destination ${dest}")
         }
       }
-      .getOrElse((None, "/"))
+      .getOrElse((currentWorkspaceId.get, "/"))
+  }
 
-    private var uploadedFiles = Map.empty[Path, DxFile]
+  private def getFileUploadsForDirectory(
+      sourceDir: Path,
+      destProject: String,
+      destFolder: String,
+      recursive: Boolean,
+      filter: Option[Path => Boolean],
+      tags: Set[String],
+      properties: Map[String, String]
+  ): Vector[FileUpload] = {
+    class UploadFileVisitor extends SimpleFileVisitor[Path] {
+      var files = Vector.empty[FileUpload]
 
-    def result: (Option[String], String, Map[Path, DxFile]) = {
-      (projectId, folder, uploadedFiles)
-    }
-
-    override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-      if (!attrs.isDirectory && filter.forall(f => f(file))) {
-        val fileRelPath = sourceDir.relativize(file)
-        val fileDestPath = s"${folder}${fileRelPath}"
-        val fileDest = projectId.map(p => s"${p}:${fileDestPath}").getOrElse(fileDestPath)
-        val dxFile = uploadFile(file, Some(fileDest), waitOnUpload)
-        uploadedFiles += (file -> dxFile)
+      override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
+        if (!attrs.isDirectory && filter.forall(f => f(file))) {
+          val fileRelPath = sourceDir.relativize(file)
+          val fileDest = s"${destProject}:${destFolder}${fileRelPath}"
+          files :+= FileUpload(file, Some(fileDest), tags, properties)
+        }
+        FileVisitResult.CONTINUE
       }
-      FileVisitResult.CONTINUE
     }
+
+    val visitor = new UploadFileVisitor
+    val maxDepth = if (recursive) Integer.MAX_VALUE else 1
+    Files.walkFileTree(sourceDir,
+                       javautil.EnumSet.noneOf(classOf[FileVisitOption]),
+                       maxDepth,
+                       visitor)
+    visitor.files
   }
 
   /**
@@ -1112,17 +1289,82 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     * @param recursive whether to upload all subdirectories
     * @param wait whether to wait for each upload to complete
     * @param filter optional filter function to determine which files to upload
+    * @param tags tags to add to all the uploaded files.
+    * @param properties properties to add to all the uploaded files.
+    * @param parallel whether to upload files in parallel
+    * @param maxConcurrent maximum number of concurrent uploads
     */
   def uploadDirectory(
       path: Path,
       destination: Option[String] = None,
       recursive: Boolean = true,
       wait: Boolean = false,
-      filter: Option[Path => Boolean] = None
-  ): (Option[String], String, Map[Path, DxFile]) = {
-    val visitor = UploadFileVisitor(path, destination, wait, filter)
-    val maxDepth = if (recursive) Integer.MAX_VALUE else 1
-    Files.walkFileTree(path, javautil.EnumSet.noneOf(classOf[FileVisitOption]), maxDepth, visitor)
-    visitor.result
+      filter: Option[Path => Boolean] = None,
+      tags: Set[String] = Set.empty,
+      properties: Map[String, String] = Map.empty,
+      parallel: Boolean = true,
+      maxConcurrent: Int = SysUtils.availableCores
+  ): (String, String, Map[Path, DxFile]) = {
+    val (projectId, folder) = parseDestination(destination)
+    val uploads =
+      getFileUploadsForDirectory(path, projectId, folder, recursive, filter, tags, properties)
+    (projectId, folder, uploadFiles(uploads, wait, parallel, maxConcurrent))
+  }
+
+  /**
+    * Uploads directories to the context project and folder.
+    *
+    * @param dirs directories to upload
+    * @param wait whether to wait for each upload to complete
+    * @param parallel whether to upload files in parallel
+    * @param maxConcurrent maximum number of concurrent uploads
+    * @return mapping of source path to (projectId, folder, uploaded files)
+    */
+  def uploadDirectories(
+      dirs: Set[DirectoryUpload],
+      wait: Boolean = false,
+      parallel: Boolean = true,
+      maxConcurrent: Int = SysUtils.availableCores
+  ): Map[Path, (String, String, Map[Path, DxFile])] = {
+    def includePath(path: Path, paths: Set[Path]): Boolean = {
+      @tailrec
+      def containsAncestor(child: Path): Boolean = {
+        Option(child.getParent) match {
+          case Some(parent) => paths.contains(parent) || containsAncestor(parent)
+          case None         => false
+        }
+      }
+      paths.contains(path) || (path.toFile.isFile && containsAncestor(path))
+    }
+
+    val (fileUploads, sourceFileToSourceDir, sourceDirToDest) = dirs.map {
+      case DirectoryUpload(sourceDir, destination, recursive, listing, tags, properties) =>
+        val filter = listing.map(paths => (path: Path) => includePath(path, paths))
+        val (projectId, folder) = parseDestination(destination)
+        val fileUploads =
+          getFileUploadsForDirectory(sourceDir,
+                                     projectId,
+                                     folder,
+                                     recursive,
+                                     filter,
+                                     tags,
+                                     properties)
+        (fileUploads, fileUploads.map(_.source -> sourceDir), sourceDir -> (projectId, folder))
+    }.unzip3
+    val sourceFileToSourceDirMap = sourceFileToSourceDir.flatten.toMap
+    val sourceDirToDestMap = sourceDirToDest.toMap
+
+    uploadFiles(fileUploads.flatten, wait, parallel, maxConcurrent)
+      .map {
+        case (sourceFile, dxFile) =>
+          val sourceDir = sourceFileToSourceDirMap(sourceFile)
+          (sourceDir, (sourceFile, dxFile))
+      }
+      .groupBy(_._1)
+      .map {
+        case (sourceDir, uploads) =>
+          val (projectId, folder) = sourceDirToDestMap(sourceDir)
+          sourceDir -> (projectId, folder, uploads.values.toMap)
+      }
   }
 }
