@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.7.0 (2021-07-16)
 
 * Fixes parsing of File-type default values that are a DNAnexus link with a project ID or field reference  
 * Adds `DxApi.uploadFiles`, `DxApi.uploadStrings`, and `DxApi.uploadDirectories`, which support parallel uploading
