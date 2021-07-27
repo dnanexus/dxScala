@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.7.0 (2021-07-27)
 
 * Removes deprecated constructors from `Logger`
 * Adds converstion to/from JSON to `Logger` (implicit) and `LocalizationDisambiguator` (explicit)
