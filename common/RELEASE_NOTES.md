@@ -4,7 +4,8 @@
 
 * Removes deprecated constructors from `Logger`
 * Adds converstion to/from JSON to `Logger` (implicit) and `LocalizationDisambiguator` (explicit)
-* Adds `SysUtils.availableCores`
+* Adds `SysUtils.availableCores` for getting number of available CPU cores
+* Adds `SysUtils.time` for timing long-running operations
 * `DockerUtils.pullImage` now handles the case where a manifest file is not available for an image tarball 
 
 ## 0.6.0 (2021-07-12)
