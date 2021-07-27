@@ -1,19 +1,46 @@
 package dx.api
 
-import Assumptions.isLoggedIn
+import Assumptions.{isLoggedIn, toolkitCallable}
 import Tags.ApiTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import dx.util.Logger
+import dx.util.{FileUtils, Logger}
+import org.scalatest.BeforeAndAfterAll
 import spray.json._
 
-class DxApiTest extends AnyFlatSpec with Matchers {
+import java.nio.file.Files
+import scala.util.Random
+
+class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   assume(isLoggedIn)
+  assume(toolkitCallable)
   private val logger = Logger.Quiet
   private val dxApi: DxApi = DxApi()(logger)
   private val testProject = "dxCompiler_playground"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
   private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
+  private val username = dxApi.whoami()
+  private val uploadPath = s"unit_tests/${username}/test_upload"
+  private val testDir = Files.createTempDirectory("test")
+  private val random = new Random(42)
+  private val files = Iterator
+    .range(0, 5)
+    .map { i =>
+      val path = testDir.resolve(s"file_${i}.txt")
+      val length = random.nextInt(1024 * 10)
+      val content = random.nextString(length)
+      FileUtils.writeFileContent(path, content)
+      val fileSize = content.getBytes().length
+      fileSize shouldBe Files.size(path)
+      (path, fileSize)
+    }
+    .toMap
+  private val fileTags = Set("A", "B")
+  private val fileProperties = Map("name" -> "Joe", "age" -> "42")
+
+  override protected def afterAll(): Unit = {
+    dxTestProject.removeFolder(s"/${uploadPath}/", recurse = true, force = true)
+  }
 
   private lazy val dxTestProject: DxProject = {
     try {
@@ -66,6 +93,41 @@ class DxApiTest extends AnyFlatSpec with Matchers {
     val query = Vector(DxFile("file-XXXXXXXXXXXXXXXXXXXXXXXX", Some(dxTestProject))(dxApi))
     assertThrows[Exception] {
       dxApi.describeFilesBulk(query, validate = true)
+    }
+  }
+
+  it should "upload files in serial" in {
+    val dest = s"${dxTestProject.id}:/${uploadPath}/serial/"
+    val uploads = files.keys.map { path =>
+      FileUpload(source = path,
+                 destination = Some(dest),
+                 tags = fileTags,
+                 properties = fileProperties)
+    }.toSet
+    val results = dxApi.uploadFiles(uploads, waitOnUpload = true, parallel = false)
+    results.size shouldBe 5
+    results.foreach {
+      case (path, dxFile) =>
+        val desc: DxFileDescribe = dxFile.describe(Set(Field.Tags, Field.Properties))
+        files(path) shouldBe desc.size
+        desc.tags shouldBe Some(fileTags)
+        desc.properties shouldBe Some(fileProperties)
+    }
+  }
+
+  it should "upload files in parallel" in {
+    val dest = s"${dxTestProject.id}:/${uploadPath}/parallel/"
+    val uploads = files.keys.map { path =>
+      FileUpload(path, Some(dest), fileTags, fileProperties)
+    }.toSet
+    val results = dxApi.uploadFiles(uploads, waitOnUpload = true, maxConcurrent = 3)
+    results.size shouldBe 5
+    results.foreach {
+      case (path, dxFile) =>
+        val desc: DxFileDescribe = dxFile.describe(Set(Field.Tags, Field.Properties))
+        files(path) shouldBe desc.size
+        desc.tags shouldBe Some(fileTags)
+        desc.properties shouldBe Some(fileProperties)
     }
   }
 }
