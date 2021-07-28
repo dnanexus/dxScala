@@ -62,8 +62,8 @@ case class DirectoryUpload(source: Path,
 object DxApi {
   val ResultsPerCallLimit: Int = 1000
   val MaxNumDownloadBytes: Long = 2 * 1024 * 1024 * 1024
-  val DefaultSocketTimeout: Int = 60 * 1000
-  val DefaultConnectionTimeout: Int = 5 * 1000
+  val DefaultSocketTimeout: Int = 5 * 60 * 1000 // 5 minutes
+  val DefaultConnectionTimeout: Int = 5 * 1000 // 5 seconds
 
   private var instance: Option[DxApi] = None
 
