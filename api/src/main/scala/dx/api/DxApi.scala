@@ -62,6 +62,8 @@ case class DirectoryUpload(source: Path,
 object DxApi {
   val ResultsPerCallLimit: Int = 1000
   val MaxNumDownloadBytes: Long = 2 * 1024 * 1024 * 1024
+  val DefaultSocketTimeout: Int = 60 * 1000
+  val DefaultConnectionTimeout: Int = 5 * 1000
 
   private var instance: Option[DxApi] = None
 
@@ -82,13 +84,21 @@ object DxApi {
     set(dxApi)
     dxApi
   }
+
+  lazy val defaultDxEnvironment: DXEnvironment = {
+    DXEnvironment.Builder
+      .fromDefaults()
+      .setSocketTimeout(DefaultSocketTimeout)
+      .setConnectionTimeout(DefaultConnectionTimeout)
+      .build()
+  }
 }
 
 /**
   * Wrapper around DNAnexus Java API
   * @param limit maximal number of objects in a single API request
   */
-case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment.create())(
+case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.defaultDxEnvironment)(
     logger: Logger = Logger.get,
     val limit: Int = DxApi.ResultsPerCallLimit
 ) {
