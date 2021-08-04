@@ -80,14 +80,18 @@ object DxUtils {
     }
   }
 
-  def dxDataObjectToUri(dxObj: DxDataObject): String = {
-    dxObj match {
-      case DxFile(_, Some(container)) =>
-        s"${DxPath.DxUriPrefix}${container.id}:${dxObj.id}"
-      case DxRecord(_, Some(container)) =>
-        s"${DxPath.DxUriPrefix}${container.id}:${dxObj.id}"
-      case _ =>
-        s"${DxPath.DxUriPrefix}${dxObj.id}"
+  def dxDataObjectToUri(dxObj: DxDataObject, includeProject: Boolean = true): String = {
+    if (includeProject) {
+      dxObj match {
+        case DxFile(_, Some(project)) =>
+          s"${DxPath.DxUriPrefix}${project.id}:${dxObj.id}"
+        case DxRecord(_, Some(project)) =>
+          s"${DxPath.DxUriPrefix}${project.id}:${dxObj.id}"
+        case _ =>
+          s"${DxPath.DxUriPrefix}${dxObj.id}"
+      }
+    } else {
+      s"${DxPath.DxUriPrefix}${dxObj.id}"
     }
   }
 
