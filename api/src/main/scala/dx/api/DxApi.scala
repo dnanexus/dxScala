@@ -1067,7 +1067,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
           .mkString("")
         val dxUploadCmd =
           s"""dx upload "${path.toString}" --brief${destOpt}${waitOpt}${tagsOpt}${propertiesOpt}"""
-        logger.traceLimited(s"CMD: ${dxUploadCmd}")
+        logger.traceLimited(s"Uploading file: ${dxUploadCmd}", minLevel = TraceLevel.VVerbose)
         SysUtils.execCommand(dxUploadCmd) match {
           case (_, stdout, _) if stdout.trim.startsWith("file-") =>
             Some(stdout.trim())
