@@ -22,7 +22,7 @@ jobs:
         id: versions
         run: |
           set -x
-          common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./common/src/main/resources/application.conf`
+          common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./common/src/main/resources/application.conf || true`
           if [ -z "$common_version" ]; then
             echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
@@ -50,7 +50,7 @@ jobs:
             fi
           fi
 
-          api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf`
+          api_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./api/src/main/resources/application.conf || true`
           if [ -z "$api_version" ]; then
             echo "dxApi version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
@@ -78,7 +78,7 @@ jobs:
             fi
           fi
 
-          protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf`
+          protocols_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./protocols/src/main/resources/application.conf || true`
           if [ -z "$protocols_version" ]; then
             echo "dxFileAccessProtocols version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
             exit 1
