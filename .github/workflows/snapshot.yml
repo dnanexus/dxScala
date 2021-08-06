@@ -21,6 +21,7 @@ jobs:
       - name: Delete existing snapshot versions
         id: versions
         run: |
+          set -x
           common_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./common/src/main/resources/application.conf`
           if [ -z "$common_version" ]; then
             echo "dxCommon version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
