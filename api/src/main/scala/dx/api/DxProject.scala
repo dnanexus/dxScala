@@ -159,10 +159,10 @@ case class DxProject(id: String)(val dxApi: DxApi = DxApi.get) extends DxObject 
     }
   }
 
-  def removeObjects(objs: Vector[DxDataObject]): Unit = {
+  def removeObjects(objs: Vector[DxDataObject], force: Boolean): Unit = {
     val request = Map(
         "objects" -> JsArray(objs.map(x => JsString(x.id))),
-        "force" -> JsFalse
+        "force" -> JsBoolean(force)
     )
     projectType match {
       case ProjectType.Project =>
