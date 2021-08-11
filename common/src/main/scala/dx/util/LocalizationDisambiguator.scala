@@ -120,12 +120,12 @@ case class SafeLocalizationDisambiguator(
 
   def getLocalizedPaths: Set[Path] = localizedPaths
 
-  def getTargetDir(sourceContainer: String, version: Option[String] = None): Option[Path] = {
-    sourceToTarget.get((sourceContainer, version))
+  def hasTargetDir(source: AddressableFileSource): Boolean = {
+    sourceToTarget.contains((source.container, source.version))
   }
 
   def getTargetDir(source: AddressableFileSource): Option[Path] = {
-    getTargetDir(source.container, source.version)
+    sourceToTarget.get((source.container, source.version))
   }
 
   private def exists(path: Path): Boolean = {
