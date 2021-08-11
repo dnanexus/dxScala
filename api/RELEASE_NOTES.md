@@ -3,7 +3,8 @@
 ## in develop
 
 * Make including the project optional (default true) in `DxUtils.dxDataObjectToUri`
-
+* Adds `force` option to `DxProject.removeObjects`
+ 
 ## 0.8.0 (2021-07-27)
 
 * Fixes parsing of File-type default values that are a DNAnexus link with a project ID or field reference  
