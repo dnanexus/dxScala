@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Adds `getTargetDir` methods to `LocalizationDisambiguator`
+
 ## 0.7.0 (2021-07-27)
 
 * Removes deprecated constructors from `Logger`
