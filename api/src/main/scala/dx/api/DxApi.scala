@@ -955,7 +955,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   }
 
   // Copy object to destination project, if it isn't already there.
-  def cloneObject(id: String,
+  def cloneDataObject(id: String,
                   sourceProject: DxProject,
                   destProject: DxProject,
                   destFolder: String = "/"): Unit = {

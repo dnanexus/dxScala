@@ -4,7 +4,7 @@
 
 * Make including the project optional (default true) in `DxUtils.dxDataObjectToUri`
 * Adds `force` option to `DxProject.removeObjects`
-* Adds `cloneObject` method to `dxApi`
+* Adds `cloneDataObject` method to `dxApi`
  
 ## 0.8.0 (2021-07-27)
 
