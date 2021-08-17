@@ -919,7 +919,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       logger.trace(s"Cloning asset ${assetName} from ${sourceProject.id} to ${destProject.id}")
       val request = Map("objects" -> JsArray(JsString(assetRecord.id)),
                         "project" -> JsString(destProject.id),
-                        "destination" -> JsString(destFolder))
+                        "destination" -> JsString(destFolder),
+                        "parents" -> JsBoolean(true))
       val responseJs = projectClone(sourceProject.id, request)
       val existingIds = responseJs.fields.get("exists") match {
         case Some(JsArray(x)) =>
@@ -968,7 +969,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       logger.trace(s"Cloning object ${id} from ${sourceProject.id} to ${destProject.id}")
       val request = Map("objects" -> JsArray(JsString(id)),
                         "project" -> JsString(destProject.id),
-                        "destination" -> JsString(destFolder))
+                        "destination" -> JsString(destFolder),
+                        "parents" -> JsBoolean(true))
       projectClone(sourceProject.id, request)
     }
   }
