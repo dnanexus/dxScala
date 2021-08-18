@@ -81,10 +81,7 @@ object DxUtils {
   }
 
   def dxDataObjectToUri(dxObj: DxDataObject, includeProject: Boolean = true): String = {
-    (dxObj.project, includeProject) match {
-      case (Some(proj), true) => s"${DxPath.DxUriPrefix}${proj.id}:${dxObj.id}"
-      case _                  => s"${DxPath.DxUriPrefix}${dxObj.id}"
-    }
+    DxPath.format(dxObj.id, Option.when(includeProject)(dxObj.project).flatten.map(_.id))
   }
 
   def isLinkJson(jsv: JsValue): Boolean = {
