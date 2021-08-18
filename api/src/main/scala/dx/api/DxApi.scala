@@ -904,7 +904,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     call(DXAPI.systemFindProjects[JsonNode], fields)
   }
 
-  // copy asset to local project, if it isn't already here.
+  // Copy asset to destination project, if it isn't already there.
   def cloneAsset(assetName: String,
                  assetRecord: DxRecord,
                  sourceProject: DxProject,
@@ -919,7 +919,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       logger.trace(s"Cloning asset ${assetName} from ${sourceProject.id} to ${destProject.id}")
       val request = Map("objects" -> JsArray(JsString(assetRecord.id)),
                         "project" -> JsString(destProject.id),
-                        "destination" -> JsString(destFolder))
+                        "destination" -> JsString(destFolder),
+                        "parents" -> JsBoolean(true))
       val responseJs = projectClone(sourceProject.id, request)
       val existingIds = responseJs.fields.get("exists") match {
         case Some(JsArray(x)) =>
@@ -951,6 +952,26 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
               s"clone returned too many existing records ${existingIds} in destination project ${destProject.id}"
           )
       }
+    }
+  }
+
+  // Copy object to destination project, if it isn't already there.
+  def cloneDataObject(id: String,
+                      sourceProject: DxProject,
+                      destProject: DxProject,
+                      destFolder: String = "/"): Unit = {
+    if (sourceProject.id == destProject.id) {
+      logger.trace(
+          s"""The source and destination projects are the same (${sourceProject.id}),
+             |no need to clone object ${id}""".stripMargin.replaceAll("\n", " ")
+      )
+    } else {
+      logger.trace(s"Cloning object ${id} from ${sourceProject.id} to ${destProject.id}")
+      val request = Map("objects" -> JsArray(JsString(id)),
+                        "project" -> JsString(destProject.id),
+                        "destination" -> JsString(destFolder),
+                        "parents" -> JsBoolean(true))
+      projectClone(sourceProject.id, request)
     }
   }
 
