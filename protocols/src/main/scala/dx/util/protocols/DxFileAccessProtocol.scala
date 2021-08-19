@@ -31,7 +31,7 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
       .getOrElse(protocol.dxApi.project(dxFile.describe(Set(Field.Project)).project))
   }
 
-  override def container: String = s"${DxFileAccessProtocol.DxUriScheme}:${dxProject.id}:${folder}"
+  override def container: String = s"${DxPath.DxScheme}:${dxProject.id}:${folder}"
 
   override def version: Option[String] = Some(dxFile.id)
 
@@ -45,8 +45,12 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
     )
   }
 
-  override def resolve(path: String): AddressableFileSource = {
+  override def resolve(path: String): DxFileSource = {
     getParent.get.resolve(path)
+  }
+
+  override def resolveDirectory(path: String): DxFolderSource = {
+    getParent.get.resolveDirectory(path)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -76,6 +80,12 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   }
 }
 
+object DxFileSource {
+  def isDxFileUri(uri: String): Boolean = {
+    uri.startsWith(DxPath.DxUriPrefix) && uri.contains("file-") && !uri.endsWith("/")
+  }
+}
+
 case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends AddressableFileSource {
   override def isDirectory: Boolean = true
 
@@ -98,6 +108,9 @@ case class DxArchiveFolderSource(dxFileSource: DxFileSource) extends Addressable
   override def getParent: Option[AddressableFileSource] = dxFileSource.getParent
 
   override def resolve(path: String): AddressableFileSource = dxFileSource.resolve(path)
+
+  override def resolveDirectory(path: String): AddressableFileSource =
+    dxFileSource.resolveDirectory(path)
 
   override def relativize(fileSource: AddressableFileSource): String =
     dxFileSource.relativize(fileSource)
@@ -142,7 +155,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
 
   override def folder: String = Option(dxFolderPath.getParent).map(_.toString).getOrElse("")
 
-  override def container: String = s"${DxFileAccessProtocol.DxUriScheme}:${dxProject.id}:${folder}"
+  override def container: String = s"${DxPath.DxScheme}:${dxProject.id}:${folder}"
 
   override def isDirectory: Boolean = true
 
@@ -175,17 +188,17 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
     }
   }
 
-  override def resolve(path: String): AddressableFileSource = {
+  override def resolve(path: String): DxFileSource = {
     val newPath = FileUtils.normalizePath(dxFolderPath.resolve(path))
-    if (path.endsWith("/")) {
-      val folder =
-        DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(newPath.toString))(protocol)
-      folder.copyWithParent(this)
-    } else {
-      val uri = s"dx://${dxProject.id}:${newPath.toString}"
-      val file = protocol.resolve(uri)
-      file.copyWithParent(this)
-    }
+    val file = protocol.resolve(DxFile.format(dxProject.id, newPath.toString))
+    file.copyWithParent(this)
+  }
+
+  override def resolveDirectory(path: String): DxFolderSource = {
+    val newPath = FileUtils.normalizePath(dxFolderPath.resolve(path))
+    val folder =
+      DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(newPath.toString))(protocol)
+    folder.copyWithParent(this)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -291,14 +304,32 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
 
 object DxFolderSource {
   def ensureEndsWithSlash(folder: String): String = {
-    folder match {
-      case p if p.endsWith("/") => p
-      case p                    => s"${p}/"
+    if (folder.endsWith("/")) {
+      folder
+    } else {
+      s"${folder}/"
     }
   }
 
   def canonicalizeFolder(folder: String): String = {
     ensureEndsWithSlash(FileUtils.getPath(folder).toString)
+  }
+
+  def isDxFolderUri(uri: String): Boolean = {
+    uri.startsWith(DxPath.DxUriPrefix) && uri.contains("project-") && uri.endsWith("/")
+  }
+
+  def join(folder: String, name: String, isFolder: Boolean = false): String = {
+    val joined = s"${ensureEndsWithSlash(folder)}${name}"
+    if (isFolder) {
+      ensureEndsWithSlash(joined)
+    } else {
+      joined
+    }
+  }
+
+  def format(project: DxProject, folder: String): String = {
+    s"${DxPath.DxUriPrefix}${project.id}:${ensureEndsWithSlash(folder)}"
   }
 }
 
@@ -312,7 +343,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
                                 dxFileCache: DxFileDescCache = DxFileDescCache.empty,
                                 encoding: Charset = FileUtils.DefaultEncoding)
     extends FileAccessProtocol {
-  override val schemes = Vector(DxFileAccessProtocol.DxUriScheme)
+  override val schemes = Vector(DxPath.DxScheme)
   private var uriToFileSource: Map[String, DxFileSource] = Map.empty
 
   override val supportsDirectories: Boolean = true
@@ -385,8 +416,6 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
 }
 
 object DxFileAccessProtocol {
-  val DxUriScheme = "dx"
-
   def fromDxFile(dxFile: DxFile, protocols: Vector[FileAccessProtocol]): DxFileSource = {
     protocols
       .collectFirst {

@@ -3,6 +3,7 @@
 ## in develop
 
 * Adds `getTargetDir` methods to `LocalizationDisambiguator`
+* Fixes use of `localizationDir` together with `force` in `SafeLocalizationDisambiguator`
 
 ## 0.7.0 (2021-07-27)
 

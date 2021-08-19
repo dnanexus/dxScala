@@ -182,8 +182,9 @@ case class SafeLocalizationDisambiguator(
     *                  if None, each sourceContainer will map to a separate
     *                  local directory.
     * @param force whether to force the use of `defaultDir` - if true and defaultDir is
-    *              specified and there is a name collision, an exception is thrown rather
-    *              than using a disambiguation directory.
+    *              specified, then the local path is always resolved to `defaultDir`. If
+    *              there is a name collision, an exception is thrown rather than using a
+    *              disambiguation directory.
     * @return the local path
     */
   private[util] def resolve(name: String,
@@ -197,7 +198,17 @@ case class SafeLocalizationDisambiguator(
       throw new Exception(s"expected ${name} to be a file name")
     }
     val localPath =
-      if (version.isDefined && sourceToTarget.contains((sourceContainer, version))) {
+      if (defaultDir.isDefined && force) {
+        val localPath = defaultDir.get.resolve(namePath)
+        if (exists(localPath)) {
+          throw new FileAlreadyExistsException(
+              s"""Trying to localize ${name} from ${sourceContainer} to default directory 
+                 |${defaultDir.get} but a file with that name already exists in that 
+                 |directory and 'force' is true""".stripMargin
+          )
+        }
+        localPath
+      } else if (version.isDefined && sourceToTarget.contains((sourceContainer, version))) {
         // we have already seen this version - create the file in the existing dir
         val versionDir = sourceToTarget((sourceContainer, version))
         logger.trace(s"  version already seen; localizing to ${versionDir}")
@@ -252,12 +263,6 @@ case class SafeLocalizationDisambiguator(
                 logger.trace(s"  localizing to default directory ${defaultDir}")
                 sourceToTarget += ((sourceContainer, None) -> defaultDir.get)
                 localPath
-              case Some(_) if force =>
-                throw new FileAlreadyExistsException(
-                    s"""Trying to localize ${name} from ${sourceContainer} to default directory 
-                       |${defaultDir.get} but a file with that name already exists in that 
-                       |directory and 'force' is true""".stripMargin
-                )
               case _ if canCreateDisambiguationDir =>
                 // create a new disambiguation dir
                 val newDir = createDisambiguationDir

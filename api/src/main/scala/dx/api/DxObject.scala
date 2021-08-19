@@ -1,7 +1,10 @@
 package dx.api
 
+import dx.api.DxPath.{DxScheme, DxUriPrefix}
 import spray.json._
 import dx.util.Enum
+
+import java.net.URI
 
 // Extra fields for describe
 object Field extends Enum {
@@ -118,6 +121,18 @@ object DxObject {
 
 trait DxDataObject extends DxObject {
   val project: Option[DxProject]
+}
+
+object DxDataObject {
+
+  /**
+    * Formats a file ID with optional project name or ID as a dx:// URI.
+    */
+  def format(objectId: String, project: Option[String]): String = {
+    project
+      .map(proj => new URI(DxScheme, s"${proj}:${objectId}", null, null, null).toString)
+      .getOrElse(s"${DxUriPrefix}${objectId}")
+  }
 }
 
 // Objects that can be run on the platform. These are apps, applets, and workflows.

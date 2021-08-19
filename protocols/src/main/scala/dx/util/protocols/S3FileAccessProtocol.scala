@@ -72,8 +72,12 @@ case class S3FileSource(
     }
   }
 
-  override def resolve(path: String): AddressableFileSource = {
+  override def resolve(path: String): S3FileSource = {
     getParent.get.resolve(path)
+  }
+
+  override def resolveDirectory(path: String): S3FolderSource = {
+    getParent.get.resolveDirectory(path)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -142,17 +146,22 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     }
   }
 
-  override def resolve(path: String): AddressableFileSource = {
+  override def resolve(path: String): S3FileSource = {
     val objectKey = prefixPath.resolve(path)
     val newUri = s"s3://${bucketName}/${objectKey.toString}"
     // we can only use this folder as the parent if it is the direct ancestor
     // of the new file/folder
     val cachedParent = if (objectKey.getParent == prefixPath) Some(this) else None
-    if (path.endsWith("/")) {
-      S3FolderSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
-    } else {
-      S3FileSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
-    }
+    S3FileSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
+  }
+
+  override def resolveDirectory(path: String): S3FolderSource = {
+    val objectKey = prefixPath.resolve(path)
+    val newUri = s"s3://${bucketName}/${objectKey.toString}"
+    // we can only use this folder as the parent if it is the direct ancestor
+    // of the new file/folder
+    val cachedParent = if (objectKey.getParent == prefixPath) Some(this) else None
+    S3FolderSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {

@@ -81,7 +81,7 @@ object DxUtils {
   }
 
   def dxDataObjectToUri(dxObj: DxDataObject, includeProject: Boolean = true): String = {
-    DxPath.format(dxObj.id, Option.when(includeProject)(dxObj.project).flatten.map(_.id))
+    DxDataObject.format(dxObj.id, Option.when(includeProject)(dxObj.project).flatten.map(_.id))
   }
 
   def isLinkJson(jsv: JsValue): Boolean = {

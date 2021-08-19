@@ -138,12 +138,20 @@ trait AddressableFileSource extends FileSource {
   def version: Option[String] = None
 
   /**
-    * Resolves a path relative to this AddressableFileSource if it
+    * Resolves a file relative to this AddressableFileSource if it
     * is a directory, or to it's parent if it's a file.
-    * @param path relative path - must end with '/' if it is a directory
+    * @param path relative path
     * @return
     */
   def resolve(path: String): AddressableFileSource
+
+  /**
+    * Resolves a directory relative to this AddressableFileSource if it
+    * is a directory, or to it's parent if it's a file.
+    * @param path relative path
+    * @return
+    */
+  def resolveDirectory(path: String): AddressableFileSource
 
   /**
     * Returns the path of `fileSource` relative to this one, if this is a
@@ -312,7 +320,7 @@ case class LocalFileSource(
     })
   }
 
-  override def resolve(path: String): LocalFileSource = {
+  private def resolve(path: String, isDirectory: Boolean): LocalFileSource = {
     val parent = if (isDirectory) this else getParent.get
     val parentPath = parent.canonicalPath
     val newPath = FileUtils.normalizePath(parentPath.resolve(path))
@@ -323,18 +331,21 @@ case class LocalFileSource(
         }
       }
       .getOrElse {
-        val newIsDirectory = newPath.toFile match {
-          case f if f.exists()         => f.isDirectory
-          case _ if path.endsWith("/") => true
-          case _                       => false
-        }
         // the parent can only be used if it is the direct ancestor of the new path
         val cachedParent = if (newPath.getParent == parentPath) Some(parent) else None
-        LocalFileSource(newPath, encoding, newIsDirectory)(newPath.toString,
-                                                           newPath,
-                                                           cachedParent = cachedParent,
-                                                           logger = logger)
+        LocalFileSource(newPath, encoding, isDirectory)(newPath.toString,
+                                                        newPath,
+                                                        cachedParent = cachedParent,
+                                                        logger = logger)
       }
+  }
+
+  override def resolve(path: String): LocalFileSource = {
+    resolve(path, isDirectory = false)
+  }
+
+  override def resolveDirectory(path: String): LocalFileSource = {
+    resolve(path, isDirectory = true)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -592,13 +603,21 @@ case class HttpFileSource(
     }
   }
 
-  override def resolve(path: String): HttpFileSource = {
+  private def resolve(path: String, isDirectory: Boolean): HttpFileSource = {
     val newUri = if (isDirectory) {
       uri.resolve(path)
     } else {
       uri.resolve(".").resolve(path)
     }
-    HttpFileSource(newUri, encoding, path.endsWith("/"))(newUri.toString)
+    HttpFileSource(newUri, encoding, isDirectory)(newUri.toString)
+  }
+
+  override def resolve(path: String): HttpFileSource = {
+    resolve(path, isDirectory = false)
+  }
+
+  override def resolveDirectory(path: String): HttpFileSource = {
+    resolve(path, isDirectory = true)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -777,7 +796,7 @@ case class FileSourceResolver(protocols: Vector[FileAccessProtocol]) {
         }
         proto.resolveDirectory(address)
       case None if parent.isDefined =>
-        parent.get.resolve(address) match {
+        parent.get.resolveDirectory(address) match {
           case fs: AddressableFileSource if fs.exists =>
             // a path relative to parent
             fs

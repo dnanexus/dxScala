@@ -153,6 +153,10 @@ object DxFile {
     new URI(DxScheme, authority, path, null, null).toString
   }
 
+  def format(project: String, path: String): String = {
+    new URI(DxScheme, project, path, null, null).toString
+  }
+
   // Parse a JSON description of a file received from the platform
   def parseDescribeJson(descJs: JsObject): DxFileDescribe = {
     val desc =

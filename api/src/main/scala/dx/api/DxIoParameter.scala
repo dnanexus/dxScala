@@ -230,7 +230,9 @@ object IOParameter {
         Some(parseValue(DxIOSpec.Default, value))
       } catch {
         case _: Exception =>
-          Logger.get.warning(s"unable to parse field ${name} default value ${value}")
+          Logger.get.trace(
+              s"unable to parse field ${name} default value ${value}"
+          )
           None
       }
     }
