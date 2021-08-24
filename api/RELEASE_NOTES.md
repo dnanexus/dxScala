@@ -5,7 +5,7 @@
 * Make including the project optional (default true) in `DxUtils.dxDataObjectToUri`
 * Adds `force` option to `DxProject.removeObjects`
 * Adds `cloneDataObject` method to `dxApi`
-* Changes log level from warning to trace for message about not being able to parse non-literal default values 
+* Fixes parsing of default values that are reference-type links 
 
 ## 0.8.0 (2021-07-27)
 
