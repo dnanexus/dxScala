@@ -320,7 +320,7 @@ case class LocalFileSource(
     })
   }
 
-  private def resolve(path: String, isDirectory: Boolean): LocalFileSource = {
+  private def resolve(path: String, isDir: Boolean): LocalFileSource = {
     val parent = if (isDirectory) this else getParent.get
     val parentPath = parent.canonicalPath
     val newPath = FileUtils.normalizePath(parentPath.resolve(path))
@@ -333,19 +333,19 @@ case class LocalFileSource(
       .getOrElse {
         // the parent can only be used if it is the direct ancestor of the new path
         val cachedParent = if (newPath.getParent == parentPath) Some(parent) else None
-        LocalFileSource(newPath, encoding, isDirectory)(newPath.toString,
-                                                        newPath,
-                                                        cachedParent = cachedParent,
-                                                        logger = logger)
+        LocalFileSource(newPath, encoding, isDir)(newPath.toString,
+                                                  newPath,
+                                                  cachedParent = cachedParent,
+                                                  logger = logger)
       }
   }
 
   override def resolve(path: String): LocalFileSource = {
-    resolve(path, isDirectory = false)
+    resolve(path, isDir = false)
   }
 
   override def resolveDirectory(path: String): LocalFileSource = {
-    resolve(path, isDirectory = true)
+    resolve(path, isDir = true)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
@@ -603,21 +603,21 @@ case class HttpFileSource(
     }
   }
 
-  private def resolve(path: String, isDirectory: Boolean): HttpFileSource = {
+  private def resolve(path: String, isDir: Boolean): HttpFileSource = {
     val newUri = if (isDirectory) {
       uri.resolve(path)
     } else {
       uri.resolve(".").resolve(path)
     }
-    HttpFileSource(newUri, encoding, isDirectory)(newUri.toString)
+    HttpFileSource(newUri, encoding, isDir)(newUri.toString)
   }
 
   override def resolve(path: String): HttpFileSource = {
-    resolve(path, isDirectory = false)
+    resolve(path, isDir = false)
   }
 
   override def resolveDirectory(path: String): HttpFileSource = {
-    resolve(path, isDirectory = true)
+    resolve(path, isDir = true)
   }
 
   override def relativize(fileSource: AddressableFileSource): String = {
