@@ -94,14 +94,14 @@ lazy val dependencies =
   new {
     val dxCommonVersion = "0.7.1-SNAPSHOT"
     val dxApiVersion = "0.8.1-SNAPSHOT"
-    val typesafeVersion = "1.3.3"
-    val sprayVersion = "1.3.5"
-    val scalatestVersion = "3.1.1"
-    val jacksonVersion = "2.11.0"
-    val guavaVersion = "18.0"
-    val httpClientVersion = "4.5.9"
-    val logbackVersion = "1.2.3"
-    val awsVersion = "2.15.1"
+    val typesafeVersion = "1.4.1"
+    val sprayVersion = "1.3.6"
+    val scalatestVersion = "3.2.9"
+    val jacksonVersion = "2.12.4"
+    val guavaVersion = "23.0"
+    val httpClientVersion = "4.5.13"
+    val logbackVersion = "1.2.5"
+    val awsVersion = "2.17.19"
     val nettyVersion = "4.1.46.Final"
 
     val dxCommon = "com.dnanexus" % "dxcommon" % dxCommonVersion
