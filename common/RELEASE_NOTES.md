@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.8.0 (2021-08-31)
 
 * Adds `getTargetDir` methods to `LocalizationDisambiguator`
 * Fixes use of `localizationDir` together with `force` in `SafeLocalizationDisambiguator`

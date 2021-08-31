@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.9.0 (2021-08-31)
 
 * Make including the project optional (default true) in `DxUtils.dxDataObjectToUri`
 * Adds `force` option to `DxProject.removeObjects`
