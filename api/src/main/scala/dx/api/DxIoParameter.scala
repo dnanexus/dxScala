@@ -34,7 +34,20 @@ object DxIOClass extends Enum {
   }
 
   def isArray(cls: DxIOClass): Boolean = {
-    Set(IntArray, FloatArray, StringArray, BooleanArray, HashArray).contains(cls)
+    Set(IntArray, FloatArray, StringArray, BooleanArray, FileArray, HashArray).contains(cls)
+  }
+
+  def getItemClass(cls: DxIOClass): DxIOClass = {
+    cls match {
+      case IntArray     => Int
+      case FloatArray   => Float
+      case StringArray  => String
+      case BooleanArray => Boolean
+      case FileArray    => File
+      case HashArray    => Hash
+      case other =>
+        throw new Exception(s"Not an array class ${other}")
+    }
   }
 }
 
@@ -128,12 +141,13 @@ case class IOParameter(
 object IOParameter {
   def parse(dxApi: DxApi, jsv: JsValue): IOParameter = {
     val fields = jsv.asJsObject.fields
-    val ioClass = DxIOClass.fromString(JsUtils.getString(fields, DxIOSpec.Class))
 
-    def parseValue(key: String, value: JsValue): IOParameterValue = {
+    def parseValue(key: String, value: JsValue, ioClass: DxIOClass.DxIOClass): IOParameterValue = {
       (ioClass, value) match {
-        case (cls, JsArray(array)) if key == DxIOSpec.Default && DxIOClass.isArray(cls) =>
-          IOParameterValueArray(array.map(value => parseValue(key, value)))
+        case (_, JsArray(array)) if key == DxIOSpec.Default && DxIOClass.isArray(ioClass) =>
+          IOParameterValueArray(
+              array.map(value => parseValue(key, value, DxIOClass.getItemClass(ioClass)))
+          )
         case (DxIOClass.File | DxIOClass.FileArray, link @ JsObject(fields))
             if fields.contains(DxUtils.DxLinkKey) =>
           try {
@@ -142,10 +156,15 @@ object IOParameter {
           } catch {
             case _: Throwable =>
               // JBOR or some other reference
-              DxIoParameterValueReference(fields.map {
-                case (key, JsString(value)) => key -> value
-                case other                  => throw new Exception(s"Invalid link field ${other}")
-              })
+              fields(DxUtils.DxLinkKey) match {
+                case JsObject(innerFields) =>
+                  DxIoParameterValueReference(innerFields.map {
+                    case (key, JsString(value)) => key -> value
+                    case other                  => throw new Exception(s"Invalid link field ${other}")
+                  })
+                case other =>
+                  throw new Exception(s"unexpected dx link value ${other}")
+              }
           }
         case (DxIOClass.File | DxIOClass.FileArray | DxIOClass.Other, JsObject(fields))
             if key != DxIOSpec.Default =>
@@ -200,6 +219,7 @@ object IOParameter {
     }
 
     val name = JsUtils.getString(fields, DxIOSpec.Name)
+    val ioClass = DxIOClass.fromString(JsUtils.getString(fields, DxIOSpec.Class))
     val optional = JsUtils.getOptionalBoolean(fields, DxIOSpec.Optional).getOrElse(false)
     val group = JsUtils.getOptionalString(fields, DxIOSpec.Group)
     val help = JsUtils.getOptionalString(fields, DxIOSpec.Help)
@@ -220,14 +240,14 @@ object IOParameter {
       case other => throw new Exception(s"invalid patterns ${other}")
     }
     val choices = JsUtils.getOptionalValues(jsv, DxIOSpec.Choices).map { array =>
-      array.map(item => parseValue(DxIOSpec.Choices, item))
+      array.map(item => parseValue(DxIOSpec.Choices, item, ioClass))
     }
     val suggestions = JsUtils.getOptionalValues(jsv, DxIOSpec.Suggestions).map { array =>
-      array.map(item => parseValue(DxIOSpec.Suggestions, item))
+      array.map(item => parseValue(DxIOSpec.Suggestions, item, ioClass))
     }
     val default = JsUtils.getOptional(jsv, DxIOSpec.Default).flatMap { value =>
       try {
-        Some(parseValue(DxIOSpec.Default, value))
+        Some(parseValue(DxIOSpec.Default, value, ioClass))
       } catch {
         case _: Exception =>
           Logger.get.warning(s"unable to parse field ${name} default value ${value}")

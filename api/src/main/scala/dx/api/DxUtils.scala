@@ -80,15 +80,8 @@ object DxUtils {
     }
   }
 
-  def dxDataObjectToUri(dxObj: DxDataObject): String = {
-    dxObj match {
-      case DxFile(_, Some(container)) =>
-        s"${DxPath.DxUriPrefix}${container.id}:${dxObj.id}"
-      case DxRecord(_, Some(container)) =>
-        s"${DxPath.DxUriPrefix}${container.id}:${dxObj.id}"
-      case _ =>
-        s"${DxPath.DxUriPrefix}${dxObj.id}"
-    }
+  def dxDataObjectToUri(dxObj: DxDataObject, includeProject: Boolean = true): String = {
+    DxDataObject.format(dxObj.id, Option.when(includeProject)(dxObj.project).flatten.map(_.id))
   }
 
   def isLinkJson(jsv: JsValue): Boolean = {

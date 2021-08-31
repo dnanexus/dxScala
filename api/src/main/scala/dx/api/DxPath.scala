@@ -61,15 +61,6 @@ object DxPath {
   }
 
   /**
-    * Formats a file ID with optional project name or ID as a dx:// URI.
-    */
-  def format(fileId: String, project: Option[String]): String = {
-    project
-      .map(proj => new URI(DxScheme, s"${proj}:${fileId}", null, null, null).toString)
-      .getOrElse(s"${DxUriPrefix}${fileId}")
-  }
-
-  /**
     * Formats a project and file path to a dx:// URI.
     */
   def format(project: String, folder: String, name: String): String = {

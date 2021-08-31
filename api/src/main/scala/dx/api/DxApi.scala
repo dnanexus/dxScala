@@ -62,6 +62,8 @@ case class DirectoryUpload(source: Path,
 object DxApi {
   val ResultsPerCallLimit: Int = 1000
   val MaxNumDownloadBytes: Long = 2 * 1024 * 1024 * 1024
+  val DefaultSocketTimeout: Int = 5 * 60 * 1000 // 5 minutes
+  val DefaultConnectionTimeout: Int = 5 * 1000 // 5 seconds
 
   private var instance: Option[DxApi] = None
 
@@ -82,13 +84,21 @@ object DxApi {
     set(dxApi)
     dxApi
   }
+
+  lazy val defaultDxEnvironment: DXEnvironment = {
+    DXEnvironment.Builder
+      .fromDefaults()
+      .setSocketTimeout(DefaultSocketTimeout)
+      .setConnectionTimeout(DefaultConnectionTimeout)
+      .build()
+  }
 }
 
 /**
   * Wrapper around DNAnexus Java API
   * @param limit maximal number of objects in a single API request
   */
-case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment.create())(
+case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.defaultDxEnvironment)(
     logger: Logger = Logger.get,
     val limit: Int = DxApi.ResultsPerCallLimit
 ) {
@@ -894,7 +904,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
     call(DXAPI.systemFindProjects[JsonNode], fields)
   }
 
-  // copy asset to local project, if it isn't already here.
+  // Copy asset to destination project, if it isn't already there.
   def cloneAsset(assetName: String,
                  assetRecord: DxRecord,
                  sourceProject: DxProject,
@@ -909,7 +919,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
       logger.trace(s"Cloning asset ${assetName} from ${sourceProject.id} to ${destProject.id}")
       val request = Map("objects" -> JsArray(JsString(assetRecord.id)),
                         "project" -> JsString(destProject.id),
-                        "destination" -> JsString(destFolder))
+                        "destination" -> JsString(destFolder),
+                        "parents" -> JsBoolean(true))
       val responseJs = projectClone(sourceProject.id, request)
       val existingIds = responseJs.fields.get("exists") match {
         case Some(JsArray(x)) =>
@@ -941,6 +952,26 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DXEnvironment
               s"clone returned too many existing records ${existingIds} in destination project ${destProject.id}"
           )
       }
+    }
+  }
+
+  // Copy object to destination project, if it isn't already there.
+  def cloneDataObject(id: String,
+                      sourceProject: DxProject,
+                      destProject: DxProject,
+                      destFolder: String = "/"): Unit = {
+    if (sourceProject.id == destProject.id) {
+      logger.trace(
+          s"""The source and destination projects are the same (${sourceProject.id}),
+             |no need to clone object ${id}""".stripMargin.replaceAll("\n", " ")
+      )
+    } else {
+      logger.trace(s"Cloning object ${id} from ${sourceProject.id} to ${destProject.id}")
+      val request = Map("objects" -> JsArray(JsString(id)),
+                        "project" -> JsString(destProject.id),
+                        "destination" -> JsString(destFolder),
+                        "parents" -> JsBoolean(true))
+      projectClone(sourceProject.id, request)
     }
   }
 

@@ -1,5 +1,11 @@
 # dxCommon
 
+## 0.8.0 (2021-08-31)
+
+* Adds `getTargetDir` methods to `LocalizationDisambiguator`
+* Fixes use of `localizationDir` together with `force` in `SafeLocalizationDisambiguator`
+* Adds `FileSource.resolveDirectory` as a separate method from `resolve`
+
 ## 0.7.0 (2021-07-27)
 
 * Removes deprecated constructors from `Logger`
