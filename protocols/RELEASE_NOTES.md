@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## 0.5.0 (2021-08-31)
+
+* Implements `resolveDirectory` method
+
 ## 0.4.1 (2021-06-28)
 
 * Normalizes any file/folder paths
