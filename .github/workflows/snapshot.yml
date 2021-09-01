@@ -105,6 +105,34 @@ jobs:
               exit 1
             fi
           fi
+
+          yaml_version=`grep -o -P "\d+\.\d+\.\d+-SNAPSHOT" ./yaml/src/main/resources/application.conf || true`
+          if [ -z "$yaml_version" ]; then
+            echo "dxYaml version does not end in '-SNAPSHOT'; only snapshot versions are allowed in the develop branch"
+            exit 1
+          fi
+          yaml_query="{\"query\": \"query { repository(owner:\\\"dnanexus\\\", name:\\\"dxScala\\\") { packages(names:[\\\"com.dnanexus.dxyaml\\\"], first:1) { nodes { version(version:\\\"${yaml_version}\\\") { id } } } } }\" }"
+          yaml_version_json=`curl \
+            -X POST \
+            -H "Accept: application/vnd.github.package-deletes-preview+json" \
+            -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d "$yaml_query" \
+            https://api.github.com/graphql`
+          yaml_version_id=`echo $yaml_version_json | jq -r ".data.repository.packages.nodes[0].version.id"`
+          if [ "$yaml_version_id" != "null" ]; then
+            yaml_delete_query="{\"query\": \"mutation { deletePackageVersion(input:{packageVersionId:\\\"${yaml_version_id}\\\"}) { success }}\"}"
+            yaml_delete_json=`curl -X POST \
+              -H "Accept: application/vnd.github.package-deletes-preview+json" \
+              -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -d "$yaml_delete_query" \
+              https://api.github.com/graphql`
+            yaml_result=`echo $yaml_delete_json | jq ".data.deletePackageVersion.success"`
+            if [ "$yaml_result" != "true" ]; then
+              echo "could not delete dxYaml version ${yaml_version} with package ID ${yaml_version_id}"
+              echo "$yaml_delete_json"
+              exit 1
+            fi
+          fi
       - name: Publish Snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -112,3 +140,4 @@ jobs:
           sbt 'project common' publish
           sbt 'project api' publish
           sbt 'project protocols' publish
+          sbt 'project yaml' publish
