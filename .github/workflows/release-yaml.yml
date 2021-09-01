@@ -1,0 +1,123 @@
+# TODO: update conda-forge recipe
+name: dxYaml Release
+on:
+  workflow_dispatch:
+    inputs:
+      release-version:
+        description: 'dxYaml version'
+        required: true
+
+jobs:
+  run-release:
+    name: dxYaml Release
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Version check
+        run: |
+          yaml_snapshot=`grep -c "SNAPSHOT" ./yaml/src/main/resources/application.conf || true`
+          if [ "$yaml_snapshot" -ne "0" ]; then
+            echo "dxYaml version contains '-SNAPSHOT'; releases cannot have snapshot versions"
+            exit 1
+          fi
+      - name: Install java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Install dxpy and other dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https wget git openssh-server tree python3 python3-pip python3-venv
+          pip3 install setuptools wheel
+          pip3 install termcolor
+          pip3 install dxpy
+      - name: Unit Tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTH_TOKEN: ${{ secrets.DX_STAGING_TOKEN }}
+        run: |
+          export PATH="$PATH:$HOME/.local/bin"
+
+          # set up DNAnexus staging environment
+          dx login --noprojects --staging --token $AUTH_TOKEN
+          PROJECT=dxCompiler_playground
+          dx select $PROJECT
+
+          sbt 'project yaml' test
+      - name: Assembly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sbt 'project yaml' assembly
+          mv ./yaml/target/dxYaml.jar ./dxYaml-${{ github.event.inputs.release-version }}.jar
+      - name: Scala formatting
+        run: |
+          sbt 'project yaml' scalafmtCheckAll
+      - name: Extract release notes and set version in application.conf files
+        id: update-release
+        run: |
+          # Update the config file with the newest version
+          sed -i 's/version.*$/version = "${{ github.event.inputs.release-version }}"/' ./yaml/src/main/resources/application.conf
+
+          # Extract release notes for the release into a temporary (unpushed) file
+          # It is expected the RELEASE_NOTES.md has already an entry for the version being
+          # released. The section should start with '## <version>', e.g. ## 1.0.0 2021-01-01
+          # The file will be read by the create-release step
+          RELEASE_NOTES_PATH="./yaml/release_notes_${{ github.event.inputs.release-version }}.md"
+          sed -n '/## ${{ github.event.inputs.release-version }}/,/##/p' yaml/RELEASE_NOTES.md | sed '1d; $d' > $RELEASE_NOTES_PATH
+          echo ::set-output name=release-notes-path::$(echo "${RELEASE_NOTES_PATH}")
+      - name: Commit changes to application.conf files
+        uses: EndBug/add-and-commit@v7
+        with:
+          message: 'Release ${{ github.event.inputs.release-version }}'
+          add: '[
+              "./yaml/src/main/resources/application.conf"
+          ]'
+          push: false
+          tag: yaml-${{ github.event.inputs.release-version }}
+      - name: Create release entry
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: yaml-${{ github.event.inputs.release-version }}
+          release_name: dxYaml ${{ github.event.inputs.release-version }}
+          body_path: ${{ steps.update-release.outputs.release-notes-path }}
+          draft: true
+          prerelease: false
+      - name: Upload assembly JAR
+        id: upload-release-assembly
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # This pulls from the "Create release entry" step above, referencing it's ID to get its outputs object,
+          # which include a `upload_url`. See this blog post for more info:
+          # https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./dxYaml-${{ github.event.inputs.release-version }}.jar
+          asset_name: dxYaml-${{ github.event.inputs.release-version }}.jar
+          asset_content_type: application/jar
+      - name: Push local release branch and tag to origin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git pull
+          git push origin HEAD:${{ github.ref }}
+          git push origin HEAD:yaml-${{ github.event.inputs.release-version }}
+      - name: Publish package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sbt 'project yaml' publish
+      - name: Rollback release if unsuccessfull
+        if: ${{ cancelled() || failure() }}
+        uses: author/action-rollback@stable
+        with:
+          release_id: ${{ steps.create-release.outputs.id }}
+          tag: yaml-${{ github.event.inputs.release-version }}
+          delete_orphan_tag: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
