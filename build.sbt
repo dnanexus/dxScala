@@ -30,7 +30,8 @@ lazy val global = root
   .aggregate(
       common,
       api,
-      protocols
+      protocols,
+      yaml
   )
 
 def getVersion(subproject: String, subprojectName: String): String = {
@@ -88,26 +89,42 @@ val protocols = project
       assemblyJarName in assembly := "dxFileAccessProtocols.jar"
   )
 
+val yaml = project
+  .in(file("yaml"))
+  .settings(
+      name := "dxYaml",
+      version := getVersion("yaml", "dxYaml"),
+      globalSettings,
+      publishSettings,
+      assemblySettings,
+      libraryDependencies ++= commonDependencies ++ Seq(
+          dependencies.snakeyaml
+      ),
+      assemblyJarName in assembly := "dxYaml.jar"
+  )
+
 // DEPENDENCIES
 
 lazy val dependencies =
   new {
-    val dxCommonVersion = "0.7.1-SNAPSHOT"
-    val dxApiVersion = "0.8.1-SNAPSHOT"
+    val dxCommonVersion = "0.8.0"
+    val dxApiVersion = "0.9.0"
     val typesafeVersion = "1.4.1"
     val sprayVersion = "1.3.6"
+    val snakeyamlVersion = "2.3"
     val scalatestVersion = "3.2.9"
-    val jacksonVersion = "2.12.4"
+    val jacksonVersion = "2.12.5"
     val guavaVersion = "23.0"
     val httpClientVersion = "4.5.13"
     val logbackVersion = "1.2.5"
-    val awsVersion = "2.17.19"
+    val awsVersion = "2.17.29"
     val nettyVersion = "4.1.46.Final"
 
     val dxCommon = "com.dnanexus" % "dxcommon" % dxCommonVersion
     val dxApi = "com.dnanexus" % "dxapi" % dxApiVersion
     val typesafe = "com.typesafe" % "config" % typesafeVersion
     val spray = "io.spray" %% "spray-json" % sprayVersion
+    val snakeyaml = "org.snakeyaml" % "snakeyaml-engine" % snakeyamlVersion
     val jackson = "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
     val guava = "com.google.guava" % "guava" % guavaVersion
     val commonsHttp = "org.apache.httpcomponents" % "httpclient" % httpClientVersion
