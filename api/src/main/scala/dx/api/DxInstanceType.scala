@@ -32,7 +32,6 @@ import dx.util.Enum.enumFormat
 import spray.json.{RootJsonFormat, _}
 
 import scala.collection.immutable.ListMap
-import scala.util.{Failure, Success, Try}
 
 object DiskType extends Enum {
   type DiskType = Value
@@ -97,7 +96,7 @@ case class DxInstanceType(name: String,
                           gpu: Boolean,
                           os: Vector[ExecutionEnvironment],
                           diskType: Option[DiskType.DiskType] = None,
-                          price: Option[Float] = None)
+                          priceRank: Option[Int] = None)
     extends Ordered[DxInstanceType] {
 
   // Does this instance satisfy the requirements?
@@ -121,14 +120,9 @@ case class DxInstanceType(name: String,
 
   def compareByPrice(that: DxInstanceType): Int = {
     // compare by price
-    (this.price, that.price) match {
-      case (Some(p1), Some(p2)) =>
-        p1 - p2 match {
-          case 0          => 0
-          case i if i > 0 => Math.ceil(i).toInt
-          case i          => Math.floor(i).toInt
-        }
-      case _ => 0
+    (this.priceRank, that.priceRank) match {
+      case (Some(p1), Some(p2)) => p1.compare(p2)
+      case _                    => 0
     }
   }
 
@@ -207,7 +201,7 @@ case class DxInstanceType(name: String,
   override def compare(that: DxInstanceType): Int = {
     // if prices are available, choose the cheapest instance. Otherwise,
     // choose one with minimal resources.
-    val costDiff = if (price.isDefined) {
+    val costDiff = if (priceRank.isDefined) {
       compareByPrice(that)
     } else {
       compareByResources(that)
@@ -231,7 +225,7 @@ object DxInstanceType extends DefaultJsonProtocol {
   val DiskNormFactor: Double = 16.0
 }
 
-case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType], pricingAvailable: Boolean) {
+case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
   // The cheapest available instance, this is normally also the smallest.
   // If there are multiple equally good instance types, we just pick one at random.
   private def selectMinimalInstanceType(
@@ -391,6 +385,7 @@ object InstanceTypeDB extends DefaultJsonProtocol {
   val DistributionKey = "distribution"
   val ReleaseKey = "release"
   val VersionKey = "version"
+  val RankKey = "rank"
   val GpuSuffix = "_gpu"
   val SsdSuffix = "_ssd"
   val HddSuffix = "_hdd"
@@ -399,49 +394,13 @@ object InstanceTypeDB extends DefaultJsonProtocol {
   implicit val instanceTypeDBFormat: RootJsonFormat[InstanceTypeDB] =
     new RootJsonFormat[InstanceTypeDB] {
       override def write(obj: InstanceTypeDB): JsValue = {
-        JsObject("instanceTypes" -> obj.instanceTypes.toJson,
-                 "pricingAvailable" -> JsBoolean(obj.pricingAvailable))
+        obj.instanceTypes.toJson
       }
 
       override def read(json: JsValue): InstanceTypeDB = {
-        val Seq(instanceTypes, JsBoolean(pricingAvailable)) =
-          json.asJsObject.getFields("instanceTypes", "pricingAvailable")
-        InstanceTypeDB(instanceTypes.convertTo[Map[String, DxInstanceType]],
-                       pricingAvailable = pricingAvailable)
+        InstanceTypeDB(json.convertTo[Map[String, DxInstanceType]])
       }
     }
-
-  // Remove exact price information. For example,
-  // if the price list is:
-  //   mem1_ssd1_x2:  0.04$
-  //   mem1_ssd1_x4:  0.08$
-  //   mem3_ssd1_x8:  1.05$
-  // convert it into:
-  //   mem1_ssd1_x2:  1$
-  //   mem1_ssd1_x4:  2$
-  //   mem3_ssd1_x8:  3$
-  //
-  // This is useful when exporting the price list to an applet, which can be reverse
-  // engineered. We do not want to risk disclosing the real price list. Leaking the
-  // relative ordering of instances, but not actual prices, is considered ok.
-  def opaquePrices(db: InstanceTypeDB): InstanceTypeDB = {
-    // check if there is no pricing information
-    if (db.instanceTypes.nonEmpty && db.pricingAvailable) {
-      // sort the prices from low to high, and then replace with rank.
-      val opaqueInstances =
-        db.instanceTypes.toVector
-          .sortWith(_._2.price.get < _._2.price.get)
-          .zipWithIndex
-          .map {
-            case ((name, instanceType), index) =>
-              name -> instanceType.copy(price = Some((index + 1).toFloat))
-          }
-          .toMap
-      InstanceTypeDB(opaqueInstances, pricingAvailable = true)
-    } else {
-      db
-    }
-  }
 
   private def parseInstanceTypes(jsv: JsValue): Map[String, DxInstanceType] = {
     // convert to a list of DxInstanceTypes, with prices set to zero
@@ -472,96 +431,33 @@ object InstanceTypeDB extends DefaultJsonProtocol {
           case _                          => None
         }
         val gpu = name.toLowerCase.contains(GpuSuffix)
-        name -> DxInstanceType(name, memoryMB, diskSpaceGB, numCores, gpu, os, diskType)
-    }
-  }
-
-  // Get the mapping from instance type to price, limited to the
-  // project we are in. Describing a user requires permission to
-  // view the user account. The compiler may not have these
-  // permissions, causing this method to throw an exception.
-  // TODO: move this to DxOrg and DxUser objects
-  private def getPricingModel(dxApi: DxApi,
-                              billTo: String,
-                              region: String,
-                              logger: Logger): Option[Map[String, Float]] = {
-    val request = Map("fields" -> JsObject("pricingModelsByRegion" -> JsTrue))
-    Try {
-      billTo match {
-        case _ if billTo.startsWith("org") =>
-          dxApi.orgDescribe(billTo, request)
-        case _ if billTo.startsWith("user") =>
-          dxApi.userDescribe(billTo, request)
-        case _ =>
-          throw new Exception(s"Invalid billTo ${billTo}")
-      }
-    } match {
-      case Success(response) =>
-        JsUtils
-          .getOptionalFields(response, "pricingModelsByRegion")
-          .flatMap(_.get(region))
-          .flatMap(JsUtils.getOptionalFields(_, "computeRatesPerHour"))
-          .filter(_.nonEmpty)
-          .map { computeRatesPerHour =>
-            computeRatesPerHour.map {
-              case (name, jsValue) =>
-                val hourlyRate: Float = jsValue match {
-                  case JsNumber(x) => x.toFloat
-                  case JsString(x) => x.toFloat
-                  case _ =>
-                    throw new Exception(s"compute rate is not a number ${jsValue.prettyPrint}")
-                }
-                name -> hourlyRate
-            }
-          }
-      case Failure(_: dx.PermissionDeniedException) => None
-      case Failure(ex) =>
-        logger.error(s"Error retrieving the pricing model for billTo ${billTo}", Some(ex))
-        None
+        val priceRank = JsUtils.getOptionalInt(jsValue, RankKey).orElse {
+          Logger.get.warning(s"price rank is not available for instance type ${name}")
+          None
+        }
+        name -> DxInstanceType(name, memoryMB, diskSpaceGB, numCores, gpu, os, diskType, priceRank)
     }
   }
 
   /**
     * Query the platform for the available instance types in this project.
-    * @param dxApi DxApi
+    * @param dxProject the project from which to get the available instance types
     * @param instanceTypeFilter function used to filter instance types
     */
   def create(dxProject: DxProject,
-             instanceTypeFilter: DxInstanceType => Boolean,
-             dxApi: Option[DxApi] = None,
-             logger: Logger = Logger.get): InstanceTypeDB = {
-    val api = dxApi.getOrElse(dxProject.dxApi)
-    val projectDesc =
-      dxProject.describe(Set(Field.Region, Field.BillTo, Field.AvailableInstanceTypes))
-    val allInstanceTypes = parseInstanceTypes(
-        projectDesc.availableInstanceTypes.getOrElse(
-            throw new Exception(
-                s"could not retrieve available instance types for project ${dxProject}"
-            )
-        )
-    )
-    val availableInstanceTypes =
-      getPricingModel(api, projectDesc.billTo.get, projectDesc.region.get, logger)
-        .map { pricingModel =>
-          allInstanceTypes.keySet
-            .intersect(pricingModel.keySet)
-            .map { name =>
-              name -> allInstanceTypes(name).copy(price = pricingModel.get(name))
-            }
-            .toMap
-        }
-    val usableInstanceTypes = availableInstanceTypes
-      .getOrElse {
-        logger.warning(
-            """|Warning: insufficient permissions to retrieve the instance price list.
-               |This may result in suboptimal instance type choices, incurring higher 
-               |costs when running workflows.""".stripMargin.replaceAll("\n", " ")
-        )
-        allInstanceTypes
-      }
-      .filter {
-        case (_, instanceType) => instanceTypeFilter(instanceType)
-      }
-    InstanceTypeDB(usableInstanceTypes, pricingAvailable = availableInstanceTypes.isDefined)
+             instanceTypeFilter: DxInstanceType => Boolean): InstanceTypeDB = {
+    val availableInstanceTypes = parseInstanceTypes(
+        dxProject
+          .describe(Set(Field.AvailableInstanceTypes))
+          .availableInstanceTypes
+          .getOrElse(
+              throw new Exception(
+                  s"could not retrieve available instance types for project ${dxProject}"
+              )
+          )
+    ).filter {
+      case (_, instanceType) => instanceTypeFilter(instanceType)
+    }
+    InstanceTypeDB(availableInstanceTypes)
   }
 }

@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Removes price-based selection of instance types in favor of rank-based selection
+
 ## 0.9.0 (2021-08-31)
 
 * Make including the project optional (default true) in `DxUtils.dxDataObjectToUri`
