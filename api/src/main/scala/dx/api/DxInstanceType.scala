@@ -199,15 +199,20 @@ case class DxInstanceType(name: String,
   }
 
   override def compare(that: DxInstanceType): Int = {
-    // if prices are available, choose the cheapest instance. Otherwise,
-    // choose one with minimal resources.
-    val costDiff = if (priceRank.isDefined) {
-      compareByPrice(that)
+    // if price ranks are available, choose the cheapest instance
+    val costCmp = compareByPrice(that)
+    if (costCmp != 0) {
+      costCmp
     } else {
-      compareByResources(that)
+      // otherwise choose one with minimal resources
+      val resCmp = compareByResources(that)
+      if (resCmp != 0) {
+        resCmp
+      } else {
+        // all else being equal, choose v2 instances over v1
+        -compareByType(that)
+      }
     }
-    // all else being equal, choose v2 instances over v1
-    if (costDiff == 0) -compareByType(that) else costDiff
   }
 }
 
