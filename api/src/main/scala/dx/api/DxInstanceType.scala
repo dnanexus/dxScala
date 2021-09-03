@@ -83,12 +83,23 @@ object InstanceTypeRequest {
   lazy val empty: InstanceTypeRequest = InstanceTypeRequest()
 }
 
-// Instance Type on the platform. For example:
-// name:   mem1_ssd1_x4
-// memory: 4096 MB
-// disk:   80 GB
-// price:  0.5 dollar per hour
-// os:     [(Ubuntu, 12.04), (Ubuntu, 14.04)}
+/**
+  * DNAnexus instance type.
+  * @param name canonical instance type name, e.g. mem1_ssd1_x4
+  * @param memoryMB available RAM in MB
+  * @param diskGB available disk in GB
+  * @param cpu number of CPU cores
+  * @param gpu whether there is at least one GPU
+  * @param os Vector of execution environments available, e.g.
+  *           [(Ubuntu, 16.04, 1), (Ubuntu, 20.04, 0)]
+  * @param diskType SSD or HDD
+  * @param priceRank rank of this instance type's price vs the
+  *                  other instance types in the database. Rank
+  *                  begins at 1 for the cheapest instance. Two
+  *                  instances with the same price will have
+  *                  different (consecutive) ranks assigned at
+  *                  random.
+  */
 case class DxInstanceType(name: String,
                           memoryMB: Long,
                           diskGB: Long,
@@ -99,7 +110,13 @@ case class DxInstanceType(name: String,
                           priceRank: Option[Int] = None)
     extends Ordered[DxInstanceType] {
 
-  // Does this instance satisfy the requirements?
+  /**
+    * Returns true if this instance type satisfies the requirements of `query`,
+    * which happens if 1) this instance type has the same name as specified in
+    * the query, or 2) all of its resources are at least as large as the
+    * minimums in the query, and also less than the maximums if `enforceMaxBounds`
+    * is true.
+    */
   def satisfies(query: InstanceTypeRequest, enforceMaxBounds: Boolean = false): Boolean = {
     if (query.dxInstanceType.contains(name)) {
       true
@@ -192,7 +209,10 @@ case class DxInstanceType(name: String,
     }
   }
 
-  // v2 instances are always better than v1 instances
+  /**
+    * Compare instances based on version (v1 vs v2) -
+    * v2 instances are always better than v1 instances.
+    */
   def compareByType(that: DxInstanceType): Int = {
     def typeVersion(name: String): Int = if (name contains DxInstanceType.Version2Suffix) 2 else 1
     typeVersion(this.name).compareTo(typeVersion(that.name))
