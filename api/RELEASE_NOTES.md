@@ -4,6 +4,7 @@
 
 * Removes price-based selection of instance types in favor of rank-based selection
 * Fixes parsing of non-file-type default values that are reference-type links
+* Fixes parsing of parameter defaults/suggestions/choices that are of type `Hash`
 
 ## 0.9.0 (2021-08-31)
 
