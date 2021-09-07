@@ -142,6 +142,19 @@ object IOParameter {
   def parse(dxApi: DxApi, jsv: JsValue): IOParameter = {
     val fields = jsv.asJsObject.fields
 
+    // handle a job-based or workflow input reference
+    def createReference(fields: Map[String, JsValue]): DxIoParameterValueReference = {
+      fields(DxUtils.DxLinkKey) match {
+        case JsObject(innerFields) =>
+          DxIoParameterValueReference(innerFields.map {
+            case (key, JsString(value)) => key -> value
+            case other                  => throw new Exception(s"Invalid link field ${other}")
+          })
+        case other =>
+          throw new Exception(s"unexpected dx link value ${other}")
+      }
+    }
+
     def parseValue(key: String, value: JsValue, ioClass: DxIOClass.DxIOClass): IOParameterValue = {
       (ioClass, value) match {
         case (_, JsArray(array)) if key == DxIOSpec.Default && DxIOClass.isArray(ioClass) =>
@@ -154,17 +167,7 @@ object IOParameter {
             val dxObj = dxApi.dataObjectFromJson(link)
             IOParameterValue.forDataObjectField(key, Some(dxObj.id), dxObj.project.map(_.id))
           } catch {
-            case _: Throwable =>
-              // JBOR or some other reference
-              fields(DxUtils.DxLinkKey) match {
-                case JsObject(innerFields) =>
-                  DxIoParameterValueReference(innerFields.map {
-                    case (key, JsString(value)) => key -> value
-                    case other                  => throw new Exception(s"Invalid link field ${other}")
-                  })
-                case other =>
-                  throw new Exception(s"unexpected dx link value ${other}")
-              }
+            case _: Throwable => createReference(fields)
           }
         case (DxIOClass.File | DxIOClass.FileArray | DxIOClass.Other, JsObject(fields))
             if key != DxIOSpec.Default =>
@@ -192,6 +195,8 @@ object IOParameter {
           IOParameterValueNumber(n)
         case (DxIOClass.Boolean | DxIOClass.BooleanArray, JsBoolean(b)) =>
           IOParameterValueBoolean(b)
+        case (_, JsObject(fields)) if fields.contains(DxUtils.DxLinkKey) =>
+          createReference(fields)
         case _ =>
           throw new Exception(s"Unexpected ${key} value ${jsv} of type ${ioClass}")
       }
