@@ -79,6 +79,7 @@ final case class IOParameterValueString(value: String) extends IOParameterValue
 final case class IOParameterValueNumber(value: BigDecimal) extends IOParameterValue
 final case class IOParameterValueBoolean(value: Boolean) extends IOParameterValue
 final case class IOParameterValueArray(array: Vector[IOParameterValue]) extends IOParameterValue
+final case class IOParameterValueHash(hash: Map[String, JsValue]) extends IOParameterValue
 final case class IOParameterValueDataObject(id: String,
                                             project: Option[String] = None,
                                             name: Option[String] = None,
@@ -187,6 +188,8 @@ object IOParameter {
         case (DxIOClass.File | DxIOClass.FileArray, JsString(s)) if key != DxIOSpec.Default =>
           val parsed = DxPath.parse(s)
           IOParameterValue.forDataObjectField(key, Some(parsed.name), parsed.projName)
+        case (_, JsObject(fields)) if fields.contains(DxUtils.DxLinkKey) =>
+          createReference(fields)
         case (DxIOClass.String | DxIOClass.StringArray, JsString(s)) =>
           IOParameterValueString(s)
         case (DxIOClass.Int | DxIOClass.IntArray, JsNumber(n)) if n.isValidLong =>
@@ -195,8 +198,8 @@ object IOParameter {
           IOParameterValueNumber(n)
         case (DxIOClass.Boolean | DxIOClass.BooleanArray, JsBoolean(b)) =>
           IOParameterValueBoolean(b)
-        case (_, JsObject(fields)) if fields.contains(DxUtils.DxLinkKey) =>
-          createReference(fields)
+        case (DxIOClass.Hash | DxIOClass.HashArray, JsObject(fields)) =>
+          IOParameterValueHash(fields)
         case _ =>
           throw new Exception(s"Unexpected ${key} value ${jsv} of type ${ioClass}")
       }
