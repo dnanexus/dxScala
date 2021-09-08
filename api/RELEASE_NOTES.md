@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.10.0 (2021-09-08)
 
 * Removes price-based selection of instance types in favor of rank-based selection
 * Fixes parsing of non-file-type default values that are reference-type links
