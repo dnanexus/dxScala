@@ -6,7 +6,9 @@ on:
       release-version:
         description: 'dxApi version'
         required: true
-
+permissions:
+  contents: write
+  packages: write
 jobs:
   run-release:
     name: dxApi Release
