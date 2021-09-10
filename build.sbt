@@ -10,7 +10,8 @@ name := "dxScala"
 ThisBuild / organization := "com.dnanexus"
 ThisBuild / scalaVersion := "2.13.2"
 ThisBuild / developers := List(
-    Developer("jdidion", "jdidion", "jdidion@dnanexus.com", url("https://github.com/dnanexus-rnd"))
+    Developer("jdidion", "jdidion", "jdidion@dnanexus.com", url("https://github.com/dnanexus-rnd")),
+    Developer("r-i-v-a", "Riva Nathans", "rnathans-cf@dnanexus.com", url("https://github.com/dnanexus-rnd"))
 )
 ThisBuild / homepage := Some(url("https://github.com/dnanexus/dxScala"))
 ThisBuild / scmInfo := Some(
@@ -108,7 +109,7 @@ val yaml = project
 lazy val dependencies =
   new {
     val dxCommonVersion = "0.8.0"
-    val dxApiVersion = "0.9.0"
+    val dxApiVersion = "0.10.0"
     val typesafeVersion = "1.4.1"
     val sprayVersion = "1.3.6"
     val snakeyamlVersion = "2.3"

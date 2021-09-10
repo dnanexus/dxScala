@@ -1,11 +1,17 @@
 # dxApi
 
+## 0.10.0 (2021-09-08)
+
+* Removes price-based selection of instance types in favor of rank-based selection
+* Fixes parsing of non-file-type default values that are reference-type links
+* Fixes parsing of parameter defaults/suggestions/choices that are of type `Hash`
+
 ## 0.9.0 (2021-08-31)
 
 * Make including the project optional (default true) in `DxUtils.dxDataObjectToUri`
 * Adds `force` option to `DxProject.removeObjects`
 * Adds `cloneDataObject` method to `dxApi`
-* Fixes parsing of default values that are reference-type links 
+* Fixes parsing of file-type default values that are reference-type links 
 
 ## 0.8.0 (2021-07-27)
 
