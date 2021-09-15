@@ -4,6 +4,8 @@ import scala.jdk.CollectionConverters._
 
 /**
   * The general type of a YAML AST node.
+  * TODO: some code to use YAML core schema with 1.2
+  *  https://github.com/common-workflow-language/schema_salad/pull/375/files#diff-1fe41c7baff746ee2b3d83564fbe12aa60b05cce03e43e86ffd6d1b8bac6d9aa
   */
 sealed abstract class YamlValue {
   def convertTo[A](implicit reader: YamlReader[A]): A = reader.read(this)
