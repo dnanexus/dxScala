@@ -154,7 +154,7 @@ case class DxFolderSource(dxProject: DxProject,
   assert(dxFolderPath.isAbsolute, s"not an absolute path: ${dxFolderPath}")
   assert(dxFolder.endsWith("/"), "dx folder must end with '/'")
 
-  override def address: String = s"dx://${dxProject.id}:${dxFolder}"
+  override def address: String = DxFolderSource.format(dxProject, dxFolder, parentProjectFolder)
 
   override def name: String = dxFolderPath.getFileName.toString
 
