@@ -411,13 +411,9 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
     DxFileSource(dxFile, encoding)(dxFile.asUri, this)
   }
 
-  def fromDxFolder(projectId: String,
-                   folder: String,
-                   parentProjectFolder: Option[String] = None): DxFolderSource = {
-    DxFolderSource(
-        dxApi.project(projectId),
-        DxFolderSource.ensureEndsWithSlash(FileUtils.getPath(folder).toString)
-    )(this)
+  def fromDxFolder(projectId: String, folder: String): DxFolderSource = {
+    DxFolderSource(dxApi.project(projectId),
+                   DxFolderSource.ensureEndsWithSlash(FileUtils.getPath(folder).toString))(this)
   }
 }
 
