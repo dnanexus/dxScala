@@ -393,11 +393,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   override def resolveDirectory(uri: String): AddressableFileSource = {
     // a Directory may be either a dx file (archive) or a dx://project:/path/to/dir/ URI.
     if (uri.endsWith("/")) {
-      val (baseUri, parentProjectPath) = uri.split("::").toVector match {
-        case Vector(base, parentProjectPath) => (base, Some(parentProjectPath))
-        case Vector(_)                       => (uri, None)
-      }
-      val (projectName, folder) = DxPath.split(baseUri)
+      val (projectName, folder) = DxPath.split(uri)
       val project = projectName
         .map(dxApi.resolveProject)
         .getOrElse(throw new Exception("project must be specified for a DNAnexus folder URI"))
