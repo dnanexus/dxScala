@@ -173,11 +173,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
       if (folder == "") {
         None
       } else {
-        Some(
-            DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(folder))(
-                protocol
-            )
-        )
+        Some(DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(folder))(protocol))
       }
     }
   }

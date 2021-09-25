@@ -1,9 +1,5 @@
 # dxFileAccessProtocols
 
-## in develop
-
-* Introduces `parentProjectFolder` to `DxFolderSource` for book-keeping associated with container folders
-
 ## 0.5.0 (2021-08-31)
 
 * Implements `resolveDirectory` method
