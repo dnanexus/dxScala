@@ -330,11 +330,8 @@ object DxFolderSource {
     }
   }
 
-  def format(project: DxProject,
-             folder: String,
-             parentProjectFolder: Option[String] = None): String = {
-    val base = s"${DxPath.DxUriPrefix}${project.id}:${ensureEndsWithSlash(folder)}"
-    parentProjectFolder.map(f => s"${base}::${f}").getOrElse(base)
+  def format(project: DxProject, folder: String): String = {
+    s"${DxPath.DxUriPrefix}${project.id}:${ensureEndsWithSlash(folder)}"
   }
 }
 
