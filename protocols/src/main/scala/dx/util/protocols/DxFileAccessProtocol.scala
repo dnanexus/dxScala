@@ -149,7 +149,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
   assert(dxFolderPath.isAbsolute, s"not an absolute path: ${dxFolderPath}")
   assert(dxFolder.endsWith("/"), "dx folder must end with '/'")
 
-  override def address: String = s"dx://${dxProject.id}:${dxFolder}"
+  override def address: String = DxFolderSource.format(dxProject, dxFolder)
 
   override def name: String = dxFolderPath.getFileName.toString
 
@@ -316,7 +316,9 @@ object DxFolderSource {
   }
 
   def isDxFolderUri(uri: String): Boolean = {
-    uri.startsWith(DxPath.DxUriPrefix) && uri.contains("project-") && uri.endsWith("/")
+    uri.startsWith(DxPath.DxUriPrefix) &&
+    uri.endsWith("/") &&
+    (uri.contains("project-") || uri.contains("container-"))
   }
 
   def join(folder: String, name: String, isFolder: Boolean = false): String = {

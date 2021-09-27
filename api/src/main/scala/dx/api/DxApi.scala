@@ -225,7 +225,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       return projectDict(projName)
     }
 
-    if (projName.startsWith("project-")) {
+    if (projName.startsWith("project-") || projName.startsWith("container-")) {
       // A project ID
       return project(projName)
     }
