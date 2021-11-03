@@ -27,23 +27,23 @@ class DxFindDataObjectsTest extends AnyFlatSpec with Matchers {
   // set the per-query limit low to test paging
   private lazy val findDataObjects = DxFindDataObjects(dxApi, Some(3))
 
-  it should "find all text files" taggedAs ApiTest in {
+  it should "find all text files that start with 'test'" taggedAs ApiTest in {
     val constraints =
       DxFindDataObjectsConstraints(project = Some(dxTestProject),
                                    folder = Some("/test_data"),
-                                   nameGlob = Some("*.txt"))
+                                   nameGlob = Some("test*.txt"))
     val results = findDataObjects.query(constraints)
-    results.size shouldBe 7
+    results.size shouldBe 3
   }
 
-  it should "find all text files recursively" taggedAs ApiTest in {
+  it should "find all text files that start with 'f' recursively" taggedAs ApiTest in {
     val constraints =
       DxFindDataObjectsConstraints(project = Some(dxTestProject),
                                    folder = Some("/test_data"),
                                    recurse = true,
-                                   nameGlob = Some("*.txt"))
+                                   nameGlob = Some("f*.txt"))
     val results = findDataObjects.query(constraints)
-    results.size shouldBe 27
+    results.size shouldBe 2
   }
 
   it should "find files with specific names" taggedAs ApiTest in {
