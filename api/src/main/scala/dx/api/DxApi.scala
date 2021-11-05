@@ -1,5 +1,7 @@
 package dx.api
 
+import com.dnanexus.exceptions.DXHTTPException
+
 import java.nio.file.{FileVisitOption, FileVisitResult, Files, Path, SimpleFileVisitor}
 import java.nio.file.attribute.BasicFileAttributes
 import java.{util => javautil}
@@ -321,16 +323,28 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
 
   private def call(fn: (Any, Class[JsonNode], DXEnvironment) => JsonNode,
                    fields: Map[String, JsValue] = Map.empty): JsObject = {
-    val request = objMapper.readTree(JsObject(fields).prettyPrint)
-    val response = fn(request, classOf[JsonNode], dxEnv)
+    val request = JsObject(fields).prettyPrint
+    val response =
+      try {
+        fn(objMapper.readTree(request), classOf[JsonNode], dxEnv)
+      } catch {
+        case ex: DXHTTPException =>
+          throw new Exception(s"Connection error while making API request:\n${request}", ex)
+      }
     response.toString.parseJson.asJsObject
   }
 
   private def callObject(fn: (String, Any, Class[JsonNode], DXEnvironment) => JsonNode,
                          objectId: String,
                          fields: Map[String, JsValue] = Map.empty): JsObject = {
-    val request = objMapper.readTree(JsObject(fields).prettyPrint)
-    val response = fn(objectId, request, classOf[JsonNode], dxEnv)
+    val request = JsObject(fields).prettyPrint
+    val response =
+      try {
+        fn(objectId, objMapper.readTree(request), classOf[JsonNode], dxEnv)
+      } catch {
+        case ex: DXHTTPException =>
+          throw new Exception(s"Connection error while making API request:\n${request}", ex)
+      }
     response.toString.parseJson.asJsObject
   }
 
