@@ -1,8 +1,9 @@
 # dxApi
 
-## in develop
+## 0.10.1 (2021-11-10)
 
 * Fixes `resolveProject` to handle `container-` objects
+* Improves error message when API call failes due to connection error
 
 ## 0.10.0 (2021-09-08)
 
