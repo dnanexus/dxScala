@@ -1,5 +1,10 @@
 # dxApi
 
+## in develop
+
+* Fixes `DxApi.resolveApp` to handle app name with with version (e.g. `bwa_mem/1.0.0`)
+* Adds `version` field to `DxAppDescribe`
+
 ## 0.10.1 (2021-11-10)
 
 * Fixes `resolveProject` to handle `container-` objects

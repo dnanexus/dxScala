@@ -130,4 +130,10 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
         desc.properties shouldBe Some(fileProperties)
     }
   }
+
+  it should "resolve an app with version" in {
+    val app = dxApi.resolveApp("bam_to_fastq/1.0.0")
+    app.describe().name shouldBe "bam_to_fastq"
+    app.describe().version shouldBe "1.0.0"
+  }
 }

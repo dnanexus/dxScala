@@ -634,25 +634,45 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     call(DXAPI.systemFindApps[JsonNode], fields)
   }
 
+  private val appNameRegex = "(?:app-)?(.+?)(?:/(.+))?".r
+
   def resolveApp(name: String): DxApp = {
-    findApps(Map("name" -> JsString(name))) match {
+    val (appName, appVersion) = name match {
+      case appNameRegex(n, v) => (n, Option(v))
+      case _                  => throw new Exception(s"invalid app name ${name}")
+    }
+    val request = Vector(
+        Some("name" -> JsString(appName)),
+        Some("describe" -> JsTrue),
+        Option.when(appVersion.isDefined)("allVersions" -> JsTrue)
+    ).flatten.toMap
+    val result = findApps(request) match {
       case JsObject(fields) if fields.contains("results") =>
         fields("results") match {
-          case JsArray(results) if results.size == 1 =>
-            val result = results(0).asJsObject.fields
-            val JsString(id) = result("id")
-            val app = DxApp(id)(this)
-            result.get("describe").foreach { descJs =>
-              val desc = DxApp.parseDescribeJson(descJs.asJsObject, this)
-              app.cacheDescribe(desc)
-            }
-            app
-          case other =>
-            throw new Exception(s"expected 1 result, got ${other}")
+          case JsArray(results) if appVersion.isDefined =>
+            results
+              .collectFirst {
+                case result
+                    if result.asJsObject
+                      .fields("describe")
+                      .asJsObject
+                      .fields("version") == JsString(appVersion.get) =>
+                  result
+              }
+              .getOrElse(
+                  throw new Exception(
+                      s"version ${appVersion.get} does not exist for app ${appName}"
+                  )
+              )
+          case JsArray(results) if results.size == 1 => results(0)
+          case other                                 => throw new Exception(s"expected 1 result, got ${other}")
         }
-      case other =>
-        throw new Exception(s"invalid findApps response ${other}")
+      case other => throw new Exception(s"invalid findApps response ${other}")
     }
+    val Seq(JsString(id), describe: JsObject) = result.asJsObject.getFields("id", "describe")
+    val app = DxApp(id)(this)
+    app.cacheDescribe(DxApp.parseDescribeJson(describe, this))
+    app
   }
 
   def findDataObjects(fields: Map[String, JsValue]): JsObject = {
