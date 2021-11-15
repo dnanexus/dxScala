@@ -5,6 +5,7 @@ import spray.json._
 
 case class DxAppDescribe(id: String,
                          name: String,
+                         version: String,
                          created: Long,
                          modified: Long,
                          tags: Option[Set[String]],
@@ -27,7 +28,7 @@ case class DxAppDescribe(id: String,
 }
 
 object DxAppDescribe {
-  val RequiredFields = Set(Field.Id, Field.Name, Field.Created, Field.Modified)
+  val RequiredFields = Set(Field.Id, Field.Name, Field.Version, Field.Created, Field.Modified)
   val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.InputSpec, Field.OutputSpec)
 }
 
@@ -95,22 +96,27 @@ case class DxApp(id: String)(dxApi: DxApi = DxApi.get)
 object DxApp {
   def parseDescribeJson(descJs: JsObject, dxApi: DxApi): DxAppDescribe = {
     val desc =
-      descJs.getFields("id", "name", "created", "modified", "inputSpec", "outputSpec") match {
+      descJs
+        .getFields("id", "name", "version", "created", "modified", "inputSpec", "outputSpec") match {
         case Seq(JsString(id),
                  JsString(name),
+                 JsString(version),
                  JsNumber(created),
                  JsNumber(modified),
                  JsArray(inputSpec),
                  JsArray(outputSpec)) =>
-          DxAppDescribe(id,
-                        name,
-                        created.toLong,
-                        modified.toLong,
-                        None,
-                        None,
-                        None,
-                        Some(IOParameter.parseIOSpec(dxApi, inputSpec)),
-                        Some(IOParameter.parseIOSpec(dxApi, outputSpec)))
+          DxAppDescribe(
+              id,
+              name,
+              version,
+              created.toLong,
+              modified.toLong,
+              None,
+              None,
+              None,
+              Some(IOParameter.parseIOSpec(dxApi, inputSpec)),
+              Some(IOParameter.parseIOSpec(dxApi, outputSpec))
+          )
         case _ =>
           throw new Exception(s"Malformed JSON ${descJs}")
       }

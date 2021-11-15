@@ -5,11 +5,20 @@ import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsV
 case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
   private def parseDescribe(id: String, jsv: JsValue): DxAppDescribe = {
     val fields = jsv.asJsObject.fields
-    val name: String = fields.get("name") match {
-      case Some(JsString(name)) => name
-      case None                 => throw new Exception("name field missing")
-      case other                => throw new Exception(s"malformed name field ${other}")
-    }
+    val name = fields
+      .get("name")
+      .map {
+        case JsString(name) => name
+        case other          => throw new Exception(s"malformed name field ${other}")
+      }
+      .getOrElse(throw new Exception("name field missing"))
+    val version = fields
+      .get("version")
+      .map {
+        case JsString(version) => version
+        case other             => throw new Exception(s"malformed version field ${other}")
+      }
+      .getOrElse(throw new Exception("name field missing"))
     val tags = fields.get("tags").map(DxObject.parseJsonTags)
     val properties = fields.get("properties").map(DxObject.parseJsonProperties)
     val inputSpec: Option[Vector[IOParameter]] = fields.get("inputSpec") match {
@@ -40,7 +49,16 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
     }
     val details: Option[JsValue] = fields.get("details")
 
-    DxAppDescribe(id, name, created, modified, tags, properties, details, inputSpec, outputSpec)
+    DxAppDescribe(id,
+                  name,
+                  version,
+                  created,
+                  modified,
+                  tags,
+                  properties,
+                  details,
+                  inputSpec,
+                  outputSpec)
   }
 
   private def parseOneResult(jsv: JsValue): DxApp = {
@@ -73,7 +91,7 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       idConstraints: Vector[String],
       extraFields: Set[Field.Value]
   ): (Vector[DxApp], Option[JsValue]) = {
-    val descFields = Set(Field.Name, Field.Properties, Field.Created, Field.Modified) ++ extraFields ++ (
+    val descFields = Set(Field.Name, Field.Version, Field.Properties, Field.Created, Field.Modified) ++ extraFields ++ (
         if (withInputOutputSpec) {
           Set(Field.InputSpec, Field.OutputSpec)
         } else {
@@ -93,34 +111,31 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       case None    => Map.empty
       case Some(b) => Map("published" -> JsBoolean(b))
     }
-    val propertiesField =
-      if (propertyConstraints.isEmpty) {
-        Map.empty
-      } else {
-        Map("properties" -> JsObject(propertyConstraints.map { prop =>
-          prop -> JsBoolean(true)
-        }.toMap))
-      }
-    val nameField =
-      if (nameConstraints.isEmpty) {
-        Map.empty
-      } else if (nameConstraints.size == 1) {
-        // Just one name, no need to use regular expressions
-        Map("name" -> JsString(nameConstraints(0)))
-      } else {
-        // Make a conjunction of all the legal names. For example:
-        // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
-        val orRegexp = nameConstraints.map(x => s"^${x}$$").mkString("|")
-        Map("name" -> JsObject("regexp" -> JsString(orRegexp)))
-      }
-    val idField =
-      if (idConstraints.isEmpty) {
-        Map.empty
-      } else {
-        Map("id" -> JsArray(idConstraints.map { x: String =>
-          JsString(x)
-        }))
-      }
+    val propertiesField = if (propertyConstraints.isEmpty) {
+      Map.empty
+    } else {
+      Map("properties" -> JsObject(propertyConstraints.map { prop =>
+        prop -> JsBoolean(true)
+      }.toMap))
+    }
+    val nameField = if (nameConstraints.isEmpty) {
+      Map.empty
+    } else if (nameConstraints.size == 1) {
+      // Just one name, no need to use regular expressions
+      Map("name" -> JsString(nameConstraints(0)))
+    } else {
+      // Make a conjunction of all the legal names. For example:
+      // ["Nice", "Foo", "Bar"] => ^Nice$|^Foo$|^Bar$
+      val orRegexp = nameConstraints.map(x => s"^${x}$$").mkString("|")
+      Map("name" -> JsObject("regexp" -> JsString(orRegexp)))
+    }
+    val idField = if (idConstraints.isEmpty) {
+      Map.empty
+    } else {
+      Map("id" -> JsArray(idConstraints.map { x: String =>
+        JsString(x)
+      }))
+    }
     val response = dxApi.findApps(
         requiredFields ++ cursorField ++ publishedField ++ propertiesField ++ nameField ++ idField
     )

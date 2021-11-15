@@ -120,7 +120,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
                             dxProject: DxProject): DxObjectDescribe = {
     val fields = jsv.asJsObject.fields
     // required fields
-    val name: String = fields.get("name") match {
+    val name = fields.get("name") match {
       case Some(JsString(name)) => name
       case None                 => throw new Exception("name field missing")
       case other                => throw new Exception(s"malformed name field ${other}")
@@ -171,18 +171,6 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
     val details: Option[JsValue] = fields.get("details")
 
     dxobj match {
-      case _: DxApp =>
-        DxAppDescribe(
-            id = dxobj.id,
-            name = name,
-            created = created,
-            modified = modified,
-            tags = tags,
-            properties = properties,
-            details = details,
-            inputSpec = inputSpec,
-            outputSpec = outputSpec
-        )
       case _: DxApplet =>
         DxAppletDescribe(
             project = dxProject.id,
@@ -239,8 +227,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
             details = details,
             parts = None
         )
-      case other =>
-        throw new Exception(s"unsupported object ${other}")
+      case other => throw new Exception(s"unsupported object ${other}")
     }
   }
 
