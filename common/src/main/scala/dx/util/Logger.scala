@@ -109,37 +109,65 @@ case class Logger(level: Int,
     stream.println(errorMessage(s"${" " * traceIndenting * 2}${msg}", exception))
   }
 
-  private def truncateMessage(msg: String, maxLength: Int): String = {
-    if (msg.length > maxLength) {
-      msg.slice(0, maxLength)
-    } else {
+  private def truncateMessage(msg: String,
+                              maxLength: Int,
+                              showBeginning: Boolean = true,
+                              showEnd: Boolean = false): String = {
+    if (msg.length <= maxLength || (showBeginning && showEnd && msg.length <= (2 * maxLength))) {
       msg
+    } else {
+      Vector(
+          Option.when(showBeginning)(msg.slice(0, maxLength)),
+          Option.when(showEnd)(msg.slice(maxLength - msg.length, maxLength))
+      ).flatten.mkString("\n...\n")
     }
   }
 
-  // print a detailed message to the user; ignored if `traceLevel` < `level`
+  /**
+    * Print a detailed message to the user; ignored if `traceLevel` < `level`.
+    * @param msg the message to log
+    * @param maxLength the max number of characters to show
+    * @param minLevel minimum logger trace level required to show this message
+    * @param requiredKey logger key required to show this message
+    * @param exception exception for which to show stack trace at the end of the log message
+    * @param showBeginning if `limit` is defined, whether to show `limit` lines from the beginning of the log
+    * @param showEnd if `limit` is defined, whether to show `limit` lines from the end of the log
+    */
   def trace(msg: String,
             maxLength: Option[Int] = None,
             minLevel: Int = TraceLevel.Verbose,
             requiredKey: Option[String] = None,
-            exception: Option[Throwable] = None): Unit = {
+            exception: Option[Throwable] = None,
+            showBeginning: Boolean = true,
+            showEnd: Boolean = false): Unit = {
     if (traceEnabledFor(minLevel, requiredKey)) {
       if (maxLength.isDefined) {
-        printTrace(truncateMessage(msg, maxLength.get), exception)
+        printTrace(truncateMessage(msg, maxLength.get, showBeginning, showEnd), exception)
       } else {
         printTrace(msg, exception)
       }
     }
   }
 
-  // Logging output for applets at runtime. Shortcut for `trace()` with a message `maxLength`
-  // (defaults to `APPLET_LOG_MSG_LIMIT`)
+  /**
+    * Logging output for applets at runtime. Shortcut for `trace()` with a message `maxLength`
+    * (defaults to `APPLET_LOG_MSG_LIMIT`)
+    * @param msg the message to log
+    * @param limit the max number of characters to show
+    * @param minLevel minimum logger trace level required to show this message
+    * @param requiredKey logger key required to show this message
+    * @param exception exception for which to show stack trace at the end of the log message
+    * @param showBeginning if `limit` is defined, whether to show `limit` lines from the beginning of the log
+    * @param showEnd if `limit` is defined, whether to show `limit` lines from the end of the log
+    */
   def traceLimited(msg: String,
                    limit: Int = DefaultMessageLimit,
                    minLevel: Int = TraceLevel.Verbose,
                    requiredKey: Option[String] = None,
-                   exception: Option[Throwable] = None): Unit = {
-    trace(msg, Some(limit), minLevel, requiredKey, exception)
+                   exception: Option[Throwable] = None,
+                   showBeginning: Boolean = true,
+                   showEnd: Boolean = false): Unit = {
+    trace(msg, Some(limit), minLevel, requiredKey, exception, showBeginning, showEnd)
   }
 
   // Ignore a value and print a trace message. This is useful for avoiding warnings/errors
