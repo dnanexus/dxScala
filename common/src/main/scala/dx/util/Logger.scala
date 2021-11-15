@@ -111,8 +111,8 @@ case class Logger(level: Int,
 
   private def truncateMessage(msg: String,
                               maxLength: Int,
-                              showBeginning: Boolean = true,
-                              showEnd: Boolean = false): String = {
+                              showBeginning: Boolean,
+                              showEnd: Boolean): String = {
     if (msg.length <= maxLength || (showBeginning && showEnd && msg.length <= (2 * maxLength))) {
       msg
     } else {
