@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Adds option to `Logger.trace*` to show beginning and/or end of log when limiting trace length
+
 ## 0.8.0 (2021-08-31)
 
 * Adds `getTargetDir` methods to `LocalizationDisambiguator`
