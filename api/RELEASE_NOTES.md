@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.11.0 (2021-11-15)
 
 * Fixes `DxApi.resolveApp` to handle app name with with version (e.g. `bwa_mem/1.0.0`)
 * Adds `version` field to `DxAppDescribe`
