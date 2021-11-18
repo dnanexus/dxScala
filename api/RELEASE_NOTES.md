@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.11.1 (2021-11-18)
 
 * Enables `retryLimit` to be set for `DxApi.uploadFile` and `DxApi.downloadFile`
 
