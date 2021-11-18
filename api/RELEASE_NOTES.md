@@ -1,5 +1,9 @@
 # dxApi
 
+## 0.11.1 (2021-11-18)
+
+* Enables `retryLimit` to be set for `DxApi.uploadFile` and `DxApi.downloadFile`
+
 ## 0.11.0 (2021-11-15)
 
 * Fixes `DxApi.resolveApp` to handle app name with with version (e.g. `bwa_mem/1.0.0`)

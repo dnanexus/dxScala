@@ -120,9 +120,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   // Convert from spray-json to jackson JsonNode
   // Used to convert into the JSON datatype used by dxjava
   private lazy val objMapper: ObjectMapper = new ObjectMapper()
-  private val DownloadRetryLimit = 3
-  private val UploadRetryLimit = 3
-  private val UploadWaitMillis = 1000
+  private val DefaultDownloadRetryLimit = 5
+  private val DefaultUploadRetryLimit = 5
+  private val WaitMillis = 1000
   private val projectAndPathRegexp = "(?:(.+):)?(.+)\\s*".r
 
   /**
@@ -1017,7 +1017,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     * @param overwrite whether to overwrite an existing file - if false, an
     *                  exception is thrown if the target path already exists
     */
-  def downloadFile(path: Path, dxfile: DxFile, overwrite: Boolean = false): Unit = {
+  def downloadFile(path: Path,
+                   dxfile: DxFile,
+                   overwrite: Boolean = false,
+                   retryLimit: Int = DefaultDownloadRetryLimit): Unit = {
     def downloadOneFile(path: Path, dxfile: DxFile): Boolean = {
       val fid = dxfile.id
       val fileObj = path.toFile
@@ -1055,10 +1058,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     }
     // we rely on the fact that exists() exits as soon as it encounters `true`
     val success = Iterator
-      .range(0, DownloadRetryLimit)
+      .range(0, retryLimit)
       .exists { counter =>
         if (counter > 0) {
-          Thread.sleep(1000)
+          Thread.sleep(WaitMillis * scala.math.pow(2, counter - 1).toLong)
         }
         logger.traceLimited(s"downloading file ${path.toString} (try=${counter})")
         downloadOneFile(path, dxfile)
@@ -1069,11 +1072,11 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   }
 
   // Read the contents of a platform file into a byte array
-  def downloadBytes(dxFile: DxFile): Array[Byte] = {
+  def downloadBytes(dxFile: DxFile, retryLimit: Int = DefaultDownloadRetryLimit): Array[Byte] = {
     // create a temporary file, and write the contents into it.
     val tempFile: Path = Files.createTempFile(s"${dxFile.id}", ".tmp")
     try {
-      downloadFile(tempFile, dxFile, overwrite = true)
+      downloadFile(tempFile, dxFile, overwrite = true, retryLimit = retryLimit)
       FileUtils.readFileBytes(tempFile)
     } finally {
       try {
@@ -1094,7 +1097,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
                  destination: Option[String] = None,
                  wait: Boolean = false,
                  tags: Set[String] = Set.empty,
-                 properties: Map[String, String] = Map.empty): DxFile = {
+                 properties: Map[String, String] = Map.empty,
+                 retryLimit: Int = DefaultUploadRetryLimit): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
@@ -1140,10 +1144,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     }
 
     Iterator
-      .range(0, UploadRetryLimit)
+      .range(0, retryLimit)
       .collectFirstDefined { counter =>
         if (counter > 0) {
-          Thread.sleep(UploadWaitMillis * scala.math.pow(2, counter).toLong)
+          Thread.sleep(WaitMillis * scala.math.pow(2, counter - 1).toLong)
         }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
         uploadOneFile(path) match {
