@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## 0.5.1 (2021-11-18)
+
+* Update dxApi version
+
 ## 0.5.0 (2021-08-31)
 
 * Implements `resolveDirectory` method
