@@ -227,6 +227,17 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
             details = details,
             parts = None
         )
+      case _: DxRecord =>
+        DxRecordDescribe(
+            project = dxProject.id,
+            id = dxobj.id,
+            name = name,
+            folder = folder,
+            created = created,
+            modified = modified,
+            properties = properties,
+            details = details
+        )
       case other => throw new Exception(s"unsupported object ${other}")
     }
   }
