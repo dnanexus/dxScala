@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Handles record results in `DxFindDataObjects`
+
 ## 0.12.0 (2021-11-18)
 
 * Enables `retryLimit` to be set for `DxApi.uploadFile` and `DxApi.downloadFile`
