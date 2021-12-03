@@ -77,6 +77,13 @@ case class InstanceTypeRequest(dxInstanceType: Option[String] = None,
   def hasMaxBounds: Boolean = {
     maxMemoryMB.isDefined || maxDiskGB.isDefined || maxCpu.isDefined
   }
+
+  def isEmpty: Boolean = {
+    this.productIterator.forall {
+      case o: Option[_] if o.nonEmpty => false
+      case _                          => true
+    }
+  }
 }
 
 object InstanceTypeRequest {
