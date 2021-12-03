@@ -321,9 +321,9 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
           """Calling findDataObjects without a project can cause result in longer response times
             |and greater load on the API server""".stripMargin.replaceAll("\n", " ")
       )
-    }
-    if (logger.isVerbose) {
-      logger.traceLimited(JsObject(request).prettyPrint)
+      if (logger.isVerbose) {
+        logger.traceLimited(JsObject(request).prettyPrint)
+      }
     }
     Iterator
       .unfold[Map[DxDataObject, DxObjectDescribe], Option[JsValue]](Some(JsNull)) {
