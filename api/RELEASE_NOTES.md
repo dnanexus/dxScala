@@ -2,8 +2,9 @@
 
 ## in develop
 
-* Handles record results in `DxFindDataObjects`
 * Adds `DxApi.addTags` method
+* Fixes `DxFindDataObjects` when used with `tags` constraint
+* Handles record results in `DxFindDataObjects`
 
 ## 0.12.0 (2021-11-18)
 
