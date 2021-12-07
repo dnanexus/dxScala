@@ -3,6 +3,7 @@
 ## in develop
 
 * Handles record results in `DxFindDataObjects`
+* Adds `DxApi.addTags` method
 
 ## 0.12.0 (2021-11-18)
 
