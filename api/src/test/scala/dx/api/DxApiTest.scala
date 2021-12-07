@@ -113,6 +113,14 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
         desc.tags shouldBe Some(fileTags)
         desc.properties shouldBe Some(fileProperties)
     }
+    // test adding a new tag to a file
+    val file = results.head._2
+    dxApi.addTags(file, Vector("C"), project = Some(dxTestProject))
+    val tags = file
+      .describeNoCache(Set(Field.Tags))
+      .tags
+      .getOrElse(throw new Exception("expected file to have tags"))
+    tags shouldBe Set("A", "B", "C")
   }
 
   it should "upload files in parallel" in {

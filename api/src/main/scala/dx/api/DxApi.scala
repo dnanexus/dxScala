@@ -167,10 +167,20 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
 
   // generic object methods
 
-  def addTags(obj: DxObject, tags: Vector[String]): Unit = {
-    val fields = Map(
-        "tags" -> JsArray(tags.map(JsString(_)))
-    )
+  def addTags(obj: DxObject, tags: Vector[String], project: Option[DxProject] = None): Unit = {
+    val fields = Vector(
+        Some("tags" -> JsArray(tags.map(JsString(_)))),
+        obj match {
+          case dataObj: DxDataObject =>
+            dataObj.project
+              .orElse(project)
+              .map(p => "project" -> JsString(p.id))
+              .orElse(
+                  throw new Exception("project is required when calling addTags on a data object")
+              )
+          case _ => None
+        }
+    ).flatten.toMap
     obj match {
       case analysis: DxAnalysis => callObject(DXAPI.analysisAddTags[JsonNode], analysis.id, fields)
       case app: DxApp           => callObject(DXAPI.appAddTags[JsonNode], app.id, fields)
