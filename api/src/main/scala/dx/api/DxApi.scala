@@ -167,6 +167,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
 
   // generic object methods
 
+
   def addTags(obj: DxObject, tags: Vector[String], project: Option[DxProject] = None): Unit = {
     val fields = Vector(
         Some("tags" -> JsArray(tags.map(JsString(_)))),
