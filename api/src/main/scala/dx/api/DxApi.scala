@@ -160,10 +160,34 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case "workflow"  => DxWorkflow(id, container)(this)
       case _ =>
         throw new IllegalArgumentException(
-            s"${id} does not belong to a know DNAnexus object class"
+            s"${id} does not belong to a supported DNAnexus object class"
         )
     }
   }
+
+  // generic object methods
+
+  def addTags(obj: DxObject, tags: Vector[String]): Unit = {
+    val fields = Map(
+        "tags" -> JsArray(tags.map(JsString(_)))
+    )
+    obj match {
+      case analysis: DxAnalysis => callObject(DXAPI.analysisAddTags[JsonNode], analysis.id, fields)
+      case app: DxApp           => callObject(DXAPI.appAddTags[JsonNode], app.id, fields)
+      case applet: DxApplet     => callObject(DXAPI.appletAddTags[JsonNode], applet.id, fields)
+      case file: DxFile         => callObject(DXAPI.fileAddTags[JsonNode], file.id, fields)
+      case job: DxJob           => callObject(DXAPI.jobAddTags[JsonNode], job.id, fields)
+      case project: DxProject   => callObject(DXAPI.projectAddTags[JsonNode], project.id, fields)
+      case record: DxRecord     => callObject(DXAPI.recordAddTags[JsonNode], record.id, fields)
+      case workflow: DxWorkflow => callObject(DXAPI.workflowAddTags[JsonNode], workflow.id, fields)
+      case _ =>
+        throw new IllegalArgumentException(
+            s"${obj} does not belong to a supported DNAnexus object class"
+        )
+    }
+  }
+
+  // data object methods
 
   def dataObject(id: String, project: Option[DxProject] = None): DxDataObject = {
     getObject(id, project) match {
