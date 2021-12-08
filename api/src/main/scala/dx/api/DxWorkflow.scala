@@ -2,7 +2,11 @@ package dx.api
 
 import spray.json._
 
-case class DxWorkflowStageDesc(id: String, executable: String, name: String, input: JsValue)
+case class DxWorkflowStageDesc(id: String,
+                               executable: String,
+                               name: String,
+                               input: JsValue,
+                               systemRequirements: JsValue)
 
 // A stand in for the DxWorkflow.Stage inner class (we don't have a constructor for it)
 case class DxWorkflowStage(id: String) {
@@ -48,12 +52,12 @@ object DxWorkflowDescribe {
       case other      => throw new Exception(s"Malfored JSON ${other}")
     }
     jsVec.map { jsv2 =>
-      val stage = jsv2.asJsObject.getFields("id", "executable", "name", "input") match {
-        case Seq(JsString(id), JsString(exec), JsString(name), input) =>
-          DxWorkflowStageDesc(id, exec, name, input)
-        case other =>
-          throw new Exception(s"Malfored JSON ${other}")
-      }
+      val stage =
+        jsv2.asJsObject.getFields("id", "executable", "name", "input", "systemRequirements") match {
+          case Seq(JsString(id), JsString(exec), JsString(name), input, systemRequirements) =>
+            DxWorkflowStageDesc(id, exec, name, input, systemRequirements)
+          case other => throw new Exception(s"Malfored workflow/describe response ${other}")
+        }
       stage
     }
   }

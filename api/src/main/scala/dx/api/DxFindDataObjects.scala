@@ -45,8 +45,10 @@ case class DxFindDataObjectsConstraints(
       Map("scope" -> JsObject(requiredFields ++ folderFields))
     }
     val classField = objectClass.map(k => Map("class" -> JsString(k)))
-    val tagsField = Option.when(tags.nonEmpty) {
-      Map("tagsArray" -> JsArray(tags.map(JsString(_)).toVector))
+    val tagsField = tags.toVector match {
+      case Vector(tag)     => Some(Map("tags" -> JsString(tag)))
+      case v if v.nonEmpty => Some(Map("tags" -> JsObject("$and" -> JsArray(v.map(JsString(_))))))
+      case _               => None
     }
     val propertiesField = properties.map(constraint => Map("properties" -> constraint.toJson))
     val nameField = Vector(

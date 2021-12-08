@@ -40,11 +40,11 @@ case class S3FileSource(
 
   private lazy val request: GetObjectRequest =
     GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
-  private[protocols] lazy val objectPath: Path = FileUtils.getPath(objectKey)
+  private[protocols] lazy val objectPath: PosixPath = PosixPath(objectKey)
 
-  override def name: String = objectPath.getFileName.toString
+  override def name: String = objectPath.name
 
-  override def folder: String = Option(objectPath.getParent).map(_.toString).getOrElse("")
+  override def folder: String = objectPath.getParent.map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
@@ -104,11 +104,11 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     private val cachedParent: Option[S3FolderSource] = None,
     private var cachedListing: Option[Vector[FileSource]] = None
 ) extends AddressableFileSource {
-  private lazy val prefixPath: Path = FileUtils.getPath(prefix)
+  private lazy val prefixPath: PosixPath = PosixPath(prefix)
 
-  override def name: String = prefixPath.getFileName.toString
+  override def name: String = prefixPath.name
 
-  override def folder: String = Option(prefixPath.getParent).map(_.toString).getOrElse("")
+  override def folder: String = prefixPath.getParent.map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 

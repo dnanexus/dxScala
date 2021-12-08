@@ -2,7 +2,10 @@
 
 ## in develop
 
+* Adds `DxApi.addTags` method
+* Fixes `DxFindDataObjects` when used with `tags` constraint
 * Handles record results in `DxFindDataObjects`
+* Adds `systemRequirements` to `DxWorkflowStageDesc`
 
 ## 0.12.0 (2021-11-18)
 

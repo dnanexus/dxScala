@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Adds `PosixPath` class for working with POSIX-style paths
+
 ## 0.9.0 (2021-11-15)
 
 * Adds option to `Logger.trace*` to show beginning and/or end of log when limiting trace length

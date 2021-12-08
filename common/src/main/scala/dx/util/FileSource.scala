@@ -554,14 +554,12 @@ case class HttpFileSource(
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
-  private lazy val path = FileUtils.getPath(uri.getPath)
+  private lazy val path = PosixPath(uri.getPath)
 
-  override lazy val name: String = path.getFileName.toString
+  override lazy val name: String =
+    path.getName.getOrElse(throw new Exception(s"${path} is not a file"))
 
-  override lazy val folder: String = path.getParent match {
-    case null   => ""
-    case parent => parent.toString
-  }
+  override lazy val folder: String = path.getParent.map(_.toString).getOrElse("")
 
   override def container: String = s"${uri.getScheme}:${uri.getHost}:${folder}"
 
@@ -625,7 +623,7 @@ case class HttpFileSource(
       case fs: HttpFileSource if isDirectory =>
         path.relativize(fs.path).toString
       case fs: HttpFileSource =>
-        path.getParent.relativize(fs.path).toString
+        path.getParent.get.relativize(fs.path).toString
       case _ =>
         throw new Exception(s"not a HttpFileSource: ${fileSource}")
     }

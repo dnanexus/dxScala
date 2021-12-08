@@ -237,12 +237,12 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
     cachedListing.getOrElse {
       if (recursive) {
         def addDirs(
-            folder: Path,
-            dirs: Map[Path, (Set[Path], Set[DxFile])]
+            folder: PosixPath,
+            dirs: Map[PosixPath, (Set[Path], Set[DxFile])]
         ): Map[Path, (Set[Path], Set[DxFile])] = {
           if (dirs.contains(folder)) {
             dirs
-          } else if (folder.getParent == null) {
+          } else if (folder.getParent.isEmpty) {
             throw new Exception(s"cannot add folder ${folder} to directory listing")
           } else {
             val newDirs = addDirs(folder.getParent, dirs)
