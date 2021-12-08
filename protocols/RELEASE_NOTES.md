@@ -2,7 +2,7 @@
 
 ## in develop
 
-* Uses `PosixPath` rather than `Path` for manipulating remote paths
+* Uses `PosixPath` rather than `java.nio.Path` for manipulating remote paths
 
 ## 0.5.1 (2021-11-18)
 

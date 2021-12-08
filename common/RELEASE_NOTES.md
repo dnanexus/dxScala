@@ -3,6 +3,7 @@
 ## in develop
 
 * Adds `PosixPath` class for working with POSIX-style paths
+* **Breaking**: changes `Paths` to use `PosixPath` rather than `java.nio.Path`
 
 ## 0.9.0 (2021-11-15)
 
