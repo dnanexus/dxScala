@@ -3,14 +3,16 @@ package dx.util.protocols
 import com.dnanexus.exceptions.ResourceNotFoundException
 
 import java.nio.charset.Charset
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import dx.api.{DxApi, DxFile, DxFileDescCache, DxFindDataObjects, DxPath, DxProject, DxState, Field}
+import dx.util.protocols.DxFolderSource.ensureEndsWithSlash
 import dx.util.{
   AbstractAddressableFileNode,
   AddressableFileSource,
   FileAccessProtocol,
   FileSource,
   FileUtils,
+  PosixPath,
   SysUtils
 }
 
@@ -72,7 +74,7 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   // copies this file and sets the given parent as this file's cachedParent
   // only if this file's parent folder matches the parent's folder
   private[protocols] def copyWithParent(parent: DxFolderSource): DxFileSource = {
-    if (FileUtils.getPath(folder) == parent.dxFolderPath) {
+    if (PosixPath(folder) == parent.dxFolderPath) {
       copy()(address, protocol, Some(parent))
     } else {
       this
@@ -145,15 +147,15 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
     private val cachedParent: Option[DxFolderSource] = None,
     private var cachedListing: Option[Vector[FileSource]] = None
 ) extends AddressableFileSource {
-  private[protocols] val dxFolderPath = FileUtils.getPath(dxFolder)
+  private[protocols] val dxFolderPath = PosixPath(dxFolder)
   assert(dxFolderPath.isAbsolute, s"not an absolute path: ${dxFolderPath}")
   assert(dxFolder.endsWith("/"), "dx folder must end with '/'")
 
   override def address: String = DxFolderSource.format(dxProject, dxFolder)
 
-  override def name: String = dxFolderPath.getFileName.toString
+  override def name: String = dxFolderPath.getName.getOrElse("")
 
-  override def folder: String = Option(dxFolderPath.getParent).map(_.toString).getOrElse("")
+  override def folder: String = dxFolderPath.getParent.map(_.toString).getOrElse("")
 
   override def container: String = s"${DxPath.DxScheme}:${dxProject.id}:${folder}"
 
@@ -181,7 +183,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
   // copies this folder and sets the given parent as this folder's cachedParent
   // only if this folder's parent folder matches the parent's folder
   private[protocols] def copyWithParent(parent: DxFolderSource): DxFolderSource = {
-    if (FileUtils.getPath(folder) == parent.dxFolderPath) {
+    if (PosixPath(folder) == parent.dxFolderPath) {
       copy()(protocol, Some(this), cachedListing)
     } else {
       this
@@ -189,13 +191,13 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
   }
 
   override def resolve(path: String): DxFileSource = {
-    val newPath = FileUtils.normalizePath(dxFolderPath.resolve(path))
+    val newPath = dxFolderPath.resolve(path)
     val file = protocol.resolve(DxFile.format(dxProject.id, newPath.toString))
     file.copyWithParent(this)
   }
 
   override def resolveDirectory(path: String): DxFolderSource = {
-    val newPath = FileUtils.normalizePath(dxFolderPath.resolve(path))
+    val newPath = dxFolderPath.resolve(path)
     val folder =
       DxFolderSource(dxProject, DxFolderSource.ensureEndsWithSlash(newPath.toString))(protocol)
     folder.copyWithParent(this)
@@ -204,9 +206,9 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
   override def relativize(fileSource: AddressableFileSource): String = {
     fileSource match {
       case fs: DxFileSource =>
-        dxFolderPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
+        dxFolderPath.relativize(PosixPath(fs.folder)).resolve(fs.name).toString
       case fs: DxArchiveFolderSource =>
-        dxFolderPath.relativize(Paths.get(fs.folder)).resolve(fs.name).toString
+        dxFolderPath.relativize(PosixPath(fs.folder)).resolve(fs.name).toString
       case fs: DxFolderSource =>
         dxFolderPath.relativize(fs.dxFolderPath).toString
       case _ =>
@@ -227,8 +229,8 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
 
   override protected def localizeTo(dir: Path): Unit = {
     listDxFolderRecursive.foreach { dxFile =>
-      val relPath = dxFolderPath.relativize(Paths.get(dxFile.describe().folder))
-      val path = dir.resolve(relPath).resolve(dxFile.getName)
+      val relPath = dxFolderPath.relativize(PosixPath(dxFile.describe().folder))
+      val path = dir.resolve(relPath.toString).resolve(dxFile.getName)
       protocol.dxApi.downloadFile(path, dxFile, overwrite = true)
     }
   }
@@ -238,18 +240,19 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
       if (recursive) {
         def addDirs(
             folder: PosixPath,
-            dirs: Map[PosixPath, (Set[Path], Set[DxFile])]
-        ): Map[Path, (Set[Path], Set[DxFile])] = {
+            dirs: Map[PosixPath, (Set[PosixPath], Set[DxFile])]
+        ): Map[PosixPath, (Set[PosixPath], Set[DxFile])] = {
           if (dirs.contains(folder)) {
             dirs
-          } else if (folder.getParent.isEmpty) {
-            throw new Exception(s"cannot add folder ${folder} to directory listing")
           } else {
-            val newDirs = addDirs(folder.getParent, dirs)
-            val (subdirs, files) = newDirs(folder.getParent)
+            val parent = folder.getParent.getOrElse(
+                throw new Exception(s"cannot add folder ${folder} to directory listing")
+            )
+            val newDirs = addDirs(parent, dirs)
+            val (subdirs, files) = newDirs(parent)
             newDirs ++ Map(
-                folder.getParent -> (subdirs + folder, files),
-                folder -> (Set.empty[Path], Set.empty[DxFile])
+                parent -> (subdirs + folder, files),
+                folder -> (Set.empty[PosixPath], Set.empty[DxFile])
             )
           }
         }
@@ -257,15 +260,15 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
         // use findDataObjects to get all files in a folder recursively with a
         // single API call
         val dirs = listDxFolderRecursive
-          .groupBy(dxFile => FileUtils.getPath(dxFile.describe().folder))
-          .foldLeft(Map(dxFolderPath -> (Set.empty[Path], Set.empty[DxFile]))) {
+          .groupBy(dxFile => PosixPath(dxFile.describe().folder))
+          .foldLeft(Map(dxFolderPath -> (Set.empty[PosixPath], Set.empty[DxFile]))) {
             case (dirs, (folder, children)) =>
               val newDirs = addDirs(folder, dirs)
               val (subdirs, files) = newDirs(folder)
               newDirs + (folder -> (subdirs, files ++ children))
           }
 
-        def buildListing(folder: Path, parent: DxFolderSource): Vector[FileSource] = {
+        def buildListing(folder: PosixPath, parent: DxFolderSource): Vector[FileSource] = {
           val (subdirs, files) = dirs(folder)
           val fileSources = files.toVector.map { dxFile =>
             DxFileSource(dxFile, protocol.encoding)(dxFile.asUri, protocol, Some(parent))
@@ -311,10 +314,6 @@ object DxFolderSource {
     }
   }
 
-  def canonicalizeFolder(folder: String): String = {
-    ensureEndsWithSlash(FileUtils.getPath(folder).toString)
-  }
-
   def isDxFolderUri(uri: String): Boolean = {
     uri.startsWith(DxPath.DxUriPrefix) &&
     uri.endsWith("/") &&
@@ -354,14 +353,12 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
     uri.split("::").toVector match {
       case Vector(uri, path) =>
         val dxFile = dxApi.resolveFile(uri)
-        val (name, folder) = FileUtils.getPath(path) match {
-          case p if p.getNameCount == 1 && !p.isAbsolute =>
-            (p.getFileName.toString, None)
-          case p =>
-            (p.getFileName.toString, Some(p.getParent.toString))
+        val (name, folder) = PosixPath(path) match {
+          case p if p.nameCount == 1 && !p.isAbsolute => (p.getName.get, None)
+          case p                                      => (p.getName.get, Some(p.getParent.get))
         }
         if (!dxFile.hasCachedDesc) {
-          dxFile.copy()(dxApi = dxApi, name = Some(name), folder = folder)
+          dxFile.copy()(dxApi = dxApi, name = Some(name), folder = folder.map(_.toString))
         } else if (dxFile.describe().name != name) {
           throw new Exception(
               s"""file ${dxFile} name from file.describe() ${dxFile.describe().name} 
@@ -397,7 +394,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
       val project = projectName
         .map(dxApi.resolveProject)
         .getOrElse(throw new Exception("project must be specified for a DNAnexus folder URI"))
-      DxFolderSource(project, DxFolderSource.canonicalizeFolder(folder))(this)
+      DxFolderSource(project, ensureEndsWithSlash(folder))(this)
     } else {
       DxArchiveFolderSource(resolveFile(uri))
     }
@@ -412,8 +409,7 @@ case class DxFileAccessProtocol(dxApi: DxApi = DxApi.get,
   }
 
   def fromDxFolder(projectId: String, folder: String): DxFolderSource = {
-    DxFolderSource(dxApi.project(projectId),
-                   DxFolderSource.ensureEndsWithSlash(FileUtils.getPath(folder).toString))(this)
+    DxFolderSource(dxApi.project(projectId), DxFolderSource.ensureEndsWithSlash(folder))(this)
   }
 }
 

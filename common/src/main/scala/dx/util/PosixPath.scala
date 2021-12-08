@@ -8,20 +8,15 @@ object PosixPath {
   lazy val localFilesystemIsPosix: Boolean = FileSystems.getDefault.getSeparator == Separator
 
   def parse(path: String): (Vector[String], Boolean) = {
-    val isAbsolute = path.startsWith(PosixPath.Separator)
-    val parts = if (path == "") {
-      Vector.empty
-    } else {
-      val parts = path.split(PosixPath.Separator).toVector
-      assert(parts.nonEmpty)
-      if (isAbsolute) {
+    path match {
+      case "/" if path.startsWith(PosixPath.Separator) => (Vector.empty, true)
+      case ""                                          => (Vector.empty, false)
+      case _ if path.startsWith(PosixPath.Separator) =>
+        val parts = path.split(PosixPath.Separator).toVector
         assert(parts(0) == "")
-        parts.drop(1)
-      } else {
-        parts
-      }
+        (parts.drop(1), true)
+      case _ => (path.split(PosixPath.Separator).toVector, false)
     }
-    (parts, isAbsolute)
   }
 
   def apply(path: String): PosixPath = {
@@ -35,6 +30,8 @@ object PosixPath {
   */
 case class PosixPath(parts: Vector[String], isAbsolute: Boolean) {
   def getName: Option[String] = parts.lastOption
+
+  def nameCount: Int = parts.size
 
   def getParent: Option[PosixPath] = {
     (parts.size, isAbsolute) match {
@@ -51,6 +48,14 @@ case class PosixPath(parts: Vector[String], isAbsolute: Boolean) {
       PosixPath(newParts, newIsAbsolute)
     } else {
       PosixPath(parts ++ newParts, isAbsolute)
+    }
+  }
+
+  def resolve(path: PosixPath): PosixPath = {
+    if (path.isAbsolute) {
+      path
+    } else {
+      PosixPath(parts ++ path.parts, isAbsolute)
     }
   }
 

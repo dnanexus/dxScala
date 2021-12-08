@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## in develop
+
+* Uses `PosixPath` rather than `Path` for manipulating remote paths
+
 ## 0.5.1 (2021-11-18)
 
 * Update dxApi version
