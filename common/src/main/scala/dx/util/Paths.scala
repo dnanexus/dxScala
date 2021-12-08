@@ -33,7 +33,6 @@ abstract class BaseEvalPaths extends EvalPaths {
     val resolved = PosixPath(FileUtils.createDirectories(path.asJavaPath).toString)
     cache += (key -> resolved)
     resolved
-
   }
 
   protected def getOrCreateDir(key: String, path: PosixPath, ensureExists: Boolean): PosixPath = {
