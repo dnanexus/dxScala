@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.13.0 (2021-12-09)
 
 * Adds `DxApi.addTags` method
 * Fixes `DxFindDataObjects` when used with `tags` constraint
