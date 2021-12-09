@@ -20,7 +20,8 @@ import dx.util.{
   FileAccessProtocol,
   FileSource,
   FileUtils,
-  Logger
+  Logger,
+  PosixPath
 }
 
 import scala.jdk.CollectionConverters._
@@ -40,11 +41,11 @@ case class S3FileSource(
 
   private lazy val request: GetObjectRequest =
     GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
-  private[protocols] lazy val objectPath: Path = FileUtils.getPath(objectKey)
+  private[protocols] lazy val objectPath: PosixPath = PosixPath(objectKey)
 
-  override def name: String = objectPath.getFileName.toString
+  override def name: String = objectPath.getName.getOrElse(s"${objectPath} is not a file")
 
-  override def folder: String = Option(objectPath.getParent).map(_.toString).getOrElse("")
+  override def folder: String = objectPath.getParent.map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
@@ -104,11 +105,11 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     private val cachedParent: Option[S3FolderSource] = None,
     private var cachedListing: Option[Vector[FileSource]] = None
 ) extends AddressableFileSource {
-  private lazy val prefixPath: Path = FileUtils.getPath(prefix)
+  private lazy val prefixPath: PosixPath = PosixPath(prefix)
 
-  override def name: String = prefixPath.getFileName.toString
+  override def name: String = prefixPath.getName.getOrElse("")
 
-  override def folder: String = Option(prefixPath.getParent).map(_.toString).getOrElse("")
+  override def folder: String = prefixPath.getParent.map(_.toString).getOrElse("")
 
   override def container: String = s"${S3FileAccessProtocol.S3Scheme}:${bucketName}:${folder}"
 
@@ -151,7 +152,7 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     val newUri = s"s3://${bucketName}/${objectKey.toString}"
     // we can only use this folder as the parent if it is the direct ancestor
     // of the new file/folder
-    val cachedParent = if (objectKey.getParent == prefixPath) Some(this) else None
+    val cachedParent = if (objectKey.getParent.contains(prefixPath)) Some(this) else None
     S3FileSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
   }
 
@@ -160,7 +161,7 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     val newUri = s"s3://${bucketName}/${objectKey.toString}"
     // we can only use this folder as the parent if it is the direct ancestor
     // of the new file/folder
-    val cachedParent = if (objectKey.getParent == prefixPath) Some(this) else None
+    val cachedParent = if (objectKey.getParent.contains(prefixPath)) Some(this) else None
     S3FolderSource(newUri, bucketName, objectKey.toString)(protocol, cachedParent)
   }
 
@@ -176,11 +177,10 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
   }
 
   override protected def localizeTo(dir: Path): Unit = {
-    val sourcePath = FileUtils.getPath(prefix)
     listPrefix.foreach { s3obj =>
       val objectKey = s3obj.key()
-      val relativePath = sourcePath.relativize(FileUtils.getPath(objectKey))
-      val destPath = dir.resolve(relativePath)
+      val relativePath = prefixPath.relativize(PosixPath(objectKey))
+      val destPath = dir.resolve(relativePath.toString())
       val downloadRequest = GetObjectRequest.builder().bucket(bucketName).key(objectKey).build()
       protocol.getClient.getObject(downloadRequest,
                                    ResponseTransformer.toFile[GetObjectResponse](destPath))
@@ -196,13 +196,13 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
     if (recursive) {
       // add all missing parent dirs
       def addDirs(
-          path: Option[Path],
-          dirs: Map[Option[Path], (Set[Path], Set[(Path, S3Object)])]
-      ): Map[Option[Path], (Set[Path], Set[(Path, S3Object)])] = {
+          path: Option[PosixPath],
+          dirs: Map[Option[PosixPath], (Set[PosixPath], Set[(PosixPath, S3Object)])]
+      ): Map[Option[PosixPath], (Set[PosixPath], Set[(PosixPath, S3Object)])] = {
         if (dirs.contains(path)) {
           dirs
         } else {
-          val parent = path.flatMap(p => Option(p.getParent))
+          val parent = path.flatMap(_.getParent)
           val newDirs = if (dirs.contains(parent)) {
             dirs
           } else {
@@ -211,22 +211,24 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
           val (subdirs, files) = newDirs(parent)
           newDirs ++ Map(
               parent -> (subdirs + path.get, files),
-              path -> (Set.empty[Path], Set.empty[(Path, S3Object)])
+              path -> (Set.empty[PosixPath], Set.empty[(PosixPath, S3Object)])
           )
         }
       }
 
-      val dirs =
-        s3Objs.foldLeft(Map(Option.empty[Path] -> (Set.empty[Path], Set.empty[(Path, S3Object)]))) {
-          case (dirs, s3Obj) =>
-            val path = FileUtils.getPath(s3Obj.key())
-            val parent = Option(path.getParent)
-            val newDirs = addDirs(parent, dirs)
-            val (subdirs, files) = newDirs(parent)
-            newDirs + (parent -> (subdirs, files + ((path, s3Obj))))
-        }
+      val dirs = s3Objs.foldLeft(
+          Map(Option.empty[PosixPath] -> (Set.empty[PosixPath], Set.empty[(PosixPath, S3Object)]))
+      ) {
+        case (dirs, s3Obj) =>
+          val path = PosixPath(s3Obj.key())
+          val parent = path.getParent
+          val newDirs = addDirs(parent, dirs)
+          val (subdirs, files) = newDirs(parent)
+          newDirs + (parent -> (subdirs, files + ((path, s3Obj))))
+      }
 
-      def buildListing(parent: Option[Path], parentSource: S3FolderSource): Vector[FileSource] = {
+      def buildListing(parent: Option[PosixPath],
+                       parentSource: S3FolderSource): Vector[FileSource] = {
         val (subdirs, files) = dirs(parent)
         val fileSources = files.toVector.map {
           case (file, s3Obj) =>
@@ -249,23 +251,22 @@ case class S3FolderSource(override val address: String, bucketName: String, pref
 
       buildListing(None, this)
     } else {
-      val sourcePath = FileUtils.getPath(prefix)
       val (files, folders) =
-        s3Objs.foldLeft(Vector.empty[S3FileSource], Map.empty[Path, S3FolderSource]) {
+        s3Objs.foldLeft(Vector.empty[S3FileSource], Map.empty[PosixPath, S3FolderSource]) {
           case ((files, folders), s3Obj) =>
-            val relPath = sourcePath.relativize(FileUtils.getPath(s3Obj.key()))
-            if (relPath.getNameCount == 1) {
+            val relPath = prefixPath.relativize(PosixPath(s3Obj.key()))
+            if (relPath.nameCount == 1) {
               (files :+ S3FileSource(s"s3://${bucketName}/${s3Obj.key()}", bucketName, s3Obj.key())(
                    protocol,
                    Some(this)
                ),
                folders)
-            } else if (relPath.getNameCount == 2 && !folders.contains(relPath.getParent)) {
-              val folder = sourcePath.resolve(relPath.getParent).toString
+            } else if (relPath.nameCount == 2 && !folders.contains(relPath.getParent.get)) {
+              val folder = prefixPath.resolve(relPath.getParent.get).toString
               (files,
-               folders + (relPath.getParent -> S3FolderSource(s"s3://${bucketName}/${folder}",
-                                                              bucketName,
-                                                              folder)(protocol, Some(this))))
+               folders + (relPath.getParent.get -> S3FolderSource(s"s3://${bucketName}/${folder}",
+                                                                  bucketName,
+                                                                  folder)(protocol, Some(this))))
             } else {
               (files, folders)
             }

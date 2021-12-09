@@ -2,7 +2,7 @@ package dx.api
 
 import dx.api.DxPath.DxScheme
 import spray.json._
-import dx.util.{Enum, FileUtils}
+import dx.util.{Enum, PosixPath}
 
 import java.net.URI
 
@@ -149,7 +149,7 @@ object DxFile {
     */
   def format(fileId: String, folder: String, name: String, project: Option[String]): String = {
     val authority = project.map(proj => s"${proj}:${fileId}::").getOrElse(s"${fileId}::")
-    val path = FileUtils.getPath(folder).resolve(name).toString
+    val path = PosixPath(folder).resolve(name).toString
     new URI(DxScheme, authority, path, null, null).toString
   }
 

@@ -1137,14 +1137,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
 
-    val (destProj, _) = destination match {
-      case Some(projectAndPathRegexp(proj, path)) if path.endsWith("/") =>
-        (Option(proj), path)
-      case Some(projectAndPathRegexp(proj, path)) =>
-        (Option(proj), FileUtils.getPath(path).getParent.toString)
-      case None => (None, getWorkingDir._2)
-      case _ =>
-        throw new Exception(s"invalid destination ${destination}")
+    val destProj = destination match {
+      case Some(projectAndPathRegexp(proj, _)) => Option(proj)
+      case None                                => None
+      case _                                   => throw new Exception(s"invalid destination ${destination}")
     }
 
     def uploadOneFile(path: Path): Option[String] = {

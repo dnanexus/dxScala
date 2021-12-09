@@ -25,7 +25,6 @@ object FileUtils {
   // the spec states that WDL files must use UTF8 encoding
   val DefaultEncoding: Charset = Codec.UTF8.charSet
   val DefaultLineSeparator: String = "\n"
-  val NullPath: Path = Paths.get("/dev/null")
 
   def systemTempDir: Path = {
     try {
