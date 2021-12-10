@@ -116,11 +116,11 @@ case class Logger(level: Int,
     if (msg.length <= maxLength || (showBeginning && showEnd && msg.length <= (2 * maxLength))) {
       msg
     } else if (showBeginning && showEnd) {
-      s"${msg.slice(0, maxLength)}...${msg.slice(maxLength - msg.length, maxLength)}"
+      s"${msg.slice(0, maxLength)}...${msg.slice(msg.length - maxLength, msg.length)}"
     } else if (showBeginning) {
       s"${msg.slice(0, maxLength)}..."
     } else if (showEnd) {
-      s"...${msg.slice(maxLength - msg.length, maxLength)}"
+      s"...${msg.slice(msg.length - maxLength, msg.length)}"
     } else {
       ""
     }
