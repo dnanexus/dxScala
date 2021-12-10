@@ -169,7 +169,7 @@ case class Logger(level: Int,
                    requiredKey: Option[String] = None,
                    exception: Option[Throwable] = None,
                    showBeginning: Boolean = true,
-                   showEnd: Boolean = false): Unit = {
+                   showEnd: Boolean = true): Unit = {
     trace(msg, Some(limit), minLevel, requiredKey, exception, showBeginning, showEnd)
   }
 
