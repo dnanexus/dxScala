@@ -1,6 +1,6 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.5.2 (2021-12-09)
 
 * Uses `PosixPath` rather than `java.nio.Path` for manipulating remote paths
 
