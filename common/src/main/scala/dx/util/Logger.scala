@@ -52,7 +52,7 @@ case class Logger(level: Int,
       fileStream
     }
     .getOrElse(System.err)
-  private val DefaultMessageLimit = 1000
+
   private lazy val keywordsLower: Set[String] = keywords.map(_.toLowerCase)
 
   lazy val isVerbose: Boolean = traceLevel >= TraceLevel.Verbose
@@ -164,7 +164,7 @@ case class Logger(level: Int,
     * @param showEnd if `limit` is defined, whether to show `limit` lines from the end of the log
     */
   def traceLimited(msg: String,
-                   limit: Int = DefaultMessageLimit,
+                   limit: Int = Logger.DefaultMessageLimit,
                    minLevel: Int = TraceLevel.Verbose,
                    requiredKey: Option[String] = None,
                    exception: Option[Throwable] = None,
@@ -185,6 +185,7 @@ case class Logger(level: Int,
 }
 
 object Logger {
+  val DefaultMessageLimit = 1000
   lazy val Silent: Logger = Logger(level = LogLevel.Silent, traceLevel = TraceLevel.None)
   lazy val Quiet: Logger = Logger(level = LogLevel.Error, traceLevel = TraceLevel.None)
   lazy val Normal: Logger = Logger(level = LogLevel.Warning, traceLevel = TraceLevel.None)
