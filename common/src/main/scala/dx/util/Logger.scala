@@ -115,11 +115,14 @@ case class Logger(level: Int,
                               showEnd: Boolean): String = {
     if (msg.length <= maxLength || (showBeginning && showEnd && msg.length <= (2 * maxLength))) {
       msg
+    } else if (showBeginning && showEnd) {
+      s"${msg.slice(0, maxLength)}...${msg.slice(maxLength - msg.length, maxLength)}"
+    } else if (showBeginning) {
+      s"${msg.slice(0, maxLength)}..."
+    } else if (showEnd) {
+      s"...${msg.slice(maxLength - msg.length, maxLength)}"
     } else {
-      Vector(
-          Option.when(showBeginning)(msg.slice(0, maxLength)),
-          Option.when(showEnd)(msg.slice(maxLength - msg.length, maxLength))
-      ).flatten.mkString("\n...\n")
+      ""
     }
   }
 
