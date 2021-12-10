@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.10.0 (2021-12-09)
 
 * Adds `PosixPath` class for working with POSIX-style paths
 * **Breaking**: changes `Paths` to use `PosixPath` rather than `java.nio.Path`
