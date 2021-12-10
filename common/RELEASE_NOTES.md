@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Prettify truncated log messages
+
 ## 0.10.0 (2021-12-09)
 
 * Adds `PosixPath` class for working with POSIX-style paths
