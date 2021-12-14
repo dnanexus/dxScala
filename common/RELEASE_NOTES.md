@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.10.1 (2021-12-13)
 
 * Prettify truncated log messages
 
