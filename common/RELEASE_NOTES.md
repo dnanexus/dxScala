@@ -1,9 +1,5 @@
 # dxCommon
 
-## in develop
-
-* Adds `SysUtils.runCommand` function
-
 ## 0.10.1 (2021-12-13)
 
 * Prettify truncated log messages
