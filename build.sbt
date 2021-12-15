@@ -24,7 +24,7 @@ lazy val root = project.in(file("."))
 lazy val global = root
   .settings(
       globalSettings,
-      skip in publish := true
+      publish / skip := true
   )
   .disablePlugins(AssemblyPlugin)
   .aggregate(
@@ -51,7 +51,7 @@ val common = project
       libraryDependencies ++= commonDependencies ++ Seq(
           dependencies.typesafe
       ),
-      assemblyJarName in assembly := "dxCommon.jar"
+      assembly / assemblyJarName := "dxCommon.jar"
   )
 
 val api = project
@@ -68,7 +68,7 @@ val api = project
           dependencies.guava,
           dependencies.commonsHttp
       ),
-      assemblyJarName in assembly := "dxApi.jar"
+      assembly / assemblyJarName := "dxApi.jar"
   )
 
 val protocols = project
@@ -86,7 +86,7 @@ val protocols = project
           dependencies.nettyHandler,
           dependencies.nettyCodecHttp2
       ),
-      assemblyJarName in assembly := "dxFileAccessProtocols.jar"
+      assembly / assemblyJarName := "dxFileAccessProtocols.jar"
   )
 
 val yaml = project
@@ -100,7 +100,7 @@ val yaml = project
       libraryDependencies ++= commonDependencies ++ Seq(
           dependencies.snakeyaml
       ),
-      assemblyJarName in assembly := "dxYaml.jar"
+      assembly / assemblyJarName := "dxYaml.jar"
   )
 
 // DEPENDENCIES
@@ -223,8 +223,8 @@ val compilerOptions = Seq(
 
 // Assembly
 lazy val assemblySettings = Seq(
-    logLevel in assembly := Level.Info,
+    assembly / logLevel := Level.Info,
     // comment out this line to enable tests in assembly
-    test in assembly := {},
-    assemblyMergeStrategy in assembly := customMergeStrategy.value
+    assembly / test := {},
+    assembly / assemblyMergeStrategy := customMergeStrategy.value
 )
