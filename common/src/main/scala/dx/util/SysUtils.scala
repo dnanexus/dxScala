@@ -11,49 +11,41 @@ import scala.sys.process.{Process, ProcessLogger}
 case class CommandExecError(msg: String,
                             command: String,
                             returnCode: Int,
-                            stdout: String,
-                            stderr: String)
+                            stdout: Option[String],
+                            stderr: Option[String])
     extends Exception(
         s"""${msg}
            |Command: ${command}
            |Return Code: ${returnCode}
-           |STDOUT: ${stdout}
-           |STDERR: ${stderr}""".stripMargin
+           |STDOUT: ${stdout.getOrElse("")}
+           |STDERR: ${stderr.getOrElse("")}""".stripMargin
     )
 
 case class CommandTimeout(msg: String, command: String, timeout: Int) extends Exception(msg)
 
 object SysUtils {
-  def execScript(script: Path,
+  def runCommand(command: String,
                  timeout: Option[Int] = None,
                  allowedReturnCodes: Set[Int] = Set(0),
-                 exceptionOnFailure: Boolean = true): (Int, String, String) = {
-    // sh -c executes the commands in 'script' when the argument is a file
-    execCommand(script.toString, timeout, allowedReturnCodes, exceptionOnFailure)
-  }
-
-  /**
-    * Runs a child process using `/bin/sh -c`.
-    * @param command the command to run
-    * @param timeout seconds to wait before killing the process, or None to wait indefinitely
-    * @param allowedReturnCodes Set of valid return codes; devaluts to {0}
-    * @param exceptionOnFailure whether to throw an Exception if the command exists with a
-    *                           non-zero return code
-    */
-  def execCommand(command: String,
-                  timeout: Option[Int] = None,
-                  allowedReturnCodes: Set[Int] = Set(0),
-                  exceptionOnFailure: Boolean = true): (Int, String, String) = {
+                 exceptionOnFailure: Boolean = true,
+                 connectInput: Boolean = false,
+                 captureStdout: Boolean = true,
+                 captureStderr: Boolean = true): (Int, Option[String], Option[String]) = {
     val cmds = Seq("/bin/sh", "-c", command)
-    val outStream = new StringBuilder()
-    val errStream = new StringBuilder()
-    def getStds: (String, String) = (outStream.toString, errStream.toString)
+    val outStream = Option.when(captureStdout)(new StringBuilder())
+    val errStream = Option.when(captureStderr)(new StringBuilder())
 
-    val procLogger = ProcessLogger(
-        (o: String) => { outStream.append(o).append("\n") },
-        (e: String) => { errStream.append(e).append("\n") }
-    )
-    val p: Process = Process(cmds).run(procLogger, connectInput = false)
+    def getStds: (Option[String], Option[String]) = {
+      (outStream.map(_.toString), errStream.map(_.toString))
+    }
+
+    val fout = outStream
+      .map(out => (o: String) => { out.append(o).append("\n"); () })
+      .getOrElse((_: String) => ())
+    val ferr = errStream
+      .map(err => (e: String) => { err.append(e).append("\n"); () })
+      .getOrElse((_: String) => ())
+    val p: Process = Process(cmds).run(ProcessLogger(fout, ferr), connectInput = connectInput)
 
     timeout match {
       case Some(nSec) =>
@@ -77,6 +69,30 @@ object SysUtils {
         }
         (retcode, stdout, stderr)
     }
+  }
+
+  /**
+    * Runs a child process using `/bin/sh -c`.
+    * @param command the command to run
+    * @param timeout seconds to wait before killing the process, or None to wait indefinitely
+    * @param allowedReturnCodes Set of valid return codes; devaluts to {0}
+    * @param exceptionOnFailure whether to throw an Exception if the command exists with a
+    *                           non-zero return code
+    */
+  def execCommand(command: String,
+                  timeout: Option[Int] = None,
+                  allowedReturnCodes: Set[Int] = Set(0),
+                  exceptionOnFailure: Boolean = true): (Int, String, String) = {
+    val (rc, stdout, stderr) = runCommand(command, timeout, allowedReturnCodes, exceptionOnFailure)
+    (rc, stdout.get, stderr.get)
+  }
+
+  def execScript(script: Path,
+                 timeout: Option[Int] = None,
+                 allowedReturnCodes: Set[Int] = Set(0),
+                 exceptionOnFailure: Boolean = true): (Int, String, String) = {
+    // sh -c executes the commands in 'script' when the argument is a file
+    execCommand(script.toString, timeout, allowedReturnCodes, exceptionOnFailure)
   }
 
   /**
