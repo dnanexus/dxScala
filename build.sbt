@@ -116,8 +116,8 @@ lazy val dependencies =
     val jacksonVersion = "2.13.0"
     val guavaVersion = "23.0"
     val httpClientVersion = "4.5.13"
-    val logbackVersion = "1.2.7"
-    val awsVersion = "2.17.91"
+    val logbackVersion = "1.2.8"
+    val awsVersion = "2.17.99"
     val nettyVersion = "4.1.46.Final"
 
     val dxCommon = "com.dnanexus" % "dxcommon" % dxCommonVersion
