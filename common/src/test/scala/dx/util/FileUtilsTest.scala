@@ -24,4 +24,12 @@ class FileUtilsTest extends AnyFlatSpec with Matchers {
     FileUtils.getPath("../foo/../bar").toString shouldBe "../bar"
     FileUtils.getPath("./hello.txt").toString shouldBe "hello.txt"
   }
+
+  it should "get URI scheme" in {
+    FileUtils.getUriScheme("dx://file-xxx::/foo/bar/baz-22") shouldBe Some("dx")
+    FileUtils.getUriScheme("/foo/bar/baz") shouldBe None
+    assertThrows[Exception] {
+      FileUtils.getUriScheme("dx://file-xxx::/foo\nbar")
+    }
+  }
 }

@@ -38,7 +38,11 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
   override def version: Option[String] = Some(dxFile.id)
 
   override def exists: Boolean = {
-    dxFile.describeNoCache(Set(Field.State)).state == DxState.Closed
+    try {
+      dxFile.describeNoCache(Set(Field.State)).state == DxState.Closed
+    } catch {
+      case _: ResourceNotFoundException => false
+    }
   }
 
   override def getParent: Option[DxFolderSource] = {
