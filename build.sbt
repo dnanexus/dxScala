@@ -152,7 +152,7 @@ val releaseTarget = Option(System.getProperty("releaseTarget")).getOrElse("githu
 lazy val globalSettings = Seq(
     scalacOptions ++= compilerOptions,
     // javac
-    javacOptions ++= Seq("-Xlint:deprecation"),
+    javacOptions ++= Seq("-Xlint:deprecation", "-source", "1.8", "-target", "1.8"),
     // reduce the maximum number of errors shown by the Scala compiler
     maxErrors := 20,
     // scalafmt
