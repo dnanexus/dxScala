@@ -11,17 +11,18 @@ import java.nio.file.{
   Paths,
   SimpleFileVisitor
 }
-
 import sun.security.action.GetPropertyAction
 
 import scala.io.{Codec, Source}
 import scala.jdk.CollectionConverters._
+import scala.util.matching.Regex
 
 object FileUtils {
   val FileScheme: String = "file"
   val HttpScheme: String = "http"
   val HttpsScheme: String = "https"
-  private val uriRegexp = "^(.+?):/.+".r
+  private val validSchemeRegex = "^([a-z]+?)$".r
+  private val validPathRegex = "^([A-Za-z0-9-._~:/?#\\[\\]@!$&'()*+,;=]+)$".r
   // the spec states that WDL files must use UTF8 encoding
   val DefaultEncoding: Charset = Codec.UTF8.charSet
   val DefaultLineSeparator: String = "\n"
@@ -100,10 +101,18 @@ object FileUtils {
     normalizePath(new File(path).toPath)
   }
 
+  implicit class RegexExtensions(regex: Regex) {
+    def split(toSplit: CharSequence, limit: Int): Array[String] = {
+      regex.pattern.split(toSplit, limit)
+    }
+  }
+
   def getUriScheme(pathOrUri: String): Option[String] = {
-    pathOrUri match {
-      case uriRegexp(scheme) => Some(scheme)
-      case _                 => None
+    pathOrUri.split(":/", 2).toVector match {
+      case Vector(validSchemeRegex(scheme), validPathRegex(_)) => Some(scheme)
+      case Vector(_)                                           => None
+      case _ =>
+        throw new Exception(s"URI contains invalid character: ${pathOrUri}")
     }
   }
 
