@@ -32,11 +32,15 @@ jobs:
           pip3 install setuptools wheel
           pip3 install termcolor
           pip3 install dxpy
+      - name: Check formatting
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sbt scalafmtCheckAll
       - name: Common Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sbt 'project common' scalafmtCheckAll
           sbt 'project common' test
           sbt 'project common' publishLocal
       - name: API Unit Tests
@@ -51,18 +55,15 @@ jobs:
           PROJECT=dxCompiler_playground
           dx select $PROJECT
 
-          sbt 'project api' scalafmtCheckAll
           sbt 'project api' test
           sbt 'project api' publishLocal
       - name: Protocols Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sbt 'project protocols' scalafmtCheckAll
           sbt 'project protocols' test
       - name: Yaml Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sbt 'project yaml' scalafmtCheckAll
           sbt 'project yaml' test
