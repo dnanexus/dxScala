@@ -27,3 +27,4 @@ gen/
 src/test/resources/corpora
 
 .gradle/
+.java-version
