@@ -1,5 +1,11 @@
 # dxCommon
 
+## in develop
+
+* Adds `SysUtils.runCommand`, which exposes options for how to handle stdin/stdout/stderr.
+* Adds `Paths.BaseEvalPaths.isLocal` attribute to differentiate local from remote paths.
+* **Breaking** removes `SysUtils.execScript`. Use `runCommand` with the script path as the argument instead.
+
 ## 0.10.1 (2021-12-13)
 
 * Prettify truncated log messages
