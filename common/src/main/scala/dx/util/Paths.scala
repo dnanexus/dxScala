@@ -26,7 +26,7 @@ trait EvalPaths {
   def getStderrFile(ensureParentExists: Boolean = false): PosixPath
 }
 
-abstract class BaseEvalPaths extends EvalPaths {
+abstract class BaseEvalPaths(isLocal: Boolean = true) extends EvalPaths {
   private var cache: Map[String, PosixPath] = Map.empty
 
   protected def createDir(key: String, path: PosixPath): PosixPath = {
@@ -38,7 +38,9 @@ abstract class BaseEvalPaths extends EvalPaths {
   protected def getOrCreateDir(key: String, path: PosixPath, ensureExists: Boolean): PosixPath = {
     cache.getOrElse(
         key,
-        if (ensureExists) {
+        if (!isLocal) {
+          path
+        } else if (ensureExists) {
           createDir(key, path)
         } else {
           val localPath = path.asJavaPath
