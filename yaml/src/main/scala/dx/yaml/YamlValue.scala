@@ -128,8 +128,7 @@ case object YamlNegativeInf extends YamlValue {
   * A YAML boolean.
   */
 case class YamlBoolean(boolean: Boolean) extends YamlValue {
-  private[yaml] lazy val snakeYamlObject: Object =
-    new java.lang.Boolean(boolean)
+  private[yaml] lazy val snakeYamlObject: Object = java.lang.Boolean.valueOf(boolean)
 }
 
 /**

@@ -2,7 +2,7 @@
 project/project
 project/target
 target/
-
+.bsp/
 *.tmp
 
 # Scala metals
@@ -27,3 +27,4 @@ gen/
 src/test/resources/corpora
 
 .gradle/
+.java-version

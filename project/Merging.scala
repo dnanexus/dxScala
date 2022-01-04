@@ -45,8 +45,8 @@ object Merging {
           MergeStrategy.first
         case _ :+ "module-info.class" =>
           MergeStrategy.discard
-        case other =>
-          val oldStrategy = (assemblyMergeStrategy in assembly).value
+        case _ =>
+          val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)
       }
     case x @ PathList("OSGI-INF", path @ _*) =>
@@ -56,7 +56,7 @@ object Merging {
         case "l10n" :: "bundle.properties" :: Nil =>
           MergeStrategy.concat
         case _ =>
-          val oldStrategy = (assemblyMergeStrategy in assembly).value
+          val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)
       }
     case PathList("asm-license.txt") | PathList("module-info.class") | PathList("overview.html") |
@@ -67,7 +67,7 @@ object Merging {
     case PathList("mime.types") =>
       MergeStrategy.last
     case x =>
-      val oldStrategy = (assemblyMergeStrategy in assembly).value
+      val oldStrategy = (assembly / assemblyMergeStrategy).value
       OnErrorMergeStrategy(oldStrategy(x), MergeStrategy.first)
   }
 }

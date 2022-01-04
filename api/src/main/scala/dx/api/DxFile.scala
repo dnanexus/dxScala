@@ -285,14 +285,10 @@ object DxFile {
   // those as a vector.
   def findFiles(dxApi: DxApi, jsValue: JsValue): Vector[DxFile] = {
     jsValue match {
-      case JsBoolean(_) | JsNumber(_) | JsString(_) | JsNull =>
-        Vector.empty[DxFile]
-      case JsObject(_) if DxFile.isDxFile(jsValue) =>
-        Vector(DxFile.fromJson(dxApi, jsValue))
-      case JsObject(fields) =>
-        fields.map { case (_, v) => findFiles(dxApi, v) }.toVector.flatten
-      case JsArray(elems) =>
-        elems.flatMap(e => findFiles(dxApi, e))
+      case JsObject(_) if DxFile.isDxFile(jsValue) => Vector(DxFile.fromJson(dxApi, jsValue))
+      case JsObject(fields)                        => fields.map { case (_, v) => findFiles(dxApi, v) }.toVector.flatten
+      case JsArray(elems)                          => elems.flatMap(e => findFiles(dxApi, e))
+      case _                                       => Vector.empty[DxFile]
     }
   }
 }

@@ -4,45 +4,54 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
-import javax.xml.bind.DatatypeConverter
+import scala.io.Source
 
 object CodecUtils {
-  // From: https://gist.github.com/owainlewis/1e7d1e68a6818ee4d50e
-  // By: owainlewis
+
+  /**
+    * Compresses an array of bytes using gzip.
+    * Source: https://gist.github.com/owainlewis/1e7d1e68a6818ee4d50e
+    */
   def gzipCompress(bytes: Array[Byte]): Array[Byte] = {
-    val bos = new ByteArrayOutputStream(bytes.length)
-    val gzip = new GZIPOutputStream(bos)
+    val buf = new ByteArrayOutputStream(bytes.length)
+    val gzip = new GZIPOutputStream(buf)
     gzip.write(bytes)
     gzip.close()
-    val compressed = bos.toByteArray
-    bos.close()
-    compressed
+    buf.toByteArray
   }
 
-  def gzipDecompress(bytes: Array[Byte]): String = {
-    val inputStream = new GZIPInputStream(new ByteArrayInputStream(bytes))
-    scala.io.Source.fromInputStream(inputStream).mkString
-  }
-
+  /**
+    * Gzip-compresses and Base64-encodes a string.
+    */
   def gzipAndBase64Encode(s: String): String = {
-    val bytes = s.getBytes
-    val gzBytes = gzipCompress(bytes)
-    Base64.getEncoder.encodeToString(gzBytes)
+    Base64.getEncoder.encodeToString(gzipCompress(s.getBytes))
   }
 
+  /**
+    * Decompresses an array of gzip-compressed bytes to a string.
+    */
+  def gzipDecompress(bytes: Array[Byte]): String = {
+    Source.fromInputStream(new GZIPInputStream(new ByteArrayInputStream(bytes))).mkString
+  }
+
+  /**
+    * Base64-decodes and decompresses a gzip-compressed and encoded string.
+    */
   def base64DecodeAndGunzip(s: String): String = {
-    val ba: Array[Byte] = Base64.getDecoder.decode(s.getBytes)
-    gzipDecompress(ba)
+    gzipDecompress(Base64.getDecoder.decode(s.getBytes))
   }
 
-  // Calculate the MD5 checksum of a string
+  /**
+    * Calculates the MD5 checksum of a string.
+    */
   def md5Checksum(s: String): String = {
-    val digest = MessageDigest.getInstance("MD5").digest(s.getBytes)
-    digest.map("%02X" format _).mkString
+    MessageDigest.getInstance("MD5").digest(s.getBytes).map("%02X".format(_)).mkString
   }
 
+  /**
+    * Calculates the SHA1 checksum of a string.
+    */
   def sha1Digest(s: String): String = {
-    val md = MessageDigest.getInstance("SHA-1")
-    DatatypeConverter.printHexBinary(md.digest(s.getBytes))
+    MessageDigest.getInstance("SHA-1").digest(s.getBytes).map("%02X".format(_)).mkString
   }
 }

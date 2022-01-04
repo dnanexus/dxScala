@@ -62,8 +62,8 @@ object FileUtils {
       filtered match {
         case Vector()  => new File(".").toPath
         case Vector(p) => new File(p).toPath
-        case Vector(head, tail @ _*) =>
-          tail.foldLeft(new File(head).toPath) {
+        case v =>
+          v.tail.foldLeft(new File(v.head).toPath) {
             case (parent, child) => parent.resolve(child)
           }
       }
@@ -217,7 +217,7 @@ object FileUtils {
   def readFileLines(path: Path, encoding: Charset = DefaultEncoding): Vector[String] = {
     val source = Source.fromFile(path.toString, encoding.name)
     try {
-      source.getLines.toVector
+      source.getLines().toVector
     } finally {
       source.close()
     }

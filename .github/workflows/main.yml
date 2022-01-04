@@ -15,18 +15,15 @@ permissions:
 jobs:
   test:
     name: Test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Git Checkout
         uses: actions/checkout@v2
-      - name: Check Scala formatting
-        run: |
-          sbt scalafmtCheckAll
       - name: Install Java
         uses: actions/setup-java@v1
         with:
-          java-version: 1.8
+          java-version: 11
       - name: Install dxpy and other dependencies
         run: |
           sudo apt-get update
@@ -35,10 +32,12 @@ jobs:
           pip3 install setuptools wheel
           pip3 install termcolor
           pip3 install dxpy
+          pip3 install --upgrade pyOpenSSL
       - name: Common Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          sbt 'project common' scalafmtCheckAll
           sbt 'project common' test
           sbt 'project common' publishLocal
       - name: API Unit Tests
@@ -53,15 +52,18 @@ jobs:
           PROJECT=dxCompiler_playground
           dx select $PROJECT
 
+          sbt 'project api' scalafmtCheckAll
           sbt 'project api' test
           sbt 'project api' publishLocal
       - name: Protocols Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          sbt 'project protocols' scalafmtCheckAll
           sbt 'project protocols' test
       - name: Yaml Unit Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          sbt 'project yaml' scalafmtCheckAll
           sbt 'project yaml' test
