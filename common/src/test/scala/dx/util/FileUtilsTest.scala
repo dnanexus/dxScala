@@ -26,7 +26,7 @@ class FileUtilsTest extends AnyFlatSpec with Matchers {
   }
 
   it should "get URI scheme" in {
-    FileUtils.getUriScheme("dx://file-xxx::/foo/bar/baz-22") shouldBe Some("dx")
+    FileUtils.getUriScheme("dx://file-xxx::/foo/bar/baz-22/file%20A.txt") shouldBe Some("dx")
     FileUtils.getUriScheme("/foo/bar/baz") shouldBe None
     assertThrows[Exception] {
       FileUtils.getUriScheme("dx://file-xxx::/foo\nbar")
