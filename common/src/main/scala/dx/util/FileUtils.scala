@@ -22,7 +22,7 @@ object FileUtils {
   val HttpScheme: String = "http"
   val HttpsScheme: String = "https"
   private val validSchemeRegex = "^([a-z]+?)$".r
-  private val validPathRegex = "^([A-Za-z0-9-._~:/?#\\[\\]@!$&'()*+,;=]+)$".r
+  private val validPathRegex = "^((?:[A-Za-z0-9-._~:/?#\\[\\]@!$&'()*+,;=]|%[0-9A-F]{2})+)$".r
   // the spec states that WDL files must use UTF8 encoding
   val DefaultEncoding: Charset = Codec.UTF8.charSet
   val DefaultLineSeparator: String = "\n"
