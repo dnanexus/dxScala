@@ -1,7 +1,7 @@
 ## Setup
 
 * Install JDK 11
-   * On mac with [homebrew]() installed:
+   * On mac with [homebrew](https://brew.sh/) installed:
     ```
     $ brew tap AdoptOpenJDK/openjdk
     $ brew cask install adoptopenjdk11
