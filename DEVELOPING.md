@@ -1,16 +1,43 @@
 ## Setup
 
-You will need to create a GitHub personal access token (this is required by the sbt-github-packages plugin). In GitHub settings, go to "Developer settings > Personal access token" and create a new token with "write:packages" and "read:packages" scopes only. Then, export the `GITHUB_TOKEN` environment variable with this token as the value. For example, in your `.profile`:
-
-```bash
-export GITHUB_TOKEN=<your personal access token>
-```
-
-On macOS, you may also want to add this token into your global environment so it is visible to your IDE:
-
-```bash
-launchctl setenv GITHUB_TOKEN $GITHUB_TOKEN
-```
+* Install JDK 11
+   * On mac with [homebrew](https://brew.sh/) installed:
+    ```
+    $ brew tap AdoptOpenJDK/openjdk
+    $ brew cask install adoptopenjdk11
+    # Use java_home to find the location of JAVA_HOME to set
+    $ /usr/libexec/java_home -V
+    $ export JAVA_HOME=/Library/Java/...
+    ```
+   * On Linux (assuming Ubuntu 16.04)
+    ```
+    $ sudo apt install openjdk-11-jre-headless
+    ```
+   * Note that dxScala will compile with JDK8 or JDK11 and that JDK8 is used as the build target so the resulting JAR file can be executed with JRE8 or later.
+* Install [sbt](https://www.scala-sbt.org/), which also installs Scala. Sbt is a make-like utility that works with the ```scala``` language.
+   * On MacOS: `brew install sbt`
+   * On Linux:
+    ```
+    $ wget www.scala-lang.org/files/archive/scala-2.13.7.deb
+    $ sudo dpkg -i scala-2.13.7.deb
+    $ echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+    $ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
+    $ sudo apt-get update
+    $ sudo apt-get install sbt
+    ```
+   * Running sbt for the first time takes several minutes, because it downloads all required packages.
+* We also recommend to install [Metals](https://scalameta.org/metals/), which enables better integration with your IDE
+   * For VSCode, install the "Scala (Metals)" and "Scala Syntax (official)" plugins
+* You will need to create a GitHub personal access token (this is required by the sbt-github-packages plugin).
+   * In GitHub settings, go to "Developer settings > Personal access token" and create a new token with "write:packages" and "read:packages" scopes only.
+   * Export the `GITHUB_TOKEN` environment variable with this token as the value. For example, in your `.profile`:
+    ```bash
+    export GITHUB_TOKEN=<your personal access token>
+    ```
+   * On macOS, you may also want to add this token into your global environment so it is visible to your IDE:
+    ```bash
+    launchctl setenv GITHUB_TOKEN $GITHUB_TOKEN
+    ```
 
 ## Making a change
 
