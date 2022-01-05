@@ -1,8 +1,10 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.5.3 (2022-01-05)
 
 * Handles `ResourceNotFoundException` in `DxFileSource.exists`
+* Updates code to compile with JDK11
+* Updates build environment to JDK11, Scala 2.13.7, and SBT 1.5.7
 
 ## 0.5.2 (2021-12-09)
 

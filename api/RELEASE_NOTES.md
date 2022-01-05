@@ -1,5 +1,10 @@
 # dxApi
 
+## 0.13.1 (2022-01-05)
+
+* Updates code to compile with JDK11
+* Updates build environment to JDK11, Scala 2.13.7, and SBT 1.5.7
+
 ## 0.13.0 (2021-12-09)
 
 * Adds `DxApi.addTags` method
