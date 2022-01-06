@@ -54,7 +54,7 @@ object SysUtils {
       .getOrElse((_: String) => ())
     val ferr = errStream
       .map(err => (e: String) => { err.append(e).append("\n"); () })
-      .orElse(Option.when(stdoutMode == StdMode.Forward) { (o: String) =>
+      .orElse(Option.when(stderrMode == StdMode.Forward) { (o: String) =>
         sys.process.stderr.append(o).append("\n"); ()
       })
       .getOrElse((_: String) => ())
