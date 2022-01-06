@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Fix `SysUtils.runCommand` forwarding of stderr
+
 ## 0.11.0 (2022-01-05)
 
 * Adds `SysUtils.runCommand`, which exposes options for how to handle stdin/stdout/stderr.
