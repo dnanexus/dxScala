@@ -1,6 +1,6 @@
 # dxCommon
 
-## in develop
+## 0.11.1 (2022-01-07)
 
 * Fix `SysUtils.runCommand` forwarding of stderr
 
