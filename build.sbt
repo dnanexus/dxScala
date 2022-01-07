@@ -107,17 +107,17 @@ val yaml = project
 
 lazy val dependencies =
   new {
-    val dxCommonVersion = "0.11.0"
+    val dxCommonVersion = "0.11.1"
     val dxApiVersion = "0.13.1"
     val typesafeVersion = "1.4.1"
     val sprayVersion = "1.3.6"
     val snakeyamlVersion = "2.3"
     val scalatestVersion = "3.2.9"
-    val jacksonVersion = "2.13.0"
+    val jacksonVersion = "2.13.1"
     val guavaVersion = "23.0"
     val httpClientVersion = "4.5.13"
-    val logbackVersion = "1.2.9"
-    val awsVersion = "2.17.99"
+    val logbackVersion = "1.2.10"
+    val awsVersion = "2.17.102"
     val nettyVersion = "4.1.46.Final"
 
     val dxCommon = "com.dnanexus" % "dxcommon" % dxCommonVersion
