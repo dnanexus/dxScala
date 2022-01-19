@@ -254,7 +254,7 @@ class YamlParserSpec extends AnyFlatSpec with Matchers {
               YamlNumber(1230.15),
             YamlString("sexagesimal") ->
               YamlString("20:30.15"), // looks like yaml 1.2 does not support base 60
-            //YamlNumber(1230.15),
+            // YamlNumber(1230.15),
             YamlString("fixed") ->
               YamlNumber(1230.15)
         )

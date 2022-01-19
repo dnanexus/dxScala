@@ -214,7 +214,8 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
       !instanceType.diskType.contains(DiskType.HDD) &&
       !instanceType.name.contains("fpga")
     }
-    val userBilltoProject = dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq") // project name: dxCompiler_public_test
+    val userBilltoProject =
+      dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq") // project name: dxCompiler_public_test
     val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
     db.instanceTypes.size shouldBe 69
   }

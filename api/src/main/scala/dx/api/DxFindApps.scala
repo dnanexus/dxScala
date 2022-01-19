@@ -91,7 +91,11 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
       idConstraints: Vector[String],
       extraFields: Set[Field.Value]
   ): (Vector[DxApp], Option[JsValue]) = {
-    val descFields = Set(Field.Name, Field.Version, Field.Properties, Field.Created, Field.Modified) ++ extraFields ++ (
+    val descFields = Set(Field.Name,
+                         Field.Version,
+                         Field.Properties,
+                         Field.Created,
+                         Field.Modified) ++ extraFields ++ (
         if (withInputOutputSpec) {
           Set(Field.InputSpec, Field.OutputSpec)
         } else {
@@ -148,7 +152,7 @@ case class DxFindApps(dxApi: DxApi, limit: Option[Int] = None) {
     val results = response.fields.get("results") match {
       case Some(JsArray(results)) => results.map(parseOneResult)
       case None                   => throw new Exception(s"missing results field ${response}")
-      case Some(other)            => throw new Exception(s"malformed results field ${other.prettyPrint}")
+      case Some(other) => throw new Exception(s"malformed results field ${other.prettyPrint}")
     }
     (results, next)
   }

@@ -611,12 +611,10 @@ trait NewDxApplication {
         properties.asOption.map(p =>
           "properties" -> JsObject(p.iterator.map {
             case (key, value) => key -> JsString(value)
-          }.toMap)
-        ),
+          }.toMap)),
         allowSsh.asOption.map(ssh => "allowSSH" -> JsArray(ssh.iterator.map(JsString(_)).toVector)),
         debugOn.asOption.map(d =>
-          "debug" -> JsObject("debugOn" -> JsArray(d.iterator.map(JsString(_)).toVector))
-        ),
+          "debug" -> JsObject("debugOn" -> JsArray(d.iterator.map(JsString(_)).toVector))),
         singleContext.map(sc => "singleContext" -> JsBoolean(sc)),
         ignoreReuse.map(ir => "ignoreReuse" -> JsBoolean(ir)),
         nonce.map(n => "nonce" -> JsString(n))

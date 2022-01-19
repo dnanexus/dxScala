@@ -14,7 +14,8 @@ object DxUtils {
   private val containerClasses = Set("container", "project")
   private val executableClasses = Set("applet", "app", "globalworkflow", "workflow")
   private val executionClasses = Set("analysis", "job")
-  private val allClasses = dataObjectClasses | containerClasses | executableClasses | executionClasses
+  private val allClasses =
+    dataObjectClasses | containerClasses | executableClasses | executionClasses
   private val objectIdRegexp =
     s"^(${allClasses.mkString("|")})-([A-Za-z0-9]{24})$$".r
   private val dataObjectIdRegexp =

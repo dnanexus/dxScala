@@ -545,7 +545,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case Some(d) => Map("details" -> d)
       case None    => Map.empty
     }
-    val request = requiredFields ++ instanceFields ++ dependsFields ++ dwdFields ++ nameFields ++ detailsFields
+    val request =
+      requiredFields ++ instanceFields ++ dependsFields ++ dwdFields ++ nameFields ++ detailsFields
     logger.traceLimited(s"subjob request=${JsObject(request).prettyPrint}")
     val response = jobNew(request)
     val id: String = response.fields.get("id") match {
@@ -699,7 +700,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
                   )
               )
           case JsArray(results) if results.size == 1 => results(0)
-          case other                                 => throw new Exception(s"expected 1 result, got ${other}")
+          case other => throw new Exception(s"expected 1 result, got ${other}")
         }
       case other => throw new Exception(s"invalid findApps response ${other}")
     }
@@ -1063,7 +1064,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       try {
         // Use dx download. Quote the path, because it may contains spaces.
         val dxDownloadCmd =
-          s"""dx download ${fid} -o "${path.toString}" --no-progress ${if (overwrite) "-f" else ""}"""
+          s"""dx download ${fid} -o "${path.toString}" --no-progress ${if (overwrite) "-f"
+          else ""}"""
         logger.traceLimited(s"--  ${dxDownloadCmd}")
         val (_, stdout, stderr) = SysUtils.execCommand(dxDownloadCmd)
         if (stdout.nonEmpty) {
@@ -1140,7 +1142,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     val destProj = destination match {
       case Some(projectAndPathRegexp(proj, _)) => Option(proj)
       case None                                => None
-      case _                                   => throw new Exception(s"invalid destination ${destination}")
+      case _ => throw new Exception(s"invalid destination ${destination}")
     }
 
     def uploadOneFile(path: Path): Option[String] = {

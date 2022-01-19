@@ -128,8 +128,8 @@ case class InteractiveConsole(promptColor: String = "",
              menu: Option[Boolean] = None,
              otherOk: Boolean = false,
              otherOption: String = "Other",
-             multiple: Boolean = false)(
-      implicit reader: InteractiveConsole.Reader[T]
+             multiple: Boolean = false)(implicit
+      reader: InteractiveConsole.Reader[T]
   ): Seq[T] = {
     val finalChoices = choicesMap.orElse(choices.map(choicesToMap)).orElse(reader.defaultChoices)
     val (defaultValue, defaultKey) = resolveDefault(default, finalChoices, optional)
@@ -234,7 +234,14 @@ case class InteractiveConsole(promptColor: String = "",
       menu: Option[Boolean] = None,
       otherOk: Boolean = false
   )(implicit reader: InteractiveConsole.Reader[T]): T = {
-    ask[T](prompt, optional = true, default, choices, choicesMap, menu, otherOk, multiple = false) match {
+    ask[T](prompt,
+           optional = true,
+           default,
+           choices,
+           choicesMap,
+           menu,
+           otherOk,
+           multiple = false) match {
       case Seq(result) => result
       case _           => throw new RuntimeException("Expected result for required value")
     }

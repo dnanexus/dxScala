@@ -97,7 +97,13 @@ object DxApp {
   def parseDescribeJson(descJs: JsObject, dxApi: DxApi): DxAppDescribe = {
     val desc =
       descJs
-        .getFields("id", "name", "version", "created", "modified", "inputSpec", "outputSpec") match {
+        .getFields("id",
+                   "name",
+                   "version",
+                   "created",
+                   "modified",
+                   "inputSpec",
+                   "outputSpec") match {
         case Seq(JsString(id),
                  JsString(name),
                  JsString(version),

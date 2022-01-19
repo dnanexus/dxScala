@@ -30,7 +30,7 @@ package object yaml {
       case i: java.math.BigInteger => YamlNumber(BigInt(i))
       case d: java.lang.Double     => YamlNumber(d.toDouble)
       case s: java.lang.String     => YamlString(s)
-      //case d: java.util.Date       => YamlDate(new DateTime(d))
+      // case d: java.util.Date       => YamlDate(new DateTime(d))
       case b: java.lang.Boolean => YamlBoolean(b)
       case ba: Array[Byte]      => YamlString(new String(ba))
       case null                 => YamlNull

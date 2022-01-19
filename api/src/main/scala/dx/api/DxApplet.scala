@@ -179,7 +179,8 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
       case Some(priority) => Map("priority" -> JsString(priority.toString.toLowerCase))
       case None           => Map.empty
     }
-    val allFields = fields ++ instanceFields ++ detailsFields ++ dwd ++ folderFields ++ priorityFields
+    val allFields =
+      fields ++ instanceFields ++ detailsFields ++ dwd ++ folderFields ++ priorityFields
     val info = dxApi.appletRun(id, allFields)
     val jobId: String = info.fields.get("id") match {
       case Some(JsString(x)) => x

@@ -310,8 +310,9 @@ case class SafeLocalizationDisambiguator(
         val duplicateFolders = duplicates.values.flatten.map(_.folder).toSet
         val (separate, default) = fileSources.partition(fs => duplicateFolders.contains(fs.folder))
         (separate.map { fs =>
-          fs -> resolve(fs.name, fs.folder, defaultDir = localizationDir, force = true)
-        }.toMap, default)
+           fs -> resolve(fs.name, fs.folder, defaultDir = localizationDir, force = true)
+         }.toMap,
+         default)
       } else {
         (Map.empty[T, Path], singletons.values.flatten)
       }
@@ -357,15 +358,15 @@ object SafeLocalizationDisambiguator {
         "localizedPaths"
     ) match {
       case Seq(
-          JsString(rootDir),
-          JsBoolean(separateDirsBySource),
-          JsBoolean(createDirs),
-          JsString(subdirPrefix),
-          JsNumber(disambiguationDirLimit),
-          logger,
-          JsArray(sourceToTarget),
-          JsArray(disambiguationDirs),
-          JsArray(localizedPaths)
+              JsString(rootDir),
+              JsBoolean(separateDirsBySource),
+              JsBoolean(createDirs),
+              JsString(subdirPrefix),
+              JsNumber(disambiguationDirLimit),
+              logger,
+              JsArray(sourceToTarget),
+              JsArray(disambiguationDirs),
+              JsArray(localizedPaths)
           ) =>
         SafeLocalizationDisambiguator(Paths.get(rootDir),
                                       separateDirsBySource,

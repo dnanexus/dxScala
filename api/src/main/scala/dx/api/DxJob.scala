@@ -99,7 +99,7 @@ object DxJob {
     val instanceType = descJs.fields.get("instanceType") match {
       case Some(JsString(instanceType)) => Some(instanceType)
       case None                         => None
-      case other                        => throw new Exception(s"should be an instance type ${other}")
+      case other => throw new Exception(s"should be an instance type ${other}")
     }
     val folder = descJs.fields.get("folder") match {
       case Some(JsString(folder)) => Some(folder)

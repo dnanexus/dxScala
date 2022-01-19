@@ -219,7 +219,7 @@ object DxFile {
   //    "size": 42,
   //    "state": "complete"
   //  }
-  //}
+  // }
   //
   def parseFileParts(jsv: JsValue): Map[Int, DxFilePart] = {
     jsv.asJsObject.fields.map {
@@ -286,9 +286,9 @@ object DxFile {
   def findFiles(dxApi: DxApi, jsValue: JsValue): Vector[DxFile] = {
     jsValue match {
       case JsObject(_) if DxFile.isDxFile(jsValue) => Vector(DxFile.fromJson(dxApi, jsValue))
-      case JsObject(fields)                        => fields.map { case (_, v) => findFiles(dxApi, v) }.toVector.flatten
-      case JsArray(elems)                          => elems.flatMap(e => findFiles(dxApi, e))
-      case _                                       => Vector.empty[DxFile]
+      case JsObject(fields) => fields.map { case (_, v) => findFiles(dxApi, v) }.toVector.flatten
+      case JsArray(elems)   => elems.flatMap(e => findFiles(dxApi, e))
+      case _                => Vector.empty[DxFile]
     }
   }
 }

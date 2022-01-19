@@ -135,8 +135,8 @@ case class DxInstanceType(name: String,
       query.os.forall(queryOs => os.contains(queryOs)) && (
           !enforceMaxBounds || (
               query.maxMemoryMB.forall(_ >= memoryMB) &&
-              query.maxDiskGB.forall(_ >= diskGB) &&
-              query.maxCpu.forall(_ >= cpu)
+                query.maxDiskGB.forall(_ >= diskGB) &&
+                query.maxCpu.forall(_ >= cpu)
           )
       )
     }

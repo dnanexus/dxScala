@@ -20,10 +20,10 @@ package object util {
                    stackTrace: Boolean = true): String = {
     (message, exception) match {
       case (s, Some(e)) if s.nonEmpty && stackTrace => s"${s}\n${exceptionToString(e)}"
-      case (s, Some(e)) if s.nonEmpty               => s"${s}: ${exceptionToString(e, brief = true)}"
-      case (_, Some(e)) if stackTrace               => exceptionToString(e)
-      case (_, Some(e))                             => exceptionToString(e, brief = true)
-      case (s, None)                                => s
+      case (s, Some(e)) if s.nonEmpty => s"${s}: ${exceptionToString(e, brief = true)}"
+      case (_, Some(e)) if stackTrace => exceptionToString(e)
+      case (_, Some(e))               => exceptionToString(e, brief = true)
+      case (s, None)                  => s
     }
   }
 

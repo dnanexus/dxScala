@@ -77,8 +77,8 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
                             Field.Folder,
                             Field.Created,
                             Field.Modified
-                            //Field.InputSpec,
-                            //Field.OutputSpec
+                            // Field.InputSpec,
+                            // Field.OutputSpec
     )
     val allFields = fields ++ defaultFields
     val descJs = dxApi.workflowDescribe(

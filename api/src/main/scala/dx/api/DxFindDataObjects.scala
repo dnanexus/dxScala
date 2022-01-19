@@ -75,8 +75,7 @@ case class DxFindDataObjectsConstraints(
                   Some("regexp" -> JsString(regexp)),
                   Option.when(nameRegexpCaseInsensitive)("flags" -> JsString("i"))
               ).flatten.toMap
-          )
-        ),
+          )),
         nameGlob.map(glob => JsObject("glob" -> JsString(glob)))
     ).flatten match {
       case Vector(arg) => Some(Map("name" -> arg))
@@ -290,7 +289,7 @@ case class DxFindDataObjects(dxApi: DxApi = DxApi.get,
       responseJs.fields.get("results") match {
         case Some(JsArray(results)) => results.map(parseOneResult)
         case None                   => throw new Exception(s"missing results field ${responseJs}")
-        case Some(other)            => throw new Exception(s"malformed results field ${other.prettyPrint}")
+        case Some(other) => throw new Exception(s"malformed results field ${other.prettyPrint}")
       }
     (results.toMap, next)
   }

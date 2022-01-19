@@ -1841,8 +1841,8 @@ trait ProductFormats {
     if (fields.zip(copyDefaultMethods).exists { case (f, m) => f.getType != m.getReturnType })
       sys.error("Cannot determine field order of case class " + clazz.getName)
     fields
-      .map(v => (ProductFormats.decode(v.getName), classOf[Option[Any]].isAssignableFrom(v.getType))
-      )
+      .map(v =>
+        (ProductFormats.decode(v.getName), classOf[Option[Any]].isAssignableFrom(v.getType)))
       .toList
   }
 
