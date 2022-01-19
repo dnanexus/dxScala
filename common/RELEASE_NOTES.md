@@ -1,5 +1,10 @@
 # dxCommon
 
+## in develop
+
+* Updates build environment to SBT 1.6.1
+* Updates sbt-scalafmt plugin to 2.4.6 and scalafmt to 3.3.1
+
 ## 0.11.1 (2022-01-07)
 
 * Fix `SysUtils.runCommand` forwarding of stderr
