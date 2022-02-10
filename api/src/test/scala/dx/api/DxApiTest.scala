@@ -89,6 +89,17 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     result.head.describe().name shouldBe "fileA"
   }
 
+  it should "list folder" taggedAs ApiTest in {
+    val query = Vector(DxFile(testFile, Some(dxTestProject))(dxApi))
+    val result = dxApi.getObject (query, validate = true)
+
+    //def getObject(id: String, container: Option[DxProject] = None)
+
+    result.size shouldBe 1
+    result.head.hasCachedDesc shouldBe true
+    result.head.describe().name shouldBe "fileA"
+  }
+
   it should "bulk describe and fail to validate missing file" taggedAs ApiTest in {
     val query = Vector(DxFile("file-XXXXXXXXXXXXXXXXXXXXXXXX", Some(dxTestProject))(dxApi))
     assertThrows[Exception] {

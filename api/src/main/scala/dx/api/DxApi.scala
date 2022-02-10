@@ -157,7 +157,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case "job"       => DxJob(id, container)(this)
       case "project"   => DxProject(id)(this)
       case "record"    => DxRecord(id, container)(this)
+      case "database"  => DxDatabase(id, container)(this)
       case "workflow"  => DxWorkflow(id, container)(this)
+      case "dbcluster" => DxDbcluster(id, container)(this)
       case _ =>
         throw new IllegalArgumentException(
             s"${id} does not belong to a supported DNAnexus object class"
@@ -189,6 +191,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case job: DxJob           => callObject(DXAPI.jobAddTags[JsonNode], job.id, fields)
       case project: DxProject   => callObject(DXAPI.projectAddTags[JsonNode], project.id, fields)
       case record: DxRecord     => callObject(DXAPI.recordAddTags[JsonNode], record.id, fields)
+      case database: DxDatabase => callObject(DXAPI.databaseAddTags[JsonNode], database.id, fields)
+      case dbcluster: DxDbcluster => callObject(DXAPI.dbclusterAddTags[JsonNode], dbcluster.id, fields)
       case workflow: DxWorkflow => callObject(DXAPI.workflowAddTags[JsonNode], workflow.id, fields)
       case _ =>
         throw new IllegalArgumentException(
@@ -345,6 +349,20 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     getObject(id, project) match {
       case a: DxRecord => a
       case _           => throw new IllegalArgumentException(s"${id} isn't a record")
+    }
+  }
+
+  def database(id: String, project: Option[DxProject] = None): DxDatabase = {
+    getObject(id, project) match {
+      case a: DxDatabase => a
+      case _           => throw new IllegalArgumentException(s"${id} isn't a database")
+    }
+  }
+
+  def dbcluster(id: String, project: Option[DxProject] = None): DxDbcluster = {
+    getObject(id, project) match {
+      case a: DxDbcluster => a
+      case _           => throw new IllegalArgumentException(s"${id} isn't a dbcluster")
     }
   }
 
@@ -607,6 +625,14 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
 
   def recordDescribe(id: String, fields: Map[String, JsValue]): JsObject = {
     callObject(DXAPI.recordDescribe[JsonNode], id, fields)
+  }
+
+  def databaseDescribe(id: String, fields: Map[String, JsValue]): JsObject = {
+    callObject(DXAPI.databaseDescribe[JsonNode], id, fields)
+  }
+
+  def dbclusterDescribe(id: String, fields: Map[String, JsValue]): JsObject = {
+    callObject(DXAPI.dbclusterDescribe[JsonNode], id, fields)
   }
 
   def userDescribe(id: String, fields: Map[String, JsValue] = Map.empty): JsObject = {
