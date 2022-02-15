@@ -158,8 +158,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case "project"   => DxProject(id)(this)
       case "record"    => DxRecord(id, container)(this)
       case "database"  => DxDatabase(id, container)(this)
-      case "workflow"  => DxWorkflow(id, container)(this)
       case "dbcluster" => DxDbcluster(id, container)(this)
+      case "workflow"  => DxWorkflow(id, container)(this)
       case _ =>
         throw new IllegalArgumentException(
             s"${id} does not belong to a supported DNAnexus object class"
@@ -192,7 +192,6 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case project: DxProject   => callObject(DXAPI.projectAddTags[JsonNode], project.id, fields)
       case record: DxRecord     => callObject(DXAPI.recordAddTags[JsonNode], record.id, fields)
       case database: DxDatabase => callObject(DXAPI.databaseAddTags[JsonNode], database.id, fields)
-      case dbcluster: DxDbcluster => callObject(DXAPI.dbclusterAddTags[JsonNode], dbcluster.id, fields)
       case workflow: DxWorkflow => callObject(DXAPI.workflowAddTags[JsonNode], workflow.id, fields)
       case _ =>
         throw new IllegalArgumentException(
