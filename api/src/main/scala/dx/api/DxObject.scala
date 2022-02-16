@@ -10,10 +10,12 @@ import java.net.URI
 object Field extends Enum {
   type Field = Value
   val Access, Analysis, App, Applet, ArchivalState, AvailableInstanceTypes, BillTo, Categories,
-      Created, Description, Details, DependsOn, DeveloperNotes, Executable, ExecutableName, Folder,
+      Created, DatabaseName, Description, Details, DependsOn, DeveloperNotes, DxInstanceClass, 
+      Endpoint, Engine, EngineVersion, Executable, ExecutableName, Folder,
       Hidden, Id, IgnoreReuse, Input, Inputs, InputSpec, InstanceType, Modified, Name, Output,
-      Outputs, OutputSpec, ParentJob, Parts, PricingModelsByRegion, Project, Properties, Region,
-      RunSpec, Size, Stages, State, Summary, Tags, Title, Types, Version = Value
+      Outputs, OutputSpec, ParentJob, Parts, PricingModelsByRegion, Port, Project, Properties, Region,
+      RunSpec, Size, Stages, State, Status, StatusAsOf, Summary, Tags, Title, Types, UniqueDatabaseName,
+      Version = Value
 }
 
 trait DxObjectDescribe {
@@ -77,10 +79,15 @@ object DxObject {
       case Field.BillTo                 => "billTo"
       case Field.Categories             => "categories"
       case Field.Created                => "created"
+      case Field.DatabaseName           => "databaseName"
       case Field.DependsOn              => "dependsOn"
       case Field.Description            => "description"
       case Field.DeveloperNotes         => "developerNotes"
       case Field.Details                => "details"
+      case Field.DxInstanceClass        => "dxInstanceClass"
+      case Field.Endpoint               => "endpoint"
+      case Field.Engine                 => "engine"
+      case Field.EngineVersion          => "engineVersion"
       case Field.Executable             => "executable"
       case Field.ExecutableName         => "executableName"
       case Field.Folder                 => "folder"
@@ -98,6 +105,7 @@ object DxObject {
       case Field.OutputSpec             => "outputSpec"
       case Field.ParentJob              => "parentJob"
       case Field.Parts                  => "parts"
+      case Field.Port                   => "port"
       case Field.PricingModelsByRegion  => "pricingModelsByRegion"
       case Field.Project                => "project"
       case Field.Properties             => "properties"
@@ -106,10 +114,13 @@ object DxObject {
       case Field.Size                   => "size"
       case Field.Stages                 => "stages"
       case Field.State                  => "state"
+      case Field.Status                 => "status"
+      case Field.StatusAsOf             => "statusAsOf"
       case Field.Summary                => "summary"
       case Field.Tags                   => "tags"
       case Field.Title                  => "title"
       case Field.Types                  => "types"
+      case Field.UniqueDatabaseName     => "uniqueDatabaseName"
       case Field.Version                => "version"
     }.toVector
     val m: Map[String, JsValue] = fieldStrings.map { x =>
