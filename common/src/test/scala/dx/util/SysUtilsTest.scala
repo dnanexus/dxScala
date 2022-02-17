@@ -20,7 +20,7 @@ class SysUtilsTest extends AnyFlatSpec with Matchers{
       command = cmd, exceptionOnFailure = false, stdoutMode = StdMode.Forward, stderrMode = StdMode.Forward
     )
     rc shouldBe(127)
-    stdout shouldBe(Some("Hi\n"))
-    stderr shouldBe(Some("/bin/sh: nonexisting-command: command not found\n"))
+    stdout shouldBe(None)
+    stderr shouldBe(None)
   }
 }
