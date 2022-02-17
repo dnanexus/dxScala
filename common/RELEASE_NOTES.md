@@ -1,5 +1,9 @@
 # dxCommon
 
+## in develop
+
+* Minor changes to JSON formatting
+
 ## 0.11.1 (2022-01-07)
 
 * Fix `SysUtils.runCommand` forwarding of stderr
