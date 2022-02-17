@@ -14,7 +14,7 @@ class SysUtilsTest extends AnyFlatSpec with Matchers {
     )
     rc shouldBe (127)
     stdout shouldBe (Some("Hi\n"))
-    stderr shouldBe (Some("/bin/sh: nonexisting-command: command not found\n"))
+    stderr.getOrElse("") should endWith("nonexisting-command: command not found\n")
   }
 
   it should "return code 127, capture and forward stdout and stderr messages to the console" in {
