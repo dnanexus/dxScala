@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 class SysUtilsTest extends AnyFlatSpec with Matchers {
   "SysUtils" should "return code 127, stdout and stderr messages" in {
-    val cmd = "(echo 'Hi'; nonexisting-command)"
+    val cmd = "echo 'Hi'; nonexisting-command"
     val (rc, stdout, stderr) = SysUtils.runCommand(
         command = cmd,
         exceptionOnFailure = false,
@@ -14,7 +14,7 @@ class SysUtilsTest extends AnyFlatSpec with Matchers {
     )
     rc shouldBe (127)
     stdout shouldBe (Some("Hi\n"))
-    stderr.getOrElse("") should endWith("nonexisting-command: command not found\n")
+    stderr.getOrElse("") should include("nonexisting-command: command not found")
   }
 
   it should "return code 127, capture and forward stdout and stderr messages to the console" in {
