@@ -7,6 +7,9 @@ import dx.util.Enum
 import java.net.URI
 
 // Extra fields for describe
+
+// scalafmt setting to prevent a "Search state exploded" issue
+// format: off
 object Field extends Enum {
   type Field = Value
   val Access, Analysis, App, Applet, ArchivalState, AvailableInstanceTypes, BillTo, Categories,
@@ -17,6 +20,7 @@ object Field extends Enum {
       RunSpec, Size, Stages, State, Status, StatusAsOf, Summary, Tags, Title, Types, UniqueDatabaseName,
       Version = Value
 }
+// format: on
 
 trait DxObjectDescribe {
   val id: String

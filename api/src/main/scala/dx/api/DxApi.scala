@@ -354,14 +354,14 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   def database(id: String, project: Option[DxProject] = None): DxDatabase = {
     getObject(id, project) match {
       case a: DxDatabase => a
-      case _           => throw new IllegalArgumentException(s"${id} isn't a database")
+      case _             => throw new IllegalArgumentException(s"${id} isn't a database")
     }
   }
 
   def dbcluster(id: String, project: Option[DxProject] = None): DxDbcluster = {
     getObject(id, project) match {
       case a: DxDbcluster => a
-      case _           => throw new IllegalArgumentException(s"${id} isn't a dbcluster")
+      case _              => throw new IllegalArgumentException(s"${id} isn't a dbcluster")
     }
   }
 
