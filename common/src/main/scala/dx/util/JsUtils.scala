@@ -247,6 +247,7 @@ object JsUtils {
       case '\\'                    => " "
       case '\"'                    => " "
       case '\''                    => " "
+      case '\n'                    => ch.toString
       case _ if ch.isLetterOrDigit => ch.toString
       case _ if ch.isControl       => " "
       case _                       => ch.toString
