@@ -95,6 +95,8 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     result.describe().name shouldBe "database_a"
   }
 
+  // A dbcluster object in the test project is required to test describe method
+  // Here we only test that an exception is thrown when an unexpected object ID is passed
   it should "describe a dbcluster" in {
     assertThrows[Exception] {
       dxApi.dbcluster(testDatabase, Some(dxTestProject))
