@@ -192,6 +192,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case project: DxProject   => callObject(DXAPI.projectAddTags[JsonNode], project.id, fields)
       case record: DxRecord     => callObject(DXAPI.recordAddTags[JsonNode], record.id, fields)
       case database: DxDatabase => callObject(DXAPI.databaseAddTags[JsonNode], database.id, fields)
+      case dbcluster: DxDbcluster => callObject(DXAPI.dbclusterAddTags[JsonNode], dbcluster.id, fields)
       case workflow: DxWorkflow => callObject(DXAPI.workflowAddTags[JsonNode], workflow.id, fields)
       case _ =>
         throw new IllegalArgumentException(
