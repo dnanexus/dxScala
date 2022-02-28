@@ -1,5 +1,9 @@
 # dxApi
 
+## in develop
+
+* Added API methods for describing dbcluster and database objects
+
 ## 0.13.1 (2022-01-05)
 
 * Updates code to compile with JDK11

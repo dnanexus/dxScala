@@ -19,6 +19,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   private val testProject = "dxCompiler_playground"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
   private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
+  private val testDatabase = "database-G83KzZQ0yzZv7xK3G1ZJ2p4X"
   private val username = dxApi.whoami()
   private val uploadPath = s"unit_tests/${username}/test_upload"
   private val testDir = Files.createTempDirectory("test")
@@ -66,8 +67,8 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   }
 
   ignore should "describe a file" taggedAs ApiTest in {
-    val record = dxApi.file(testFile, Some(dxTestProject))
-    record.describe().name shouldBe "fileA"
+    val file = dxApi.file(testFile, Some(dxTestProject))
+    file.describe().name shouldBe "fileA"
   }
 
   it should "resolve a file by name and download bytes" taggedAs ApiTest in {
@@ -87,6 +88,19 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     result.size shouldBe 1
     result.head.hasCachedDesc shouldBe true
     result.head.describe().name shouldBe "fileA"
+  }
+
+  it should "describe a database" in {
+    val result = dxApi.database(testDatabase, Some(dxTestProject))
+    result.describe().name shouldBe "database_a"
+  }
+
+  // A dbcluster object in the test project is required to test describe method
+  // Here we only test that an exception is thrown when an unexpected object ID is passed
+  it should "describe a dbcluster" in {
+    assertThrows[Exception] {
+      dxApi.dbcluster(testDatabase, Some(dxTestProject))
+    }
   }
 
   it should "bulk describe and fail to validate missing file" taggedAs ApiTest in {
