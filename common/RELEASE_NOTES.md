@@ -2,6 +2,8 @@
 
 ## in develop
 
+## 0.11.2 (2022-02-25)
+
 * Minor changes to JSON formatting
 
 ## 0.11.1 (2022-01-07)
