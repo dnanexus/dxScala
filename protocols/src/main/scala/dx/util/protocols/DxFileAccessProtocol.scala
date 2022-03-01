@@ -314,7 +314,7 @@ object DxFolderSource {
     if (folder.endsWith("/")) {
       folder
     } else {
-      s"${folder}/"
+      s"/${folder}/"
     }
   }
 
