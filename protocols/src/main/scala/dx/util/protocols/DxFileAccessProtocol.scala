@@ -310,13 +310,7 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
 }
 
 object DxFolderSource {
-  def ensureEndsWithSlash(folder: String): String = {
-    if (folder.endsWith("/")) {
-      folder
-    } else {
-      s"/${folder}/"
-    }
-  }
+  def ensureEndsWithSlash(folder: String): String = s"/${folder.stripSuffix("/").stripPrefix("/")}/"
 
   def isDxFolderUri(uri: String): Boolean = {
     uri.startsWith(DxPath.DxUriPrefix) &&
