@@ -1,5 +1,9 @@
 # dxFileAccessProtocols
 
+## in develop
+
+* minor fixes to DxFileAccessProtocol to ensure directory path starts with a forward slash
+
 ## 0.5.3 (2022-01-05)
 
 * Handles `ResourceNotFoundException` in `DxFileSource.exists`
