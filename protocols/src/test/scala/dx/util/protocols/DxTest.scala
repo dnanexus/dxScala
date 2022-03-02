@@ -101,4 +101,11 @@ class DxTest extends AnyFlatSpec with Matchers {
       dxTestProject.removeObjects(Vector(testFile))
     }
   }
+
+  it should "ensure directory path suffix and prefix are forward slash character" in {
+    DxFolderSource.ensureEndsWithSlash("/") shouldBe ("/")
+    DxFolderSource.ensureEndsWithSlash("this_folder/") shouldBe ("/this_folder/")
+    DxFolderSource.ensureEndsWithSlash("/this_folder/") shouldBe ("/this_folder/")
+    DxFolderSource.ensureEndsWithSlash("this_folder") shouldBe ("/this_folder/")
+  }
 }
