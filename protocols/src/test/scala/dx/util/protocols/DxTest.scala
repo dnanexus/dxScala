@@ -107,5 +107,10 @@ class DxTest extends AnyFlatSpec with Matchers {
     DxFolderSource.ensureEndsWithSlash("this_folder/") shouldBe ("/this_folder/")
     DxFolderSource.ensureEndsWithSlash("/this_folder/") shouldBe ("/this_folder/")
     DxFolderSource.ensureEndsWithSlash("this_folder") shouldBe ("/this_folder/")
+    DxFolderSource
+      .ensureEndsWithSlash("project-qwertyuiopa:/this_folder") shouldBe ("project-qwertyuiopa:/this_folder/")
+    DxFolderSource
+      .ensureEndsWithSlash("project-qwertyuiopa:this_folder/") shouldBe ("project-qwertyuiopa:/this_folder/")
+    DxFolderSource.ensureEndsWithSlash("project-qwertyuiopa:/") shouldBe ("project-qwertyuiopa:/")
   }
 }
