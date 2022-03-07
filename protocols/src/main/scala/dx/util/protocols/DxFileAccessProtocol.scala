@@ -311,9 +311,13 @@ case class DxFolderSource(dxProject: DxProject, dxFolder: String)(
 
 object DxFolderSource {
   def ensureEndsWithSlash(folder: String): String = {
-    folder match {
-      case "/" => folder
-      case _   => s"/${folder.stripSuffix("/").stripPrefix("/")}/"
+    folder.split(":") match {
+      case Array(head, tail) => s"${head}:${ensureEndsWithSlash(tail)}"
+      case Array(head) =>
+        head match {
+          case "/" => head
+          case _   => s"/${head.stripSuffix("/").stripPrefix("/")}/"
+        }
     }
 
   }
