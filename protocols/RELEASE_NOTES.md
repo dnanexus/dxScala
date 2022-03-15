@@ -1,8 +1,8 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.5.4 (2022-03-15)
 
-* minor fixes to DxFileAccessProtocol to ensure directory path starts with a forward slash
+* Minor fixes to DxFileAccessProtocol to ensure directory path starts with a forward slash
 
 ## 0.5.3 (2022-01-05)
 

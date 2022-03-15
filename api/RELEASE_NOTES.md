@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.13.2 (2022-03-15)
 
 * Added API methods for describing dbcluster and database objects
 
