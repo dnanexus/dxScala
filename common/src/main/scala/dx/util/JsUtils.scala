@@ -220,9 +220,7 @@ object JsUtils {
   // Make a JSON value deterministically sorted.  This is used to
   // ensure that the checksum does not change when maps
   // are ordered in different ways.
-  //
-  // Note: this does not handle the case of arrays that
-  // may have different equivalent orderings.
+
   def makeDeterministic(jsValue: JsValue): JsValue = {
     jsValue match {
       case JsObject(m: Map[String, JsValue]) =>
