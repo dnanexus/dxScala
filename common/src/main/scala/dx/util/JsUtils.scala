@@ -229,9 +229,14 @@ object JsUtils {
         // deterministically sort maps by using a tree-map instead
         // a hash-map
         val mTree = m
-          .map { case (k, v) => k -> JsUtils.makeDeterministic(v) }
+          .map {
+            case (k, JsArray(a)) =>
+              k -> JsArray(a.map(JsUtils.makeDeterministic).sortWith(_.toString < _.toString))
+            case (k, v) => k -> JsUtils.makeDeterministic(v)
+          }
           .to(TreeMap)
         JsObject(mTree)
+
       case other =>
         other
     }
