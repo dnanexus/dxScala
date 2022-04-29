@@ -28,5 +28,14 @@ class JsUtilsTest extends AnyFlatSpec with Matchers {
                        JsObject("aa" -> JsNumber(2), "ab" -> JsString("aba")))
     )
     JsUtils.makeDeterministic(x) should be(JsUtils.makeDeterministic(y))
+
+    //nested JsObject and JsArray with order changed
+    val x2 = JsObject("a" -> JsArray(JsObject("aa" -> x, "ab" -> JsString("aba")),
+                                     JsObject("aa" -> y, "ab" -> JsString("abb"))),
+                      "b" -> y)
+    val y2 = JsObject("b" -> x,
+                      "a" -> JsArray(JsObject("ab" -> JsString("abb"), "aa" -> y),
+                                     JsObject("aa" -> x, "ab" -> JsString("aba"))))
+    JsUtils.makeDeterministic(x2) should be(JsUtils.makeDeterministic(y2))
   }
 }
