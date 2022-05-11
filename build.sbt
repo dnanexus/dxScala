@@ -107,8 +107,8 @@ val yaml = project
 
 lazy val dependencies =
   new {
-    val dxCommonVersion = "0.11.2"
-    val dxApiVersion = "0.13.1"
+    val dxCommonVersion = "0.11.3"
+    val dxApiVersion = "0.13.2"
     val typesafeVersion = "1.4.1"
     val sprayVersion = "1.3.6"
     val snakeyamlVersion = "2.3"
