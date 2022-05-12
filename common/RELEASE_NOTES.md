@@ -2,6 +2,10 @@
 
 ## in develop
 
+..
+
+## 0.11.3 (2022-05-11)
+
 * Fix `JsUtils.makeDeterministic` to handle JsArrays sorting
 
 ## 0.11.2 (2022-02-25)
