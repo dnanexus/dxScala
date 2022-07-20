@@ -125,10 +125,12 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   }
 
   it should "bulk describe and fail to validate missing file" taggedAs ApiTest in {
+    // Missing file search with explicit project ID
     val query = Vector(DxFile(foreignFile, Some(dxTestProject))(dxApi))
     assertThrows[Exception] {
       dxApi.describeFilesBulk(query, validate = true)
     }
+    //  Missing file search without project ID.
     val queryUnqualified = Vector(DxFile(foreignFile, None)(dxApi))
     assertThrows[Exception] {
       dxApi.describeFilesBulk(queryUnqualified, validate = true)
