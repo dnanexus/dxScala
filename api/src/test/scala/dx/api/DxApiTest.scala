@@ -21,6 +21,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
   private val testDatabase = "database-G83KzZQ0yzZv7xK3G1ZJ2p4X"
   private val username = dxApi.whoami()
+  private val parentJob = "job-GFG4YxQ0yzZY061b23FKXxZB"
   private val uploadPath = s"unit_tests/${username}/test_upload"
   private val testDir = Files.createTempDirectory("test")
   private val random = new Random(42)
@@ -69,6 +70,19 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   ignore should "describe a file" taggedAs ApiTest in {
     val file = dxApi.file(testFile, Some(dxTestProject))
     file.describe().name shouldBe "fileA"
+  }
+
+  it should "find executions and return with correct field descriptors" taggedAs ApiTest in {
+    val results = dxApi.findExecutions(
+        Map(
+            "parentJob" -> JsString(parentJob),
+            "describe" -> JsObject(
+                "fields" -> DxObject
+                  .requestFields(Set(Field.Output, Field.ExecutableName, Field.Details))
+            )
+        )
+    )
+    results.fields should not be empty
   }
 
   it should "resolve a file by name and download bytes" taggedAs ApiTest in {
