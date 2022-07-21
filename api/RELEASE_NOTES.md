@@ -1,5 +1,7 @@
 # dxApi
 
+* Regression tests for API calls to platform
+
 ## in develop
 
 * ..
