@@ -6,6 +6,9 @@
 the `describe` response will be returned only for current workspace/project. If a file was cloned to other projects, they 
 will be ignored. Non-fully qualified file IDs are not allowed when searching files in other projects.
 
+* Regression tests for API calls to platform
+
+
 ## 0.13.2 (2022-03-15)
 
 * Added API methods for describing dbcluster and database objects
