@@ -896,7 +896,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     *                             before searching in the project specified for each file;
     *                             otherwise, any files with no project specified will be
     *                             searched in the currently selected project (if any).
-    * @param validate check that exaclty one result is returned for each file
+    * @param validate check that file exists in the project
     * @return
     */
   def describeFilesBulk(
@@ -907,7 +907,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       validate: Boolean = false
   ): Vector[DxFile] = {
     if (files.isEmpty) {
-      // avoid an unnessary API call; this is important for unit tests
+      // avoid an unnecessary API call; this is important for unit tests
       // that do not have a network connection.
       return Vector.empty
     }
@@ -951,23 +951,35 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       }
 
     val allResults = workspaceResults ++ remaining.groupBy(_.project).flatMap {
-      case (None, files) if !inExecutionEnvironment && currentProjectId.isDefined =>
+      case (None, files) if currentProjectId.isDefined =>
         submitRequest(files.map(_.id).toSet, currentProject)
+      case (None, files) =>
+        throw new Exception(
+            s"""
+               |Platform wide file search is not recommended. Select a project by calling `dx select project-xxx`
+               |in command line or provide fully-qualified names to ${files.map(_.id)}
+               |""".stripMargin
+        )
       case (proj, files) =>
         submitRequest(files.map(_.id).toSet, proj)
     }
 
     if (validate) {
       val allResultsById = allResults.groupBy(_.id)
-      val multiple = allResultsById.filter(_._2.size > 1)
-      if (multiple.nonEmpty) {
-        throw new Exception(
-            s"One or more file IDs did not have a project specified and returned multiple search results: ${multiple}"
-        )
-      }
+      /*
+       * Here was also a validation that there is only one file with a given ID exists in the region, i.e. the file was
+       * not cloned to other projects. In APPS-1270 we removed this validation and only allowed describing files from
+       * other projects iff a fully qualified name was provided.
+       * */
       val missing = filesById.keySet.diff(allResultsById.keySet)
       if (missing.nonEmpty) {
-        throw new Exception(s"One or more file id(s) were not found: ${missing.mkString(",")}")
+        throw new Exception(
+            s"""
+               |One or more file id(s) were not found: ${missing.mkString(",")} in current project.
+               |When referencing files from another projects, fully qualified file IDs must be used
+               |(e.g. `dx://project-aaa:file-xxx`)
+               |""".stripMargin
+        )
       }
     }
 

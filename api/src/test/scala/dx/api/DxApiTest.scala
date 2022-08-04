@@ -17,8 +17,10 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   private val logger = Logger.Quiet
   private val dxApi: DxApi = DxApi()(logger)
   private val testProject = "dxCompiler_playground"
+  private val publicProject = "dxCompiler_CI"
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
   private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
+  private val foreignFile = "file-FqP0x4Q0bxKXBBXX5pjVYf3Q"
   private val testDatabase = "database-G83KzZQ0yzZv7xK3G1ZJ2p4X"
   private val username = dxApi.whoami()
   private val parentJob = "job-GFG4YxQ0yzZY061b23FKXxZB"
@@ -104,6 +106,25 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     result.head.describe().name shouldBe "fileA"
   }
 
+  "DxApi.describeFilesBulk" should "(APPS-1270) describe only the file in the current project if unqualified " +
+    "ID is used and ignore files cloned to other projects" taggedAs ApiTest in {
+    // File ID exists in another project
+    val queryProject1 = Vector(DxFile(testFile, Some(dxApi.resolveProject(publicProject)))(dxApi))
+    val result1 =
+      dxApi.describeFilesBulk(queryProject1, searchWorkspaceFirst = true, validate = true)
+    result1.size shouldBe 1
+    result1.head.hasCachedDesc shouldBe true
+    result1.head.describe().name shouldBe "fileA"
+    // But it gets only one result when describing the file with unqualified ID
+    val dxFile = DxFile.fromJson(dxApi, JsObject("$dnanexus_link" -> JsString(testFile)))
+    val queryProject2 = Vector(dxFile)
+    val result2 =
+      dxApi.describeFilesBulk(queryProject2, searchWorkspaceFirst = true, validate = true)
+    result2.size shouldBe 1
+    result2.head.hasCachedDesc shouldBe true
+    result2.head.describe().name shouldBe "fileA"
+  }
+
   it should "describe a database" in {
     val result = dxApi.database(testDatabase, Some(dxTestProject))
     result.describe().name shouldBe "database_a"
@@ -118,10 +139,24 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   }
 
   it should "bulk describe and fail to validate missing file" taggedAs ApiTest in {
-    val query = Vector(DxFile("file-XXXXXXXXXXXXXXXXXXXXXXXX", Some(dxTestProject))(dxApi))
+    // Missing file search with explicit project ID
+    val query = Vector(DxFile(foreignFile, Some(dxTestProject))(dxApi))
     assertThrows[Exception] {
       dxApi.describeFilesBulk(query, validate = true)
     }
+    //  Missing file search without project ID.
+    val queryUnqualified = Vector(DxFile(foreignFile, None)(dxApi))
+    assertThrows[Exception] {
+      dxApi.describeFilesBulk(queryUnqualified, validate = true)
+    }
+  }
+
+  it should "bulk describe and succeed to validate missing file with fully-qualified ID" taggedAs ApiTest in {
+    val query = Vector(DxFile(foreignFile, Some(dxApi.resolveProject(publicProject)))(dxApi))
+    val result = dxApi.describeFilesBulk(query, validate = true)
+    result.size shouldBe 1
+    result.head.hasCachedDesc shouldBe true
+    result.head.describe().name shouldBe "test1.test"
   }
 
   it should "upload files in serial" in {
