@@ -14,26 +14,6 @@ case class DockerUtils(fileResolver: FileSourceResolver = FileSourceResolver.get
     p
   }
 
-//  private lazy val dockerVersion: Vector[Int] = {
-//    val dockerVersionRegexp = "(?s)Docker version (\\d+)\\.(\\d+)\\.(\\d+).*".r
-//    SysUtils.execCommand("docker --version") match {
-//      case (0, dockerVersionRegexp(major, minor, patch), _) =>
-//        Vector(major.toInt, minor.toInt, patch.toInt)
-//      case other =>
-//        throw new Exception(s"unexpected docker --version output ${other}")
-//    }
-//  }
-//
-//  private def dockerVersionCompare(ver: Vector[Int]): Int = {
-//    dockerVersion
-//      .zip(ver)
-//      .collectFirst {
-//        case (a, b) if a < b => -1
-//        case (a, b) if a > b => 1
-//      }
-//      .getOrElse(0)
-//  }
-
   private val dockerPullStdoutRegexp = "(?s).*[\n ](.+)".r
 
   // pull a Docker image from a repository - requires Docker client to be installed

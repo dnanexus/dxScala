@@ -28,7 +28,8 @@ object StdMode extends Enum {
 }
 
 object SysUtils {
-
+  // TODO This has to be deprecated because it's untestable. Use class CommandRunner in your dependency injection.
+  //  This singleton will be phased out gradually from the code
   def runCommand(
       command: String,
       timeout: Option[Int] = None,
@@ -88,7 +89,7 @@ object SysUtils {
     * Runs a child process using `/bin/sh -c` and captures stdout and stderr.
     * @param command the command to run
     * @param timeout seconds to wait before killing the process, or None to wait indefinitely
-    * @param allowedReturnCodes Set of valid return codes; devaluts to {0}
+    * @param allowedReturnCodes Set of valid return codes; defaults to {0}
     * @param exceptionOnFailure whether to throw an Exception if the command exists with a
     *                           non-zero return code
     * @return tuple of (return code, stdout, stderr)
