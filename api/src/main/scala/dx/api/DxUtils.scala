@@ -9,6 +9,8 @@ object DxUtils {
   val DxLinkKey = "$dnanexus_link"
   val RecordClass = "record"
   val RecordPrefix = s"${RecordClass}-"
+  val throttlingStderrRegex =
+    "Too many inbound requests, throttling requests for user-.*, code 503".r
   private val dataObjectClasses =
     Set("applet", "database", "dbcluster", "file", RecordClass, "workflow")
   private val containerClasses = Set("container", "project")

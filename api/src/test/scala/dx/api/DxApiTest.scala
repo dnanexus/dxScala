@@ -4,14 +4,15 @@ import Assumptions.{isLoggedIn, toolkitCallable}
 import Tags.ApiTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import dx.util.{FileUtils, Logger}
+import dx.util.{CommandRunner, FileUtils, Logger}
 import org.scalatest.BeforeAndAfterAll
 import spray.json._
+import org.mockito.MockitoSugar
 
 import java.nio.file.Files
 import scala.util.Random
 
-class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
+class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
   assume(isLoggedIn)
   assume(toolkitCallable)
   private val logger = Logger.Quiet
@@ -96,6 +97,32 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
     val value = new String(dxApi.downloadBytes(dxFile))
     value shouldBe "The fibonacci series includes 0,1,1,2,3,5\n"
+  }
+
+  it should "downloadFile and ignore 503 response when throttles" in {
+    val results =
+      dxApi.resolveDataObjectBulk(Vector(s"dx://${testProject}:/test_data/fileA"), dxTestProject)
+    val dxobj = results.values.head
+    val dxFile: DxFile = dxobj.asInstanceOf[DxFile]
+    val path = Files.createTempFile(s"${dxFile.id}", ".tmp")
+    val dxDownloadCmd =
+      s"""dx download ${dxFile.id} -o "${path.toString}" --no-progress -f"""
+    val mockRunner = mock[CommandRunner]
+    val throttleMsg = "Too many inbound requests, throttling requests for user-my_user, code 503. " +
+      "Request Params=blah-blah, Request Other Params=unavailable. Waiting 10000 years before retry..."
+    when(mockRunner.execCommand(dxDownloadCmd)) thenReturn ((0, "", throttleMsg))
+    dxApi.downloadFile(path, dxFile, overwrite = true, runner = mockRunner) shouldBe ()
+    val mockRunnerFailure = mock[CommandRunner]
+    val throttleMsgNonExistent =
+      "Non-existing throttling message for thrown by the platform, code as if 503"
+    when(mockRunnerFailure.execCommand(dxDownloadCmd)) thenReturn ((0, "", throttleMsgNonExistent))
+    an[Exception] should be thrownBy dxApi.downloadFile(
+        path,
+        dxFile,
+        overwrite = true,
+        runner = mockRunnerFailure,
+        retryLimit = 1
+    )
   }
 
   it should "bulk describe files" taggedAs ApiTest in {

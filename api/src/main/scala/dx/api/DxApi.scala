@@ -11,6 +11,7 @@ import dx.api.DxPath.DxPathComponents
 import dx.AppInternalException
 import dx.util.{FileUtils, JsUtils, Logger, SysUtils, TraceLevel}
 import dx.util.CollectionUtils.IterableOnceExtensions
+import dx.util.CommandRunner
 import spray.json._
 
 import java.util.concurrent.{Callable, Executors, RejectedExecutionException}
@@ -1093,7 +1094,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   def downloadFile(path: Path,
                    dxfile: DxFile,
                    overwrite: Boolean = false,
-                   retryLimit: Int = DefaultDownloadRetryLimit): Unit = {
+                   retryLimit: Int = DefaultDownloadRetryLimit,
+                   runner: CommandRunner = new CommandRunner): Unit = {
     def downloadOneFile(path: Path, dxfile: DxFile): Boolean = {
       val fid = dxfile.id
       val fileObj = path.toFile
@@ -1104,15 +1106,18 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
         val dxDownloadCmd =
           s"""dx download ${fid} -o "${path.toString}" --no-progress ${if (overwrite) "-f" else ""}"""
         logger.traceLimited(s"--  ${dxDownloadCmd}")
-        val (_, stdout, stderr) = SysUtils.execCommand(dxDownloadCmd)
-        if (stdout.nonEmpty) {
-          logger.warning(s"unexpected output: ${stdout}")
-          false
-        } else if (stderr.nonEmpty) {
-          logger.warning(s"unexpected error: ${stderr}")
-          false
-        } else {
-          true
+        runner.execCommand(dxDownloadCmd) match {
+          case (_, stdout: String, _) if stdout.nonEmpty =>
+            logger.warning(s"unexpected output: $stdout")
+            false
+          case (_, _, stderr: String)
+              if DxUtils.throttlingStderrRegex.findFirstIn(stderr).isDefined =>
+            logger.warning(s"Request was throttled: $stderr. dx download will handle the retries")
+            true
+          case (_, _, stderr: String) if stderr.nonEmpty =>
+            logger.warning(s"unexpected error: $stderr")
+            false
+          case (_, _, _) => true
         }
       } catch {
         case e: Throwable =>
