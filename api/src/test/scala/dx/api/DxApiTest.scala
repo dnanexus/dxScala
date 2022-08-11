@@ -111,7 +111,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
     val throttleMsg = "Too many inbound requests, throttling requests for user-my_user, code 503. " +
       "Request Params=blah-blah, Request Other Params=unavailable. Waiting 10000 years before retry..."
     when(mockRunner.execCommand(dxDownloadCmd)) thenReturn ((0, "", throttleMsg))
-    dxApi.downloadFile(path, dxFile, overwrite = true, runner = mockRunner) shouldBe ()
+    dxApi.downloadFile(path, dxFile, overwrite = true, cliRunner = mockRunner) shouldBe ()
     val mockRunnerFailure = mock[CommandRunner]
     val throttleMsgNonExistent =
       "Non-existing throttling message for thrown by the platform, code as if 503"
@@ -120,7 +120,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
         path,
         dxFile,
         overwrite = true,
-        runner = mockRunnerFailure,
+        cliRunner = mockRunnerFailure,
         retryLimit = 1
     )
   }
@@ -184,6 +184,23 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
     result.size shouldBe 1
     result.head.hasCachedDesc shouldBe true
     result.head.describe().name shouldBe "test1.test"
+  }
+
+  it should "uploadFile and ignore 503 response when throttles" in {
+    val dest = s"${dxTestProject.id}:/${uploadPath}/throttled/"
+    val fileToUpload = files.keys.head
+    val dxUploadCmd =
+      s"""dx upload "${fileToUpload.toString}" --brief${dest}"""
+    val mockRunner = mock[CommandRunner]
+    val throttleMsg = "Too many inbound requests, throttling requests for user-my_user, code 503. " +
+      "Request Params=blah-blah, Request Other Params=unavailable. Waiting 10000 years before retry..."
+    when(mockRunner.execCommand(dxUploadCmd)) thenReturn ((0, "", throttleMsg))
+    an[Exception] should be thrownBy
+      dxApi.uploadFile(path = fileToUpload,
+                       destination = Some(dest),
+                       retryLimit = 1,
+                       cliRunner = mockRunner)
+    // TODO here to add the test for throttled upload
   }
 
   it should "upload files in serial" in {
