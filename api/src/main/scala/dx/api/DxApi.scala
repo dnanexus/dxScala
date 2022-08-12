@@ -1093,7 +1093,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     * @param overwrite whether to overwrite an existing file - if false, an
     *                  exception is thrown if the target path already exists
     * @param retryLimit max number of retries
-    * @param cliRunner max number of retries
+    * @param cliRunner Dependency injection: class for running CLI commands
     */
   def downloadFile(path: Path,
                    dxfile: DxFile,
