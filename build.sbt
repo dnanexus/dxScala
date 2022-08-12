@@ -10,7 +10,17 @@ name := "dxScala"
 ThisBuild / organization := "com.dnanexus"
 ThisBuild / scalaVersion := "2.13.7"
 ThisBuild / developers := List(
-    Developer("jdidion", "jdidion", "jdidion@dnanexus.com", url("https://github.com/dnanexus-rnd"))
+    Developer("commandlinegirl",
+      "Ola Zalcman",
+      "azalcman@dnanexus.com",
+      url("https://github.com/dnanexus")),
+    Developer("Gvaihir", "Gvaihir", "aogrodnikov@dnanexus.com", url("https://github.com/dnanexus")),
+    Developer("mhrvol", "Marek Hrvol", "mhrvol@dnanexus.com", url("https://github.com/dnanexus")),
+    Developer("r-i-v-a",
+      "Riva Nathans",
+      "rnathans@dnanexus.com",
+      url("https://github.com/dnanexus")),
+    Developer("YuxinShi0423", "Yuxin Shi", "yshi@dnanexus.com", url("https://github.com/dnanexus")),
 )
 ThisBuild / homepage := Some(url("https://github.com/dnanexus/dxScala"))
 ThisBuild / scmInfo := Some(
@@ -107,12 +117,13 @@ val yaml = project
 
 lazy val dependencies =
   new {
-    val dxCommonVersion = "0.11.3"
-    val dxApiVersion = "0.13.2"
+    val dxCommonVersion = "0.11.4-SNAPSHOT"
+    val dxApiVersion = "0.13.3-SNAPSHOT"
     val typesafeVersion = "1.4.1"
     val sprayVersion = "1.3.6"
     val snakeyamlVersion = "2.3"
-    val scalatestVersion = "3.2.9"
+    val scalatestVersion = "3.2.13"
+    val mockitoVersion = "1.17.12"
     val jacksonVersion = "2.13.1"
     val guavaVersion = "23.0"
     val httpClientVersion = "4.5.13"
@@ -131,6 +142,7 @@ lazy val dependencies =
     val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
     val awssdk = "software.amazon.awssdk" % "s3" % awsVersion
     val scalatest = "org.scalatest" % "scalatest_2.13" % scalatestVersion
+    val mockitoScala = "org.mockito" %% "mockito-scala" % mockitoVersion % Test
     // dependencies of dependencies - specified here to resolve version conflicts
     val nettyHandler = "io.netty" % "netty-handler" % nettyVersion
     val nettyCodecHttp2 = "io.netty" % "netty-codec-http" % nettyVersion
@@ -139,7 +151,8 @@ lazy val dependencies =
 lazy val commonDependencies = Seq(
     dependencies.logback,
     dependencies.spray,
-    dependencies.scalatest % Test
+    dependencies.scalatest % Test,
+    dependencies.mockitoScala
 )
 
 // SETTINGS

@@ -11,6 +11,9 @@ import dx.api.DxPath.DxPathComponents
 import dx.AppInternalException
 import dx.util.{FileUtils, JsUtils, Logger, SysUtils, TraceLevel}
 import dx.util.CollectionUtils.IterableOnceExtensions
+import dx.util.CommandRunner
+import dx.util.CommandRunnerResponse
+import dx.util.CommandRunnerResponse._
 import spray.json._
 
 import java.util.concurrent.{Callable, Executors, RejectedExecutionException}
@@ -1089,12 +1092,15 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     * @param dxfile the dx file to download
     * @param overwrite whether to overwrite an existing file - if false, an
     *                  exception is thrown if the target path already exists
+    * @param retryLimit max number of retries
+    * @param cliRunner Dependency injection: class for running CLI commands
     */
   def downloadFile(path: Path,
                    dxfile: DxFile,
                    overwrite: Boolean = false,
-                   retryLimit: Int = DefaultDownloadRetryLimit): Unit = {
-    def downloadOneFile(path: Path, dxfile: DxFile): Boolean = {
+                   retryLimit: Int = DefaultDownloadRetryLimit,
+                   cliRunner: CommandRunner = new CommandRunner): Unit = {
+    def cliDownloadFile(path: Path, dxfile: DxFile): CommandRunnerResponse = {
       val fid = dxfile.id
       val fileObj = path.toFile
       val alreadyExists = fileObj.exists()
@@ -1104,15 +1110,18 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
         val dxDownloadCmd =
           s"""dx download ${fid} -o "${path.toString}" --no-progress ${if (overwrite) "-f" else ""}"""
         logger.traceLimited(s"--  ${dxDownloadCmd}")
-        val (_, stdout, stderr) = SysUtils.execCommand(dxDownloadCmd)
-        if (stdout.nonEmpty) {
-          logger.warning(s"unexpected output: ${stdout}")
-          false
-        } else if (stderr.nonEmpty) {
-          logger.warning(s"unexpected error: ${stderr}")
-          false
-        } else {
-          true
+        cliRunner.execCommand(dxDownloadCmd) match {
+          case (_, stdout: String, _) if stdout.nonEmpty =>
+            logger.warning(s"unexpected output: $stdout")
+            CommandFailure(stdout)
+          case (_, _, stderr: String)
+              if DxUtils.throttlingStderrRegex.findFirstIn(stderr).isDefined =>
+            logger.warning(s"Request was throttled: $stderr. dx download will handle the retries")
+            CommandAllowedApiThrottle(stderr)
+          case (_, _, stderr: String) if stderr.nonEmpty =>
+            logger.warning(s"unexpected error: $stderr")
+            CommandFailure(stderr)
+          case (_, _, _) => CommandSuccess("")
         }
       } catch {
         case e: Throwable =>
@@ -1121,7 +1130,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
           if ((overwrite || !alreadyExists) && fileObj.exists()) {
             fileObj.delete()
           }
-          false
+          CommandFailure(s"error downloading file ${dxfile}")
       }
     }
 
@@ -1137,7 +1146,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
           Thread.sleep(WaitMillis * scala.math.pow(2, counter - 1).toLong)
         }
         logger.traceLimited(s"downloading file ${path.toString} (try=${counter})")
-        downloadOneFile(path, dxfile)
+        cliDownloadFile(path, dxfile).pass
       }
     if (!success) {
       throw new Exception(s"Failure to download file ${path}")
@@ -1171,7 +1180,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
                  wait: Boolean = false,
                  tags: Set[String] = Set.empty,
                  properties: Map[String, String] = Map.empty,
-                 retryLimit: Int = DefaultUploadRetryLimit): DxFile = {
+                 retryLimit: Int = DefaultUploadRetryLimit,
+                 cliRunner: CommandRunner = new CommandRunner): DxFile = {
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
@@ -1182,7 +1192,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case _                                   => throw new Exception(s"invalid destination ${destination}")
     }
 
-    def uploadOneFile(path: Path): Option[String] = {
+    def cliUploadFile(path: Path): CommandRunnerResponse = {
       try {
         // shell out to dx upload. We need to quote the path, because it may contain spaces
         val destOpt = destination.map(d => s""" --destination "${d}" -p""").getOrElse("")
@@ -1196,19 +1206,25 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
         val dxUploadCmd =
           s"""dx upload "${path.toString}" --brief${destOpt}${waitOpt}${tagsOpt}${propertiesOpt}"""
         logger.traceLimited(s"CMD: ${dxUploadCmd}")
-        SysUtils.execCommand(dxUploadCmd) match {
+        cliRunner.execCommand(dxUploadCmd) match {
           case (_, stdout, _) if stdout.trim.startsWith("file-") =>
-            Some(stdout.trim())
+            CommandSuccess(stdout.trim())
+          case (_, _, stderr: String)
+              if DxUtils.throttlingStderrRegex.findFirstIn(stderr).isDefined =>
+            logger.warning(s"Request was throttled: $stderr. Retry")
+            CommandAllowedApiThrottle(stderr)
           case (_, stdout, stderr) =>
             logger.traceLimited(s"""unexpected response:
                                    |stdout: ${stdout}
                                    |stderr: ${stderr}""".stripMargin)
-            None
+            CommandFailure(s"""unexpected response:
+                              |stdout: ${stdout}
+                              |stderr: ${stderr}""".stripMargin)
         }
       } catch {
         case e: Throwable =>
           logger.traceLimited(s"error uploading file ${path}", exception = Some(e))
-          None
+          CommandFailure(s"error uploading file ${path}")
       }
     }
 
@@ -1219,9 +1235,10 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
           Thread.sleep(WaitMillis * scala.math.pow(2, counter - 1).toLong)
         }
         logger.traceLimited(s"upload file ${path.toString} (try=${counter})")
-        uploadOneFile(path) match {
-          case Some(fid) => Some(file(fid, destProj.map(resolveProject)))
-          case None      => None
+        cliUploadFile(path) match {
+          case CommandSuccess(fid) => Some(file(fid, destProj.map(resolveProject)))
+          // TODO how to extract a file ID of a throttled request??
+          case _ => None
         }
       }
       .getOrElse(throw new Exception(s"Failure to upload file ${path}"))

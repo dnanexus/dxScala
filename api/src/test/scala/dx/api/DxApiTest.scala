@@ -4,14 +4,15 @@ import Assumptions.{isLoggedIn, toolkitCallable}
 import Tags.ApiTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import dx.util.{FileUtils, Logger}
+import dx.util.{CommandRunner, FileUtils, Logger}
 import org.scalatest.BeforeAndAfterAll
 import spray.json._
+import org.mockito.MockitoSugar
 
 import java.nio.file.Files
 import scala.util.Random
 
-class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
+class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
   assume(isLoggedIn)
   assume(toolkitCallable)
   private val logger = Logger.Quiet
@@ -98,6 +99,32 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     value shouldBe "The fibonacci series includes 0,1,1,2,3,5\n"
   }
 
+  it should "downloadFile and ignore 503 response when throttles" in {
+    val results =
+      dxApi.resolveDataObjectBulk(Vector(s"dx://${testProject}:/test_data/fileA"), dxTestProject)
+    val dxobj = results.values.head
+    val dxFile: DxFile = dxobj.asInstanceOf[DxFile]
+    val path = Files.createTempFile(s"${dxFile.id}", ".tmp")
+    val dxDownloadCmd =
+      s"""dx download ${dxFile.id} -o "${path.toString}" --no-progress -f"""
+    val mockRunner = mock[CommandRunner]
+    val throttleMsg = "Too many inbound requests, throttling requests for user-my_user, code 503. " +
+      "Request Params=blah-blah, Request Other Params=unavailable. Waiting 10000 years before retry..."
+    when(mockRunner.execCommand(dxDownloadCmd)) thenReturn ((0, "", throttleMsg))
+    dxApi.downloadFile(path, dxFile, overwrite = true, cliRunner = mockRunner) shouldBe ()
+    val mockRunnerFailure = mock[CommandRunner]
+    val throttleMsgNonExistent =
+      "Non-existing throttling message for thrown by the platform, code as if 503"
+    when(mockRunnerFailure.execCommand(dxDownloadCmd)) thenReturn ((0, "", throttleMsgNonExistent))
+    an[Exception] should be thrownBy dxApi.downloadFile(
+        path,
+        dxFile,
+        overwrite = true,
+        cliRunner = mockRunnerFailure,
+        retryLimit = 1
+    )
+  }
+
   it should "bulk describe files" taggedAs ApiTest in {
     val query = Vector(DxFile(testFile, Some(dxTestProject))(dxApi))
     val result = dxApi.describeFilesBulk(query, validate = true)
@@ -157,6 +184,23 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     result.size shouldBe 1
     result.head.hasCachedDesc shouldBe true
     result.head.describe().name shouldBe "test1.test"
+  }
+
+  it should "uploadFile and ignore 503 response when throttles" in {
+    val dest = s"${dxTestProject.id}:/${uploadPath}/throttled/"
+    val fileToUpload = files.keys.head
+    val dxUploadCmd =
+      s"""dx upload "${fileToUpload.toString}" --brief${dest}"""
+    val mockRunner = mock[CommandRunner]
+    val throttleMsg = "Too many inbound requests, throttling requests for user-my_user, code 503. " +
+      "Request Params=blah-blah, Request Other Params=unavailable. Waiting 10000 years before retry..."
+    when(mockRunner.execCommand(dxUploadCmd)) thenReturn ((0, "", throttleMsg))
+    an[Exception] should be thrownBy
+      dxApi.uploadFile(path = fileToUpload,
+                       destination = Some(dest),
+                       retryLimit = 1,
+                       cliRunner = mockRunner)
+    // TODO here to add the test for throttled upload
   }
 
   it should "upload files in serial" in {
