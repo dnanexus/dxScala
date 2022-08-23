@@ -1,8 +1,8 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.5.5 (2022-08-23)
 
-* ..
+* Dependency update
 
 ## 0.5.4 (2022-03-15)
 
