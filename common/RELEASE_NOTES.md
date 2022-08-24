@@ -2,6 +2,10 @@
 
 ## in develop
 
+...
+
+## 0.11.4 (2022-08-23)
+
 * Fix for handling 503 error in dx CLI when API requests are throttled
 
 ## 0.11.3 (2022-05-11)

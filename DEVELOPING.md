@@ -77,7 +77,7 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
    - For the projects not being released, reset the version to the current release version
 4. Also update the version numbers in the dependency section of build.sbt
 5. Update the release notes for each projects being released
-   - Change the top header from "in develop" to "<version> (<date>)"
+   - Change the top header from "in develop" to "\<version\> (\<date\>)"
 
 ### Releasing to GitHub
 
