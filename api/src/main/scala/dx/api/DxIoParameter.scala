@@ -116,6 +116,11 @@ object IOParameterValue {
         IOParameterValueDataObject(id.get, project, name, region)
       case DxIOSpec.Suggestions if id.isEmpty && project.isDefined && path.isDefined =>
         DxIoParameterValuePath(project.get, path.get, name, region)
+      case DxIOSpec.Suggestions if project.isDefined && id.isEmpty && path.isEmpty =>
+        Logger.get.warning(
+            "no path or file ID was provided. Assuming root directory of the project for suggestions"
+        )
+        DxIoParameterValuePath(project.get, "/", name, region)
       case DxIOSpec.Suggestions =>
         throw new Exception("suggestion file value requires either file ID or project and path")
       case _ =>
