@@ -64,9 +64,9 @@ class DxFindDataObjectsTest extends AnyFlatSpec with Matchers {
           project = Some(dxTestProject),
           folder = Some("/test_data"),
           recurse = true,
-          ids = Set("file-Fy9V9000yzZZZZjGJPVVQ4PX",
-                    "file-G0G3BZQ0yzZV5q4q3vkQJK4V",
-                    "file-G284G400yzZgV8xg3vF1jgQp")
+          ids = Set("file-FGqFGBQ0ffPPkYP19gBvFkZy",
+                    "file-FGqFJ8Q0ffPGVz3zGy4FK02P",
+                    "file-FGzzpkQ0ffPJX74548Vp6670")
       )
     val results = findDataObjects.query(constraints)
     results.size shouldBe 3
