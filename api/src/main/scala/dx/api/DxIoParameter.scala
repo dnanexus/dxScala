@@ -117,7 +117,8 @@ object IOParameterValue {
       case DxIOSpec.Suggestions if id.isEmpty && project.isDefined && path.isDefined =>
         DxIoParameterValuePath(project.get, path.get, name, region)
       case DxIOSpec.Suggestions =>
-        throw new Exception("suggestion file value requires either file ID or project and path")
+        Logger.get.warning("suggestion file value requires either file ID or project and path")
+        DxIoParameterValuePath(project.get, "/", name, region)
       case _ =>
         throw new Exception(s"unrecognized field ${field}")
     }
