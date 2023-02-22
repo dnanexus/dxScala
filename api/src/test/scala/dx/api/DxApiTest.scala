@@ -22,7 +22,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
   private val testRecord = "record-Fgk7V7j0f9JfkYK55P7k3jGY"
   private val testFile = "file-FGqFGBQ0ffPPkYP19gBvFkZy"
   private val foreignFile = "file-FqP0x4Q0bxKXBBXX5pjVYf3Q"
-  private val testDatabase = "database-G83KzZQ0yzZv7xK3G1ZJ2p4X"
+  private val testDatabase = "database-G4FKyYj0f9jPbkj34P30qb8y"
   private val username = dxApi.whoami()
   private val parentJob = "job-GFG4YxQ0yzZY061b23FKXxZB"
   private val uploadPath = s"unit_tests/${username}/test_upload"
