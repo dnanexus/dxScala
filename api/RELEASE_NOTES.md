@@ -2,7 +2,8 @@
 
 ## in develop
 
-...
+* Fixes handling of `suggestions` field for IO specs when only project ID is specified. Now instead of exception
+a warning is thrown.
 
 ## 0.13.3 (2022-08-23)
 
