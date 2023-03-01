@@ -160,35 +160,27 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "upgrade to v2 if available when specifying system requirements" in {
-    val db = InstanceTypeDB(
-        Map(
-            "mem1_ssd1_v2_x4" -> DxInstanceType(
-                "mem1_ssd1_v2_x4",
-                8000,
-                80,
-                4,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            ),
-            "mem1_ssd1_x4" -> DxInstanceType(
-                "mem1_ssd1_x4",
-                8000,
-                80,
-                4,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            )
-        )
-    )
-
-    db.selectOptimal(InstanceTypeRequest(minCpu = Some(4))) should matchPattern {
-      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_v2_x4" =>
+  it should "upgrade to v2 when specifying system requirements with CPU" in {
+    testDb.selectOptimal(InstanceTypeRequest(minCpu = Some(16))) should matchPattern {
+      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_v2_x16" =>
     }
+  }
+
+  it should "upgrade to v2 when specifying system requirements with RAM" in {
+    testDb.selectOptimal(InstanceTypeRequest(minMemoryMB = Some(29900))) should matchPattern {
+      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_v2_x16" =>
+    }
+  }
+
+  it should "keep v1 instance because v2 is not available in the DB" in {
+    testDb
+      .selectOptimal(InstanceTypeRequest(minCpu = Some(2), minMemoryMB = Some(7000))) should matchPattern {
+      case Some(instanceType: DxInstanceType) if instanceType.name == "mem2_ssd1_x2" =>
+    }
+  }
+
+  it should "issue a warning if requested a v1 instance by ID but v2 is available" in {
+    throw new Exception("This fails because not implemented")
   }
 
   it should "respect requests for GPU instances" taggedAs EdgeTest in {
