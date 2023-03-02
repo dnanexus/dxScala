@@ -253,8 +253,10 @@ object DxInstanceType extends DefaultJsonProtocol {
       DxInstanceType.apply
   )
   val Version2Suffix = "_v2"
-  val MemoryNormFactor: Double = 1024.0
-  val DiskNormFactor: Double = 16.0
+  private val NewestVersion = "v2"
+  private val InstanceNameSeparator = "_"
+  private val MemoryNormFactor: Double = 1024.0
+  private val DiskNormFactor: Double = 16.0
 }
 
 case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
@@ -264,6 +266,21 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
       instanceTypes: Iterable[DxInstanceType]
   ): Option[DxInstanceType] = {
     instanceTypes.toVector.sortWith(_ < _).headOption
+  }
+
+  private def newerVersionAvailable(instance: DxInstanceType): Boolean = {
+    if (instance.name contains DxInstanceType.Version2Suffix) true
+    else {
+      selectByName(upgradeToLatestVersion(instance)) match {
+        case Some(_) => true
+        case None    => false
+      }
+    }
+  }
+
+  private def upgradeToLatestVersion(instance: DxInstanceType): String = {
+    // TODO implement
+    instance.name
   }
 
   /**
@@ -311,11 +328,17 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
     */
   def selectOptimal(query: InstanceTypeRequest,
                     enforceMaxBounds: Boolean = false): Option[DxInstanceType] = {
-    val optimal = selectMinimalInstanceType(selectAll(query, enforceMaxBounds = true))
-    if (optimal.isEmpty && !enforceMaxBounds && query.hasMaxBounds) {
-      selectMinimalInstanceType(selectAll(query))
-    } else {
-      optimal
+    val optimal = selectMinimalInstanceType(selectAll(query, enforceMaxBounds = true)) match {
+      case None if !enforceMaxBounds && query.hasMaxBounds =>
+        selectMinimalInstanceType(selectAll(query))
+      case None               => None
+      case Some(instanceType) => Some(instanceType)
+    }
+    optimal match {
+      case None => None
+      case Some(instanceType) if newerVersionAvailable(instanceType) =>
+        selectByName(upgradeToLatestVersion(instanceType))
+      case Some(instanceType) => Some(instanceType)
     }
   }
 
