@@ -273,10 +273,7 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
   private def newerVersionAvailable(instance: DxInstanceType): Boolean = {
     if (instance.name contains DxInstanceType.Version2Suffix) true
     else {
-      selectByName(upgradeToLatestVersion(instance)) match {
-        case Some(_) => true
-        case None    => false
-      }
+      instanceTypes.contains(upgradeToLatestVersion(instance))
     }
   }
 
@@ -368,7 +365,7 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
           Logger.get.warning(
               s"""
                  |WARNING: an older version of the instance ${x.name} is specified.
-                 |Please consider upgrading to a ${upgradeToLatestVersion(x)} instance
+                 |Please consider upgrading to the ${upgradeToLatestVersion(x)} instance
                  |""".stripMargin
           )
           return Some(x)

@@ -173,17 +173,9 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
   }
 
   it should "issue a warning if requested a v1 instance by ID but v2 is available" in {
-    testDb.selectByName("mem1_ssd1_x16") should (matchPattern {
+    testDb.selectByName("mem1_ssd1_x16") should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x16" =>
-    } and equal {
-      Logger.get.warning(
-          s"""
-             |WARNING: an older version of the instance mem1_ssd1_x16 is specified.
-             |Please consider upgrading to a mem1_ssd1_v2_x16 instance
-             |""".stripMargin
-      )
-    })
-
+    }
   }
 
   it should "respect requests for GPU instances" taggedAs EdgeTest in {
