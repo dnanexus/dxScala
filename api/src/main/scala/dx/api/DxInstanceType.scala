@@ -27,10 +27,11 @@ price       comparative price
 package dx.api
 
 import dx.api
-import dx.util.{Enum, JsUtils, Logger}
+import dx.util.{Enum, JsUtils, LinkedList, LinkedListInterface, LinkedNil, Logger}
 import dx.util.Enum.enumFormat
 import spray.json.{RootJsonFormat, _}
 
+import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 
 object DiskType extends Enum {
@@ -253,8 +254,9 @@ object DxInstanceType extends DefaultJsonProtocol {
       DxInstanceType.apply
   )
   val Version2Suffix = "_v2"
-  private val NewestVersion = "v2"
-  private val InstanceNameSeparator = "_"
+  val NewestVersion = "v2"
+  val CpuSuffixStart = "x"
+  val InstanceNameSeparator = "_"
   private val MemoryNormFactor: Double = 1024.0
   private val DiskNormFactor: Double = 16.0
 }
@@ -279,8 +281,22 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
   }
 
   private def upgradeToLatestVersion(instance: DxInstanceType): String = {
-    // TODO implement
-    instance.name
+    val instanceNameElements = instance.name.split(DxInstanceType.InstanceNameSeparator).toVector
+    val linkedElements = LinkedList.create(instanceNameElements)
+    @tailrec
+    def insertVersion(linkedList: LinkedListInterface[String],
+                      accu: Vector[String] = Vector.empty): Vector[String] = {
+      linkedList match {
+        case LinkedNil                                    => accu
+        case l: LinkedList[String] if l.next == LinkedNil => l.value +: accu
+        case l: LinkedList[String]
+            if l.value.startsWith(DxInstanceType.CpuSuffixStart)
+              && l.next.value != DxInstanceType.NewestVersion =>
+          insertVersion(l.next, DxInstanceType.NewestVersion +: l.value +: accu)
+        case l: LinkedList[(String)] => insertVersion(l.next, l.value +: accu)
+      }
+    }
+    insertVersion(linkedElements).mkString("_")
   }
 
   /**
@@ -344,7 +360,20 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
 
   def selectByName(name: String): Option[DxInstanceType] = {
     if (instanceTypes.contains(name)) {
-      return instanceTypes.get(name)
+      val instance = instanceTypes.get(name)
+      instance match {
+        case None => return instance
+        case Some(x)
+            if newerVersionAvailable(x) && !(x.name contains DxInstanceType.Version2Suffix) =>
+          Logger.get.warning(
+              s"""
+                 |WARNING: an older version of the instance ${x.name} is specified.
+                 |Please consider upgrading to a ${upgradeToLatestVersion(x)} instance
+                 |""".stripMargin
+          )
+          return Some(x)
+        case Some(x) => return Some(x)
+      }
     }
     val nameWithoutHdd = name.replace("hdd", "ssd")
     if (instanceTypes.contains(nameWithoutHdd)) {

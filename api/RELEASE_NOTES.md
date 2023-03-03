@@ -1,7 +1,8 @@
 # dxApi
 
 ## in develop
-...
+* Upgrades instance type to V2 in AWS regions when available. The upgrade happens only if the user specified system 
+requirements for a task/process. 
 
 ## 0.13.4 (2023-02-23)
 
