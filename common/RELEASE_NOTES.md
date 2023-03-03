@@ -2,7 +2,7 @@
 
 ## in develop
 
-...
+* Implemented immutable linked list to parse instance names
 
 ## 0.11.4 (2022-08-23)
 
