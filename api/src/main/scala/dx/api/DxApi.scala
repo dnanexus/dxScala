@@ -515,7 +515,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   }
 
   def fileDescribe(id: String, fields: Map[String, JsValue]): JsObject = {
-    callObject(DXAPI.fileDescribe[JsonNode], id, fields)
+    callObject(DXAPI.fileDescribe[JsonNode], id, fields + ("details" -> JsTrue))
   }
 
   def jobDescribe(id: String, fields: Map[String, JsValue] = Map.empty): JsObject = {
