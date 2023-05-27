@@ -1185,8 +1185,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
-
     val destProj = destination match {
+      case Some(projectAndPathRegexp(null, _)) => Option(currentWorkspaceId.get)
       case Some(projectAndPathRegexp(proj, _)) => Option(proj)
       case None                                => None
       case _                                   => throw new Exception(s"invalid destination ${destination}")
