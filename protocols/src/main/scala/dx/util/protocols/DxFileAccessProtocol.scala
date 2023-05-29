@@ -39,7 +39,9 @@ case class DxFileSource(dxFile: DxFile, override val encoding: Charset)(
 
   override def exists: Boolean = {
     try {
-      dxFile.describeNoCache(Set(Field.State)).state == DxState.Closed
+      dxFile
+        .describe(Set(Field.State))
+        .state == DxState.Closed //APPS-1881, files already described in a bulk, no need for a separate API call
     } catch {
       case _: ResourceNotFoundException => false
     }
