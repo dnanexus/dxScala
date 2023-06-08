@@ -1,8 +1,8 @@
 # dxFileAccessProtocols
 
-## in develop
+## 0.5.6 (2023-06-08)
 
-...
+* changes to facilitate optimizations of the number of `file-xxx/describe` API calls upon (de)localization of input/output files.
 
 ## 0.5.5 (2022-08-23)
 
