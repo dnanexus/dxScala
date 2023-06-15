@@ -35,6 +35,7 @@ jobs:
           pip3 install setuptools wheel
           pip3 install termcolor
           pip3 install dxpy
+          pip3 install --upgrade pyOpenSSL
       - name: Build Dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

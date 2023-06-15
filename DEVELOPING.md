@@ -71,7 +71,8 @@ When a PR is merged into `develop`, SNAPSHOT packages are automatically publishe
 ### Beginning the release
 
 1. Checkout the develop branch (either HEAD or the specific commit you want to release)
-2. Create a release branch named with the version number, e.g. `release-2.4.2`, or if you are releasing multiple projects with different versions, with the current date, e.g. `release-2021-05.07`
+2. Create a release branch named with the version number, e.g. `release-2.4.2`, or if you are releasing multiple projects 
+with different versions, with the current date, e.g. `release-2021-05-07`
 3. Update the version numbers in application.conf files
    - For the projects you will release, remove "-SNAPSHOT"
    - For the projects not being released, reset the version to the current release version
