@@ -22,24 +22,26 @@ case class DxAppletDescribe(project: String,
                             runSpec: Option[JsValue] = None,
                             access: Option[JsValue] = None,
                             ignoreReuse: Option[Boolean] = None,
-                            hidden: Option[Boolean] = None)
+                            hidden: Option[Boolean] = None,
+                            treeTurnaroundTimeThreshold: Option[Long] = None)
     extends DxObjectDescribe {
   override def containsAll(fields: Set[Field.Value]): Boolean = {
     fields.diff(DxAppletDescribe.RequiredFields).forall {
-      case Field.Properties     => properties.isDefined
-      case Field.Details        => details.isDefined
-      case Field.InputSpec      => inputSpec.isDefined
-      case Field.OutputSpec     => outputSpec.isDefined
-      case Field.Description    => description.isDefined
-      case Field.DeveloperNotes => developerNotes.isDefined
-      case Field.Summary        => summary.isDefined
-      case Field.Title          => title.isDefined
-      case Field.Types          => types.isDefined
-      case Field.Tags           => tags.isDefined
-      case Field.RunSpec        => runSpec.isDefined
-      case Field.Access         => access.isDefined
-      case Field.IgnoreReuse    => ignoreReuse.isDefined
-      case _                    => false
+      case Field.Properties                  => properties.isDefined
+      case Field.Details                     => details.isDefined
+      case Field.InputSpec                   => inputSpec.isDefined
+      case Field.OutputSpec                  => outputSpec.isDefined
+      case Field.Description                 => description.isDefined
+      case Field.DeveloperNotes              => developerNotes.isDefined
+      case Field.Summary                     => summary.isDefined
+      case Field.Title                       => title.isDefined
+      case Field.Types                       => types.isDefined
+      case Field.Tags                        => tags.isDefined
+      case Field.RunSpec                     => runSpec.isDefined
+      case Field.Access                      => access.isDefined
+      case Field.IgnoreReuse                 => ignoreReuse.isDefined
+      case Field.TreeTurnaroundTimeThreshold => treeTurnaroundTimeThreshold.isDefined
+      case _                                 => false
     }
   }
 }
@@ -93,6 +95,8 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
 
     val descFields: Map[String, JsValue] = descJs.fields
     val details = descFields.get("details")
+    val treeTurnaroundTimeThreshold =
+      descFields.get("treeTurnaroundTimeThreshold").flatMap(unwrapNumber)
     val props = descFields.get("properties").map(DxObject.parseJsonProperties)
     val description = descFields.get("description").flatMap(unwrapString)
     val developerNotes = descFields.get("developerNotes").flatMap(unwrapString)
@@ -116,13 +120,21 @@ case class DxApplet(id: String, project: Option[DxProject])(dxApi: DxApi = DxApi
         runSpec = runSpec,
         access = access,
         ignoreReuse = ignoreReuse,
-        hidden = hidden
+        hidden = hidden,
+        treeTurnaroundTimeThreshold = treeTurnaroundTimeThreshold
     )
   }
 
   def unwrapString(jsValue: JsValue): Option[String] = {
     jsValue match {
       case JsString(value) => Some(value)
+      case _               => None
+    }
+  }
+
+  private def unwrapNumber(jsValue: JsValue): Option[Long] = {
+    jsValue match {
+      case JsNumber(value) => Some(value.toLong)
       case _               => None
     }
   }

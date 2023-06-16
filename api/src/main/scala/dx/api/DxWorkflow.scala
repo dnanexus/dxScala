@@ -42,7 +42,8 @@ case class DxWorkflowDescribe(project: String,
                               types: Option[Vector[String]] = None,
                               inputs: Option[Vector[IOParameter]] = None,
                               outputs: Option[Vector[IOParameter]] = None,
-                              hidden: Option[Boolean] = None)
+                              hidden: Option[Boolean] = None,
+                              treeTurnaroundTimeThreshold: Option[Long] = None)
     extends DxObjectDescribe
 
 object DxWorkflowDescribe {
@@ -113,6 +114,8 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
 
     val descFields: Map[String, JsValue] = descJs.fields
     val details = descFields.get("details")
+    val treeTurnaroundTimeThreshold =
+      descFields.get("treeTurnaroundTimeThreshold").flatMap(unwrapNumber)
     val props = descFields.get("properties").map(DxObject.parseJsonProperties)
     val stages = descFields.get("stages").map(DxWorkflowDescribe.parseStages)
     val description = descFields.get("description").flatMap(unwrapString)
@@ -150,13 +153,20 @@ case class DxWorkflow(id: String, project: Option[DxProject])(dxApi: DxApi = DxA
         tags = tags,
         inputs = inputs,
         outputs = outputs,
-        hidden = hidden
+        hidden = hidden,
+        treeTurnaroundTimeThreshold = treeTurnaroundTimeThreshold
     )
   }
 
   def unwrapString(jsValue: JsValue): Option[String] = {
     jsValue match {
       case JsString(value) => Some(value)
+      case _               => None
+    }
+  }
+  private def unwrapNumber(jsValue: JsValue): Option[Long] = {
+    jsValue match {
+      case JsNumber(value) => Some(value.toLong)
       case _               => None
     }
   }
