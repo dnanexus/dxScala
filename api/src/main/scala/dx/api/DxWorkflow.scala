@@ -24,6 +24,10 @@ case class DxWorkflowStage(id: String) {
   }
 }
 
+/**
+  * Class to store the output of workflow-xxx/describe API call.
+  * @param treeTurnaroundTimeThreshold number of seconds the workflow runs before sending an email notification to the user
+  */
 case class DxWorkflowDescribe(project: String,
                               id: String,
                               name: String,

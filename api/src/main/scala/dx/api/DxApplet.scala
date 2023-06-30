@@ -3,6 +3,10 @@ package dx.api
 import dx.AppInternalException
 import spray.json._
 
+/**
+  * Class to store the output of applet-xxx/describe API call.
+  * @param treeTurnaroundTimeThreshold number of seconds the applet runs before sending an email notification to the user
+  */
 case class DxAppletDescribe(project: String,
                             id: String,
                             name: String,
