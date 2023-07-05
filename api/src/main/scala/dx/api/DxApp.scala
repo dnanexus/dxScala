@@ -3,6 +3,10 @@ package dx.api
 import dx.AppInternalException
 import spray.json._
 
+/**
+  * Class to store the output of app-xxx/describe API call.
+  * @param treeTurnaroundTimeThreshold number of seconds the app runs before sending an email notification to the user
+  */
 case class DxAppDescribe(id: String,
                          name: String,
                          version: String,
@@ -13,23 +17,27 @@ case class DxAppDescribe(id: String,
                          details: Option[JsValue],
                          inputSpec: Option[Vector[IOParameter]],
                          outputSpec: Option[Vector[IOParameter]],
-                         access: Option[JsValue] = None)
+                         access: Option[JsValue] = None,
+                         treeTurnaroundTimeThreshold: Option[JsValue] = None)
     extends DxObjectDescribe {
   override def containsAll(fields: Set[Field.Value]): Boolean = {
     fields.diff(DxAppDescribe.RequiredFields).forall {
-      case Field.Properties => properties.isDefined
-      case Field.Details    => details.isDefined
-      case Field.InputSpec  => inputSpec.isDefined
-      case Field.OutputSpec => outputSpec.isDefined
-      case Field.Access     => access.isDefined
-      case _                => false
+      case Field.Properties                  => properties.isDefined
+      case Field.Details                     => details.isDefined
+      case Field.InputSpec                   => inputSpec.isDefined
+      case Field.OutputSpec                  => outputSpec.isDefined
+      case Field.Access                      => access.isDefined
+      case Field.TreeTurnaroundTimeThreshold => treeTurnaroundTimeThreshold.isDefined
+      case _                                 => false
     }
   }
 }
 
 object DxAppDescribe {
   val RequiredFields = Set(Field.Id, Field.Name, Field.Version, Field.Created, Field.Modified)
-  val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.InputSpec, Field.OutputSpec)
+  val DefaultFields: Set[Field.Value] = RequiredFields ++ Set(Field.InputSpec,
+                                                              Field.OutputSpec,
+                                                              Field.TreeTurnaroundTimeThreshold)
 }
 
 case class DxApp(id: String)(dxApi: DxApi = DxApi.get)
@@ -124,6 +132,12 @@ object DxApp {
     val tags = descJs.fields.get("tags").map(DxObject.parseJsonTags)
     val properties = descJs.fields.get("properties").map(DxObject.parseJsonProperties)
     val access = descJs.fields.get("access")
-    desc.copy(details = details, tags = tags, properties = properties, access = access)
+    val treeTurnaroundTimeThreshold =
+      descJs.fields.get("treeTurnaroundTimeThreshold")
+    desc.copy(details = details,
+              tags = tags,
+              properties = properties,
+              access = access,
+              treeTurnaroundTimeThreshold = treeTurnaroundTimeThreshold)
   }
 }
