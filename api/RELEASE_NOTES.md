@@ -3,6 +3,9 @@
 ## in develop
 ...
 
+## 0.13.6 (2023-06-08)
+* changes to facilitate optimizations of the number of `file-xxx/describe` API calls upon (de)localization of input/output files.
+
 ## 0.13.5 (2023-03-07)
 
 * Upgrades instance type to V2 in AWS regions when available. The upgrade happens only if the user specified system 

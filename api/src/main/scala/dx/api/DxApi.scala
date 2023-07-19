@@ -963,6 +963,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
                |in command line or provide fully-qualified names to ${files.map(_.id)}
                |""".stripMargin
         )
+      case (proj, files) if proj.get.id.startsWith("container") && proj != currentWorkspace =>
+        submitRequest(files.map(_.id).toSet, currentProject)
       case (proj, files) =>
         submitRequest(files.map(_.id).toSet, proj)
     }
@@ -1185,7 +1187,6 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     if (!Files.exists(path)) {
       throw new AppInternalException(s"Output file ${path.toString} is missing")
     }
-
     val destProj = destination match {
       case Some(projectAndPathRegexp(proj, _)) => Option(proj)
       case None                                => None
