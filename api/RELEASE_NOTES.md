@@ -1,7 +1,9 @@
 # dxApi
 
-## in develop
-...
+## 0.13.7 (2023-07-21)
+* changes to allow compiling with `treeTurnaroundTimeThreshold` attribute which facilitates platform to send the email 
+notifications for the root jobs/analyses with a run time (aka `treeTurnatoundTime`) exceeding the specified threshold. 
+This feature is not exclusive for dxCompiler and more information is available in the platform documentation.
 
 ## 0.13.6 (2023-06-08)
 * changes to facilitate optimizations of the number of `file-xxx/describe` API calls upon (de)localization of input/output files.
