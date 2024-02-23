@@ -532,7 +532,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
                 dependsOn: Vector[DxExecution],
                 delayWorkspaceDestruction: Option[Boolean],
                 name: Option[String] = None,
-                details: Option[JsValue] = None): DxJob = {
+                details: Option[JsValue] = None,
+                headJobOnDemand: Boolean = false): DxJob = {
     val requiredFields = Map(
         "function" -> JsString(entryPoint),
         "input" -> inputs
@@ -567,7 +568,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case Some(d) => Map("details" -> d)
       case None    => Map.empty
     }
-    val request = requiredFields ++ instanceFields ++ dependsFields ++ dwdFields ++ nameFields ++ detailsFields
+    val headJobOnDemandField = if (headJobOnDemand) Map("headJobOnDemand" -> JsTrue) else Map.empty
+    val request = requiredFields ++ instanceFields ++ dependsFields ++ dwdFields ++ nameFields ++ detailsFields ++ headJobOnDemandField
     logger.traceLimited(s"subjob request=${JsObject(request).prettyPrint}")
     val response = jobNew(request)
     val id: String = response.fields.get("id") match {
