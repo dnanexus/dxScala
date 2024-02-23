@@ -1,7 +1,7 @@
 # dxApi
 
 ## in develop
-...
+* adds `headJobOnDemand` attribute to jobNew call
 
 ## 0.13.8 (2023-07-21)
 * changes to allow compiling with `treeTurnaroundTimeThreshold` attribute which facilitates platform to send the email 
