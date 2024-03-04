@@ -1,6 +1,10 @@
 # dxApi
 
 ## in develop
+
+...
+
+## 0.13.9 (2024-02-29)
 * adds `headJobOnDemand` attribute to jobNew call
 
 ## 0.13.8 (2023-07-21)
