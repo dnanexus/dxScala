@@ -2,7 +2,7 @@
 
 ## in develop
 
-...
+* Change to make the user-agent string for dxScala more distinctive.
 
 ## 0.13.9 (2024-02-29)
 * adds `headJobOnDemand` attribute to jobNew call
