@@ -17,7 +17,7 @@
 package com.dnanexus;
 
 /**
- * Utility class that produces an appropriate user-agent string for the Java
+ * Utility class that produces an appropriate user-agent string for the dxScala
  * client.
  */
 class DXUserAgent {
@@ -26,11 +26,10 @@ class DXUserAgent {
      */
     public static String getUserAgent() {
         // Contains the following pieces of info:
-        // dx-toolkit version (e.g. 0.100.0)
         // host operating system
         // Java specification version (e.g. 1.6.0_27)
         // VM name and version
-        return "dxjava/" + DXToolkitVersion.TOOLKIT_VERSION + " " + System.getProperty("os.name").replace(" ", "")
+        return "dxscala/" + " " + System.getProperty("os.name").replace(" ", "")
                 + " java/" + System.getProperty("java.version") + " [" + System.getProperty("java.vm.name") + "]/"
                 + System.getProperty("java.vm.version");
     }
