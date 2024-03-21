@@ -214,6 +214,31 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     }
   }
 
+  def flattenDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
+    try {
+      val obj = dataObjectFromJson(jsValue)
+      Vector(obj)
+    } catch {
+      case _: Throwable => {
+        jsValue match {
+          case JsObject(fields) =>
+            fields.values.toVector.flatMap(flattenDataObjectsFromJson)
+          case JsArray(elements) =>
+            elements.flatMap(flattenDataObjectsFromJson)
+          case _ =>
+            // Not an object, array, or recognized dx data object
+            Vector.empty
+        }
+      }
+    }
+  }
+
+  def flattenDxFileObjectsFromJson(jsValue: JsValue): Vector[DxFile] = {
+    flattenDataObjectsFromJson(jsValue).collect {
+      case obj: DxFile => obj
+    }
+  }
+
   def dataObjectFromJson(jsValue: JsValue): DxDataObject = {
     val link = jsValue match {
       case JsObject(fields) if fields.contains(DxUtils.DxLinkKey) =>
@@ -243,25 +268,6 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     }
 
     dataObject(objectId, projectId.map(project))
-  }
-
-  def flattenDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
-    try {
-      val obj = dataObjectFromJson(jsValue)
-      Vector(obj)
-    } catch {
-      case _: Throwable => {
-        jsValue match {
-          case JsObject(fields) =>
-            fields.values.toVector.flatMap(flattenDataObjectsFromJson)
-          case JsArray(elements) =>
-            elements.flatMap(flattenDataObjectsFromJson)
-          case _ =>
-            // Not an object, array, or recognized dx data object
-            Vector.empty
-        }
-      }
-    }
   }
 
   def isDataObjectId(id: String): Boolean = {
