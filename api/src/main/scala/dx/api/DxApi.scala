@@ -245,6 +245,26 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     dataObject(objectId, projectId.map(project))
   }
 
+  def flattenDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
+    try {
+      dataObject = dataObjectFromJson(jsValue)
+      Vector(dataObject)
+    } catch {
+      jsValue match {
+        case obj: JsObject => {
+          // TODO recurse - for object
+        }
+        case arr: JsArray => {
+          // TODO recurse - for array
+        }
+        case _ => {
+          // Not an object, array, or recognized dx data object
+          Vector.empty
+        }
+      }
+    }
+  }
+
   def isDataObjectId(id: String): Boolean = {
     try {
       dataObject(id)
