@@ -256,9 +256,8 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
             // TODO recurse - for object
             Vector.empty
           }
-          case arr: JsArray => {
-            // Vector(arr.elements).flatMap(flattenDataObjectsFromJson)
-            Vector.empty
+          case JsArray(elements) => {
+            elements.flatMap(flattenDataObjectsFromJson)
           }
           case _ => {
             // Not an object, array, or recognized dx data object
