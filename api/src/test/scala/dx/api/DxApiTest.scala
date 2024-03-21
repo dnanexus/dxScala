@@ -252,7 +252,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
     app.describe().version shouldBe "1.0.0"
   }
 
-  it should "flatten collect files from JSON - nested array" {
+  it should "flat collect files from JSON - nested array" in {
     // given
     val jsNestedArrayWithFiles = {
       val file1 = JsObject(
@@ -271,7 +271,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
     result.size shouldBe 2
   }
 
-  it should "flatten collect files from JSON - nested object" {
+  it should "flat collect files from JSON - nested object" in {
     // given
     val jsNestedObjectWithDataObjects = {
       val file1 = JsObject(
@@ -293,7 +293,7 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
     }
 
     // when
-    val result = dxApi.flattenDxFileObjectsFromJson(jsNestedArrayWithFiles)
+    val result = dxApi.flattenDxFileObjectsFromJson(jsNestedObjectWithDataObjects)
 
     // then
     result.size shouldBe 2
