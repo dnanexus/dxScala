@@ -951,6 +951,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     // to limit the number of objects in one API request. DxFindDataObjects
     // caches the desc on the DxFile object, so we only need to return the DxFile.
     def submitRequest(ids: Set[String], project: Option[DxProject]): Vector[DxFile] = {
+      logger.trace(s"Bulk describing ${ids.size} unique file ids")
       ids
         .grouped(limit)
         .flatMap { chunk =>
@@ -1015,6 +1016,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       }
     }
 
+    logger.trace(s"Successfully bulk described ${allResults.size} files")
     allResults
   }
 
