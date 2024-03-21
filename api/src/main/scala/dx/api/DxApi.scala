@@ -247,15 +247,16 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
 
   def flattenDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
     try {
-      dataObject = dataObjectFromJson(jsValue)
-      Vector(dataObject)
+      obj = dataObjectFromJson(jsValue)
+      Vector(obj)
     } catch {
       jsValue match {
         case obj: JsObject => {
           // TODO recurse - for object
+          Vector.empty
         }
         case arr: JsArray => {
-          // TODO recurse - for array
+          arr.elements.flatMap(flattenDataObjectsFromJson)
         }
         case _ => {
           // Not an object, array, or recognized dx data object
