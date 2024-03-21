@@ -214,7 +214,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     }
   }
 
-  def flattenDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
+  def flattenDxDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
     try {
       val obj = dataObjectFromJson(jsValue)
       Vector(obj)
@@ -222,9 +222,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       case _: Throwable => {
         jsValue match {
           case JsObject(fields) =>
-            fields.values.toVector.flatMap(flattenDataObjectsFromJson)
+            fields.values.toVector.flatMap(flattenDxDataObjectsFromJson)
           case JsArray(elements) =>
-            elements.flatMap(flattenDataObjectsFromJson)
+            elements.flatMap(flattenDxDataObjectsFromJson)
           case _ =>
             // Not an object, array, or recognized dx data object
             Vector.empty
@@ -234,7 +234,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
   }
 
   def flattenDxFileObjectsFromJson(jsValue: JsValue): Vector[DxFile] = {
-    flattenDataObjectsFromJson(jsValue).collect {
+    flattenDxDataObjectsFromJson(jsValue).collect {
       case obj: DxFile => obj
     }
   }
