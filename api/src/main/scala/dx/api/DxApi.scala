@@ -981,7 +981,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       }
 
     val uniqueFileIds = files.map(_.id).toSet
-    logger.trace(s"Bulk describing ${uniqueFileIds.size} unique file ids")
+    logger.trace(s"Bulk describing ${uniqueFileIds} unique file ids")
 
     val allResults = workspaceResults ++ remaining.groupBy(_.project).flatMap {
       case (None, files) if currentProjectId.isDefined =>
