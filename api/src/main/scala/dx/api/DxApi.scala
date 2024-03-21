@@ -980,9 +980,12 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
         (Vector.empty, files)
       }
 
+    val uniqueFileIds = files.map(_.id).toSet
+    logger.trace(s"Bulk describing ${uniqueFileIds} unique file ids")
+
     val allResults = workspaceResults ++ remaining.groupBy(_.project).flatMap {
       case (None, files) if currentProjectId.isDefined =>
-        submitRequest(files.map(_.id).toSet, currentProject)
+        submitRequest(uniqueFileIds, currentProject)
       case (None, files) =>
         throw new Exception(
             s"""
@@ -991,9 +994,9 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
                |""".stripMargin
         )
       case (proj, files) if proj.get.id.startsWith("container") && proj != currentWorkspace =>
-        submitRequest(files.map(_.id).toSet, currentProject)
+        submitRequest(uniqueFileIds, currentProject)
       case (proj, files) =>
-        submitRequest(files.map(_.id).toSet, proj)
+        submitRequest(uniqueFileIds, proj)
     }
 
     if (validate) {
@@ -1015,6 +1018,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       }
     }
 
+    logger.trace(s"Successfully bulk described ${allResults.size} files")
     allResults
   }
 
