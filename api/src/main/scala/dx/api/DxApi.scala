@@ -251,21 +251,21 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       Vector(obj)
     } catch {
       case _: Throwable => {
-        Vector.empty
+        jsValue match {
+          case obj: JsObject => {
+            // TODO recurse - for object
+            Vector.empty
+          }
+          case arr: JsArray => {
+            // Vector(arr.elements).flatMap(flattenDataObjectsFromJson)
+            Vector.empty
+          }
+          case _ => {
+            // Not an object, array, or recognized dx data object
+            Vector.empty
+          }
+        }
       }
-      // jsValue match {
-      //   case obj: JsObject => {
-      //     // TODO recurse - for object
-      //     Vector.empty
-      //   }
-      //   case arr: JsArray => {
-      //     Vector(arr.elements).flatMap(flattenDataObjectsFromJson)
-      //   }
-      //   case _ => {
-      //     // Not an object, array, or recognized dx data object
-      //     Vector.empty
-      //   }
-      // }
     }
   }
 
