@@ -214,6 +214,31 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     }
   }
 
+  def flattenDxDataObjectsFromJson(jsValue: JsValue): Vector[DxDataObject] = {
+    try {
+      val obj = dataObjectFromJson(jsValue)
+      Vector(obj)
+    } catch {
+      case _: Throwable => {
+        jsValue match {
+          case JsObject(fields) =>
+            fields.values.toVector.flatMap(flattenDxDataObjectsFromJson)
+          case JsArray(elements) =>
+            elements.flatMap(flattenDxDataObjectsFromJson)
+          case _ =>
+            // Not an object, array, or recognized dx data object
+            Vector.empty
+        }
+      }
+    }
+  }
+
+  def flattenDxFileObjectsFromJson(jsValue: JsValue): Vector[DxFile] = {
+    flattenDxDataObjectsFromJson(jsValue).collect {
+      case obj: DxFile => obj
+    }
+  }
+
   def dataObjectFromJson(jsValue: JsValue): DxDataObject = {
     val link = jsValue match {
       case JsObject(fields) if fields.contains(DxUtils.DxLinkKey) =>
@@ -926,6 +951,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
     // to limit the number of objects in one API request. DxFindDataObjects
     // caches the desc on the DxFile object, so we only need to return the DxFile.
     def submitRequest(ids: Set[String], project: Option[DxProject]): Vector[DxFile] = {
+      logger.trace(s"Bulk describing ${ids.size} unique file ids")
       ids
         .grouped(limit)
         .flatMap { chunk =>
@@ -990,6 +1016,7 @@ case class DxApi(version: String = "1.0.0", dxEnv: DXEnvironment = DxApi.default
       }
     }
 
+    logger.trace(s"Successfully bulk described ${allResults.size} files")
     allResults
   }
 

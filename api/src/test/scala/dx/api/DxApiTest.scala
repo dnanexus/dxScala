@@ -251,4 +251,51 @@ class DxApiTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with Mo
     app.describe().name shouldBe "bam_to_fastq"
     app.describe().version shouldBe "1.0.0"
   }
+
+  it should "flat collect files from JSON - nested array" in {
+    // given
+    val jsNestedArrayWithFiles = {
+      val file1 = JsObject(
+          "$dnanexus_link" -> JsString("file-GgyF7P00q9pQGXZKkKBF5xpP")
+      )
+      val file2 = JsObject(
+          "$dnanexus_link" -> JsString("file-GgyF7P00q9pyV2qbgYxk30J5")
+      )
+      JsArray(Vector(JsArray(Vector(file1)), JsArray(Vector(file2))))
+    }
+
+    // when
+    val result = dxApi.flattenDxFileObjectsFromJson(jsNestedArrayWithFiles)
+
+    // then
+    result.size shouldBe 2
+  }
+
+  it should "flat collect files from JSON - nested object" in {
+    // given
+    val jsNestedObjectWithDataObjects = {
+      val file1 = JsObject(
+          "$dnanexus_link" -> JsString("file-GgyF7P00q9pQGXZKkKBF5xpP")
+      )
+      val file2 = JsObject(
+          "$dnanexus_link" -> JsString("file-GgyF7P00q9pyV2qbgYxk30J5")
+      )
+      val record1 = JsObject(
+          "$dnanexus_link" -> JsString("record-Fgk7V7j0f9JfkYK55P7k3jGY")
+      )
+      JsObject(
+          "a" -> file1,
+          "b" -> record1,
+          "c" -> JsObject(
+              "d" -> file2
+          )
+      )
+    }
+
+    // when
+    val result = dxApi.flattenDxFileObjectsFromJson(jsNestedObjectWithDataObjects)
+
+    // then
+    result.size shouldBe 2
+  }
 }
