@@ -1,6 +1,6 @@
 # dxApi
 
-## in develop
+## 0.13.10 (2024-03-25)
 
 * Change to make the user-agent string for dxScala more distinctive.
 * Support for collecting data objects / files nested inside JSON objects.
