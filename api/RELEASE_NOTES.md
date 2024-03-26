@@ -1,19 +1,24 @@
 # dxApi
 
-## in develop
+## unreleased
+
+## 0.13.10 (2024-03-25)
 
 * Change to make the user-agent string for dxScala more distinctive.
 * Support for collecting data objects / files nested inside JSON objects.
 
 ## 0.13.9 (2024-02-29)
+
 * adds `headJobOnDemand` attribute to jobNew call
 
 ## 0.13.8 (2023-07-21)
+
 * changes to allow compiling with `treeTurnaroundTimeThreshold` attribute which facilitates platform to send the email 
 notifications for the root jobs/analyses with a run time (aka `treeTurnatoundTime`) exceeding the specified threshold. 
 This feature is not exclusive for dxCompiler and more information is available in the platform documentation.
 
 ## 0.13.6 (2023-06-08)
+
 * changes to facilitate optimizations of the number of `file-xxx/describe` API calls upon (de)localization of input/output files.
 
 ## 0.13.5 (2023-03-07)
@@ -32,7 +37,6 @@ a warning is thrown.
 the `describe` response will be returned only for current workspace/project. If a file was cloned to other projects, they 
 will be ignored. Non-fully qualified file IDs are not allowed when searching files in other projects.
 * Regression tests for API calls to platform
-
 
 ## 0.13.2 (2022-03-15)
 
