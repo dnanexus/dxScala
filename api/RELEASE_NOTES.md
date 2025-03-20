@@ -2,6 +2,10 @@
 
 ## unreleased
 
+* Support 429 Too Many Requests response code from platform to retry throttled requests.
+* Add identity tokens requests.
+* Add version number in user-agent string.
+
 ## 0.13.10 (2024-03-25)
 
 * Change to make the user-agent string for dxScala more distinctive.

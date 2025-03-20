@@ -15,7 +15,7 @@
     ```
    * Note that dxScala will compile with JDK8 or JDK11 and that JDK8 is used as the build target so the resulting JAR file can be executed with JRE8 or later.
 * Install [sbt](https://www.scala-sbt.org/), which also installs Scala. Sbt is a make-like utility that works with the ```scala``` language.
-   * On MacOS: `brew install sbt`
+   * On MacOS: `brew install sbt` or `brew install --ignore-dependencies sbt` (if you don't want to install the newest JDK)
    * On Linux:
     ```
     $ wget www.scala-lang.org/files/archive/scala-2.13.7.deb
@@ -48,7 +48,7 @@ If you want to make a change to dxScala, do the following:
 3. If the current snapshot version matches the release version, increment the snapshot version.
    - For example, if the current release is `1.0.0` and the current snapshot version is `1.0.0-SNAPSHOT`, increment the snapshot version to `1.0.1-SNAPSHOT`.
 4. Make your changes. Test locally using `sbt test`.
-5. Update the release notes under the top-most header (which should be "in develop").
+5. Update the release notes under the top-most header (which should be "unreleased").
 6. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.
    - For example, when you first created the branch you set the version to `1.0.1-SNAPSHOT`, but then you realized you needed to add a new function to the public API, change the version to `1.1.0-SNAPSHOT`. 
 7. When you are done, create a pull request against the `develop` branch.

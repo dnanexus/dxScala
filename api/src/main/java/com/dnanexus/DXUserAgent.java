@@ -16,11 +16,16 @@
 
 package com.dnanexus;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 /**
  * Utility class that produces an appropriate user-agent string for the dxScala
  * client.
  */
 class DXUserAgent {
+    private static final Config config = ConfigFactory.load();
+
     /**
      * Returns a user-agent string.
      */
@@ -29,7 +34,7 @@ class DXUserAgent {
         // host operating system
         // Java specification version (e.g. 1.6.0_27)
         // VM name and version
-        return "dxscala/" + " " + System.getProperty("os.name").replace(" ", "")
+        return "dxscala/" + config.getString("dxApi.version") + " " + System.getProperty("os.name").replace(" ", "")
                 + " java/" + System.getProperty("java.version") + " [" + System.getProperty("java.vm.name") + "]/"
                 + System.getProperty("java.vm.version");
     }
