@@ -1,6 +1,6 @@
 # dxApi
 
-## unreleased
+## 0.13.11 (2025-03-24)
 
 * Support 429 Too Many Requests response code from platform to retry throttled requests.
 * Add identity tokens requests.
