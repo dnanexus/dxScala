@@ -78,7 +78,7 @@ with different versions, with the current date, e.g. `release-2021-05-07`
    - For the projects not being released, reset the version to the current release version
 4. Also update the version numbers in the dependency section of build.sbt
 5. Update the release notes for each projects being released
-   - Change the top header from "in develop" to "\<version\> (\<date\>)"
+   - Change the top header from "unreleased" to "\<version\> (\<date\>)"
 
 ### Releasing to GitHub
 
