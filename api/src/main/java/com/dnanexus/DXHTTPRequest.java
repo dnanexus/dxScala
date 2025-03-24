@@ -287,6 +287,7 @@ public class DXHTTPRequest {
         // Retry with exponential backoff
         int timeoutSeconds = 1;
         int attempts = 0;
+        int attemptsWithThrottled = 0;
 
         while (true) {
             Integer statusCode = null;
@@ -356,6 +357,21 @@ public class DXHTTPRequest {
                     } else {
                         return new ParsedResponse(new String(value, Charset.forName("UTF-8")), null);
                     }
+                } else if (statusCode == 503 || statusCode == 429) {
+                    retryRequest = true;
+                    Header retryAfterHeader = response.getFirstHeader("retry-after");
+                    // Consume the response to avoid leaking resources
+                    EntityUtils.consume(entity);
+                    if (retryAfterHeader != null) {
+                        try {
+                            retryAfterSeconds = Integer.parseInt(retryAfterHeader.getValue());
+                        } catch (NumberFormatException e) {
+                            // Just fall back to the default
+                        }
+                    }
+
+                    // will be processed further in this file
+                    throw new ServiceUnavailableException("503 Service Unavailable", statusCode, retryAfterSeconds);
                 } else if (statusCode < 500) {
                     // 4xx errors should be considered not recoverable.
                     String responseStr = EntityUtils.toString(entity);
@@ -383,7 +399,7 @@ public class DXHTTPRequest {
                     throw DXAPIException.getInstance(errorType, errorMessage, statusCode);
                 } else {
                     // Propagate 500 error to caller
-                    if (this.disableRetry && statusCode != 503) {
+                    if (this.disableRetry) {
                         logError("POST " + resource + ": " + statusCode + " Internal Server Error, try "
                                 + String.valueOf(attempts + 1) + "/" + NUM_RETRIES
                                 + " Request ID: " +  requestId);
@@ -391,36 +407,37 @@ public class DXHTTPRequest {
                     }
                     // If retries enabled, 500 InternalError should get retried unconditionally
                     retryRequest = true;
-                    if (statusCode == 503) {
-                        Header retryAfterHeader = response.getFirstHeader("retry-after");
-                        // Consume the response to avoid leaking resources
-                        EntityUtils.consume(entity);
-                        if (retryAfterHeader != null) {
-                            try {
-                                retryAfterSeconds = Integer.parseInt(retryAfterHeader.getValue());
-                            } catch (NumberFormatException e) {
-                                // Just fall back to the default
-                            }
-                        }
-                        throw new ServiceUnavailableException("503 Service Unavailable", statusCode, retryAfterSeconds);
+                    String entityStr = EntityUtils.toString(entity);
+                    String msg;
+                    if (entityStr == null || "".equals(entityStr)) {
+                        // This can happen if the server was unable to send response back to us,
+                        // as happened with TIP-1743. Make this more clear in the exception.
+                        msg = "No response entity received";
+                    } else {
+                        msg = String.format("Response entity: %s", entityStr);
                     }
-                    throw new IOException(EntityUtils.toString(entity));
+                    throw new IOException(msg);
                 }
             } catch (ServiceUnavailableException e) {
-                int secondsToWait = retryAfterSeconds;
+                // increased backoff for throttled requests over attempts up to x5 times from the original
+                double increasedBackoff = retryAfterSeconds < 60
+                        ? retryAfterSeconds + 0.25 * Math.min(20, attemptsWithThrottled) * retryAfterSeconds
+                        : retryAfterSeconds;
+                timeoutSeconds = (int) increasedBackoff;
+
+                String logMessage = String.format("POST %s: %s, attempt %d, %s %d seconds. Request ID: %s",
+                                                  resource,
+                                                  statusCode == 429 ? "429 Too Many Requests" : "503 Service Unavailable",
+                                                  attemptsWithThrottled + 1,
+                                                  this.disableRetry ? "suggested wait " : "waiting for",
+                                                  timeoutSeconds,
+                                                  requestId);
+
+                logError(logMessage);
 
                 if (this.disableRetry) {
-                    logError("POST " + resource + ": 503 Service Unavailable, suggested wait "
-                            + secondsToWait + " seconds" + ". Request ID: " +  requestId);
                     throw e;
                 }
-
-                // Retries due to 503 Service Unavailable and Retry-After do NOT count against the
-                // allowed number of retries.
-                logError("POST " + resource + ": 503 Service Unavailable, waiting for "
-                        + Integer.toString(secondsToWait) + " seconds" + " Request ID: " +  requestId);
-                sleep(secondsToWait);
-                continue;
             } catch (IOException e) {
                 // Note, this catches both exceptions directly thrown from httpclient.execute (e.g.
                 // no connectivity to server) and exceptions thrown by our code above after parsing
@@ -434,12 +451,19 @@ public class DXHTTPRequest {
                     throw new InternalErrorException("Maximum number of retries reached, or unsafe to retry",
                             statusCode);
                 }
+
+                timeoutSeconds *= 2;
             }
 
             assert attempts < NUM_RETRIES;
             assert retryRequest;
 
-            attempts++;
+            attemptsWithThrottled++;
+            // Retries due to 429 or 503 Service Unavailable and Retry-After do NOT count against the
+            // allowed number of retries.
+            if (statusCode != 503 && statusCode != 429) {
+                attempts++;
+            }
 
             // The number of failed attempts is now no more than NUM_RETRIES, and the total number
             // of attempts allowed is NUM_RETRIES + 1 (the first attempt, plus up to NUM_RETRIES
@@ -452,7 +476,6 @@ public class DXHTTPRequest {
 
 
             sleep(timeoutSeconds);
-            timeoutSeconds *= 2;
         }
     }
 }
