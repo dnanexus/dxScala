@@ -3,8 +3,7 @@
 * Install JDK 11
    * On mac with [homebrew](https://brew.sh/) installed:
     ```
-    $ brew tap AdoptOpenJDK/openjdk
-    $ brew install adoptopenjdk11 --cask
+    $ brew install openjdk@11
     # Use java_home to find the location of JAVA_HOME to set
     $ /usr/libexec/java_home -V
     $ export JAVA_HOME=/Library/Java/...
@@ -30,6 +29,8 @@
    * For VSCode, install the "Scala (Metals)" and "Scala Syntax (official)" plugins
 * You will need to create a GitHub personal access token (this is required by the sbt-github-packages plugin).
    * In GitHub settings, go to "Developer settings > Personal access token" and create a new token with "write:packages" and "read:packages" scopes only.
+   * After you generate and copy your new token, make sure you have authorization with DNAnexus SSO to access the DNAnexus organization packages.
+     You will need to press `Configure SSO` next to your generated token and then `Authorize` next to `dnanexus` organization.
    * Export the `GITHUB_TOKEN` environment variable with this token as the value. For example, in your `.profile`:
     ```bash
     export GITHUB_TOKEN=<your personal access token>
