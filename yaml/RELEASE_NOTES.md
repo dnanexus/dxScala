@@ -1,6 +1,6 @@
 # dxYaml
 
-## unreleased
+## Unreleased
 
 ...
 
