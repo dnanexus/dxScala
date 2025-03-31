@@ -1,6 +1,8 @@
 # dxApi
 
-## unreleased
+## Unreleased
+
+## 0.13.12 (2025-03-28)
 
 * Fix `java.lang.NullPointerException` when could not receive response in `com.dnanexus.DXHTTPRequest`
 
