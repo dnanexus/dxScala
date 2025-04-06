@@ -24,7 +24,8 @@ import com.typesafe.config.ConfigFactory;
  * client.
  */
 class DXUserAgent {
-    private static final Config config = ConfigFactory.load();
+    // Load the configuration file from the classpath
+    private static final Config config = ConfigFactory.load(DXUserAgent.class.getClassLoader());
 
     /**
      * Returns a user-agent string.
