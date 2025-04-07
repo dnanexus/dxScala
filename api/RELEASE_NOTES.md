@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.13.13 (2025-04-06)
+
+* Fix runtime error when incorrect `application.conf` was used for DXUserAgent
+
 ## 0.13.12 (2025-03-28)
 
 * Fix `java.lang.NullPointerException` when could not receive response in `com.dnanexus.DXHTTPRequest`
