@@ -99,7 +99,7 @@ object InstanceTypeRequest {
   * @param cpu number of CPU cores
   * @param gpu whether there is at least one GPU
   * @param os Vector of execution environments available, e.g.
-  *           [(Ubuntu, 16.04, 1), (Ubuntu, 20.04, 0)]
+  *           [(Ubuntu, 16.04, 1), (Ubuntu, 20.04, 0), (Ubuntu, 24.04, 0)]
   * @param diskType SSD or HDD
   * @param priceRank rank of this instance type's price vs the
   *                  other instance types in the database. Rank
@@ -302,21 +302,27 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
     * processing, launch jobs, etc.
     */
   lazy val defaultInstanceType: DxInstanceType = {
-    val (v2InstanceTypes, v1InstanceTypes) = instanceTypes.values
+    val eligibleInstances = instanceTypes.values
       .filter { instanceType =>
         !instanceType.name.contains("test") &&
-        instanceType.memoryMB >= InstanceTypeDB.MinMemory &&
-        instanceType.cpu >= InstanceTypeDB.MinCpu
+          instanceType.memoryMB >= InstanceTypeDB.MinMemory &&
+          instanceType.cpu >= InstanceTypeDB.MinCpu
       }
-      .partition(_.name.contains(DxInstanceType.Version2Suffix))
-    // prefer v2 instance types
-    selectMinimalInstanceType(v2InstanceTypes)
-      .orElse(selectMinimalInstanceType(v1InstanceTypes))
+
+    val (v2Instances, v1Instances) = eligibleInstances.partition(_.name.contains(DxInstanceType.Version2Suffix))
+
+    val preferredV2Instances = v2Instances.filterNot { instance =>
+      instance.gpu || instance.name.contains("fpga")
+    }
+
+    selectMinimalInstanceType(preferredV2Instances)           // a. Try preferred v2 (non-GPU/FPGA) first
+      .orElse(selectMinimalInstanceType(v1Instances))         // b. Then try v1
+      .orElse(selectMinimalInstanceType(v2Instances))         // c. As a last resort, consider all v2 (including GPU/FPGA)
       .getOrElse(
-          throw new Exception(
-              s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory} 
-                 |AND cpu >= ${InstanceTypeDB.MinCpu}""".stripMargin.replaceAll("\n", " ")
-          )
+        throw new Exception(
+          s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}
+             |AND cpu >= ${InstanceTypeDB.MinCpu}""".stripMargin.replaceAll("\n", " ")
+        )
       )
   }
 
