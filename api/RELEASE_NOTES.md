@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Fix choosing appropriate optimal instance instead of expensive GPU instance by default
+
 ## 0.13.13 (2025-04-06)
 
 * Fix runtime error when incorrect `application.conf` was used for DXUserAgent
