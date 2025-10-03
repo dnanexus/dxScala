@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.14 (2025-10-03)
+
 * Fix choosing appropriate optimal instance instead of expensive GPU instance by default
 
 ## 0.13.13 (2025-04-06)
