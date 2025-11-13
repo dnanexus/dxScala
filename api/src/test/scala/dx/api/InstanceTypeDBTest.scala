@@ -124,7 +124,6 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
       createTestInstance("mem2_ssd2_gpu1_v2_x4", 16384, 235, 4), // Non-preferred v2 (GPU)
       createTestInstance("mem3_ssd2_fpga1_x24", 262144, 910, 24) // Another Non-preferred v2 (FPGA)
     )
-    println(db)
 
     db.defaultInstanceType.name shouldBe "mem2_ssd2_gpu1_v2_x4"
   }
@@ -193,7 +192,6 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
       createTestInstance("mem1_ssd1_x4", 8000, 80, 4),
       createTestInstance("mem3_ssd1_gpu_x8", 30000, 100, 8)
     )
-    println(db)
 
     db.selectOptimal(InstanceTypeRequest(minCpu = Some(4), gpu = Some(true))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem3_ssd1_gpu_x8" =>
@@ -209,18 +207,36 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "Query returns correct pricing models for org and user" taggedAs ApiTest in {
-    // Instance type filter:
-    // - Instance must support Ubuntu.
-    // - Instance is not an FPGA instance.
-    // - Instance does not have local HDD storage (those are older instance types).
+  it should "AWS region. Query returns correct pricing models for org and user" taggedAs ApiTest in {
     def instanceTypeFilter(instanceType: DxInstanceType): Boolean = {
-      instanceType.os.exists(_.release == "24.04") &&
-        !instanceType.diskType.contains(DiskType.HDD) &&
-        !instanceType.name.contains("fpga")
+      instanceType.os.exists(_.release == "24.04")
     }
     val userBilltoProject = dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq") // project name: dxCompiler_playground
     val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
-    db.instanceTypes.size shouldBe 112
+
+    db.instanceTypes.size shouldBe 133
+    db.defaultInstanceType.name shouldBe "mem1_ssd1_v2_x2"
+  }
+
+  it should "OCI region. Query returns correct pricing models for org and user" taggedAs ApiTest in {
+    def instanceTypeFilter(instanceType: DxInstanceType): Boolean = {
+      instanceType.os.exists(_.release == "24.04")
+    }
+    val userBilltoProject = dxApi.project("project-J1q0ZK963q4JXY2Qqv8xvX5J") // project name: App_Assets_Ashburn_Internal
+    val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
+
+    db.instanceTypes.size shouldBe 37
+    db.defaultInstanceType.name shouldBe "oci:mem1_ssd1_v3i_x2"
+  }
+
+  it should "Azure region. Query returns correct pricing models for org and user" taggedAs ApiTest in {
+    def instanceTypeFilter(instanceType: DxInstanceType): Boolean = {
+      instanceType.os.exists(_.release == "24.04")
+    }
+    val userBilltoProject = dxApi.project("project-G24215Q9Vz71vv4b6Z3P6j84") // project name: App_Assets_Azure_Internal
+    val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
+
+    db.instanceTypes.size shouldBe 22
+    db.defaultInstanceType.name shouldBe "azure:mem1_ssd1_x2"
   }
 }
