@@ -20,6 +20,9 @@ class DxFileTest extends AnyFlatSpec with Matchers {
   private val FILE4: DxFile = dxApi.file("file-FqP0x4Q0bxKXBBXX5pjVYf3Q", Some(publicProject))
   private val FILE5: DxFile = dxApi.file("file-FqP0x4Q0bxKykykX5pVXB1YZ", Some(publicProject))
   private val FILE6: DxFile = dxApi.file("file-GPpggFQ0yzZjbYFz4Yk9pgzK", Some(testProject))
+  // Even though file is named "without project" it actually exists in testProject.
+  // In tests "without project" means that no project is specified when running search API requrest with dxApi.
+  // And to make these tests work you need to run in cli `dx select dxCompiler_playground` first.
   private val FILE6_WO_PROJ: DxFile = dxApi.file("file-GPpggFQ0yzZjbYFz4Yk9pgzK", None)
   private val FILE7_WO_PROJ: DxFile = dxApi.file("file-GPpgf8Q0yzZfqby2895jg56G", None)
 

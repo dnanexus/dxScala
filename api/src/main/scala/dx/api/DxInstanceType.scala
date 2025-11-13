@@ -309,16 +309,17 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
         instanceType.cpu >= InstanceTypeDB.MinCpu
       }
 
-    val (v2Instances, v1Instances) =
-      eligibleInstances.partition(_.name.contains(DxInstanceType.Version2Suffix))
-
-    val preferredV2Instances = v2Instances.filterNot { instance =>
+    // GPU and FPGA instances are expensive, so we try to avoid them
+    val nonGpuOrFpgaInstances = eligibleInstances.filterNot { instance =>
       instance.gpu || instance.name.contains("fpga")
     }
 
-    selectMinimalInstanceType(preferredV2Instances) // a. Try preferred v2 (non-GPU/FPGA) first
+    val (v2Instances, v1Instances) =
+      nonGpuOrFpgaInstances.partition(_.name.contains(DxInstanceType.Version2Suffix))
+
+    selectMinimalInstanceType(v2Instances) // a. Try preferred v2 (non-GPU/FPGA) first
       .orElse(selectMinimalInstanceType(v1Instances)) // b. Then try v1
-      .orElse(selectMinimalInstanceType(v2Instances)) // c. As a last resort, consider all v2 (including GPU/FPGA)
+      .orElse(selectMinimalInstanceType(eligibleInstances)) // c. As a last resort, consider all instances (including GPU/FPGA)
       .getOrElse(
           throw new Exception(
               s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}

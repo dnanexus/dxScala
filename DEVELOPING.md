@@ -48,7 +48,11 @@ If you want to make a change to dxScala, do the following:
 2. Create a new branch with your changes. Name it something meaningful, like `APPS-123-download-bug`.
 3. If the current snapshot version matches the release version, increment the snapshot version.
    - For example, if the current release is `1.0.0` and the current snapshot version is `1.0.0-SNAPSHOT`, increment the snapshot version to `1.0.1-SNAPSHOT`.
-4. Make your changes. Test locally using `sbt test`.
+4. Make your changes. Test locally:
+ - Run `sbt test` to execute all tests
+ - Run `sbt "testOnly dx.api.<TestName>"` to test a specific file (replace `<TestName>` with your test class name)
+ - Authentication requirement for some tests: Before running tests, authenticate to the staging environment and select a project `dx select dxCompiler_playground`.
+   This is required because there are some tests that check files without implicitly specifying project, so this project has to be selected in background.
 5. Update the release notes under the top-most header (which should be "Unreleased").
 6. Format changes with `sbt scalafmt`.
 7. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.

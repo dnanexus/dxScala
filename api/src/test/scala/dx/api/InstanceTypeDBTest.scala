@@ -10,12 +10,7 @@ import spray.json._
 class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
 
   // The original list is at:
-  // https://github.com/dnanexus/nucleus/blob/master/commons/instance_types/aws_instance_types.json
-  //
-  // The g2,i2,x1 instances have been removed, because they are not
-  // enabled for customers by default.  In addition, the PV (Paravirtual)
-  // instances have been removed, because they work only on Ubuntu
-  // 12.04.
+  // https://github.com/dnanexus/nucleus/blob/master/commons/instance_types/assets/aws_instance_types.json
   //
   // Removed the ssd2 instances, because they actually use EBS storage. A better
   // solution would be asking the platform for the available instances.
@@ -38,7 +33,7 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
 }"""
 
   private val ExecutionEnvironments = Vector(
-      ExecutionEnvironment("ubuntu", "20.04", Vector("0"))
+    ExecutionEnvironment("ubuntu", "24.04", Vector("0"))
   )
 
   // Create an available instance list based on a hard coded list
@@ -66,6 +61,16 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
 
   private val dxApi: DxApi = DxApi()(Logger.Quiet)
 
+  private def createTestInstance(name: String, memMB: Long, diskGB: Long,cpu: Int): DxInstanceType = {
+    val gpu = name.toLowerCase.contains("gpu")
+
+    DxInstanceType(name, memMB, diskGB, cpu, gpu, ExecutionEnvironments, Some(DiskType.SSD), Some(1))
+  }
+
+  private def createInstanceTypeDB(instances: DxInstanceType*): InstanceTypeDB = {
+    InstanceTypeDB(instances.map(instance => instance.name -> instance).toMap)
+  }
+
   it should "compare two instance types" in {
     // instances where all lhs resources are less than all rhs resources
     val c1 = testDb.compareByResources("mem1_ssd1_x2", "mem1_ssd1_x8")
@@ -90,30 +95,60 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     Logger.get.ignore(testDb.prettyFormat())
   }
 
-  it should "work on large instances (JIRA-1258)" in {
-    val db = InstanceTypeDB(
-        Map(
-            "mem3_ssd1_x32" -> DxInstanceType(
-                "mem3_ssd1_x32",
-                245751,
-                32,
-                597,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            ),
-            "mem4_ssd1_x128" -> DxInstanceType(
-                "mem4_ssd1_x128",
-                1967522,
-                128,
-                3573,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(2)
-            )
-        )
+  it should "defaultInstanceType. select the minimal preferred v2 instance when available" in {
+    // Setup a DB where v2 is better than v1
+    val db = createInstanceTypeDB(
+      createTestInstance("mem1_ssd1_v2_x72", 144000, 1675, 72), // v2: meets min requirements, but there is a better preferred v2
+      createTestInstance("mem1_ssd1_v2_x16", 32000, 372, 16), // Preferred v2: meets min requirements
+      createTestInstance("mem1_ssd1_x2", 3766, 28, 2), // V1
+      createTestInstance("mem2_ssd2_gpu1_v2_x4", 16384, 235, 4) // Non-preferred v2 (GPU)
+    )
+
+    db.defaultInstanceType.name shouldBe "mem1_ssd1_v2_x16"
+  }
+
+  it should "defaultInstanceType. select the minimal v1 instance if no preferred v2 exists" in {
+    // Setup a DB with only v1 and non-preferred v2 instances
+    val db = createInstanceTypeDB(
+      createTestInstance("mem2_ssd2_gpu1_v2_x4", 16384, 235, 4), // Non-preferred v2 (GPU)
+      createTestInstance("mem1_ssd1_x2", 3766, 28, 2), // V1
+      createTestInstance("v2_fpga_v2", 8192, 100, 4) // Another Non-preferred v2 (FPGA): third lowest rank
+    )
+
+    db.defaultInstanceType.name shouldBe "mem1_ssd1_x2"
+  }
+
+  it should "defaultInstanceType. select the minimal non-preferred v2 instance if no preferred v2 or v1 exists" in {
+    // Setup a DB with only non-preferred v2 instances
+    val db = createInstanceTypeDB(
+      createTestInstance("mem2_ssd2_gpu1_v2_x4", 16384, 235, 4), // Non-preferred v2 (GPU)
+      createTestInstance("mem3_ssd2_fpga1_x24", 262144, 910, 24) // Another Non-preferred v2 (FPGA)
+    )
+    println(db)
+
+    db.defaultInstanceType.name shouldBe "mem2_ssd2_gpu1_v2_x4"
+  }
+
+  it should "defaultInstanceType. throw an exception if no eligible instances meet minimums" in {
+    // MinMemory = 3072, MinCpu = 2
+    val db = createInstanceTypeDB(
+      createTestInstance("mem1_ssd1_x2", 3000, 28, 2), // Fails min memory check
+      createTestInstance("mem2_hdd2_x1", 3750, 397, 1), // Fails min cpu check
+      createTestInstance("test_instance", 4000, 100, 2) // Ignored instance name
+    )
+
+    // Expect exception
+    val ex = intercept[Exception] {
+      db.defaultInstanceType
+    }
+    ex.getMessage should include("no instance types meet the minimal requirements memory >= 3072 AND cpu >= 2")
+  }
+
+
+  it should "selectOptimal. work on large instances (JIRA-1258)" in {
+    val db = createInstanceTypeDB(
+      createTestInstance("mem3_ssd1_x32", 245751, 597, 32),
+      createTestInstance("mem4_ssd1_x128", 1967522, 3573, 128)
     )
 
     db.selectOptimal(
@@ -128,30 +163,10 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "prefer v2 instances over v1's" in {
-    val db = InstanceTypeDB(
-        Map(
-            "mem1_ssd1_v2_x4" -> DxInstanceType(
-                "mem1_ssd1_v2_x4",
-                8000,
-                80,
-                4,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            ),
-            "mem1_ssd1_x4" -> DxInstanceType(
-                "mem1_ssd1_x4",
-                8000,
-                80,
-                4,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            )
-        )
+  it should "selectOptimal. prefer v2 instances over v1's" in {
+    val db = createInstanceTypeDB(
+      createTestInstance("mem1_ssd1_v2_x4", 8000, 4, 80),
+      createTestInstance("mem1_ssd1_x4", 8000, 4, 80)
     )
 
     db.selectOptimal(InstanceTypeRequest(minCpu = Some(4))) should matchPattern {
@@ -159,60 +174,26 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "upgrade to v2 when specifying system requirements with CPU" in {
+  it should "selectOptimal. upgrade to v2 when specifying system requirements with CPU" in {
     testDb.selectOptimal(InstanceTypeRequest(minCpu = Some(16))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_v2_x16" =>
     }
   }
 
-  it should "keep v1 instance because v2 is not available in the DB" in {
+  it should "selectOptimal. keep v1 instance because v2 is not available in the DB" in {
     testDb
       .selectOptimal(InstanceTypeRequest(minCpu = Some(2), minMemoryMB = Some(7000))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem2_ssd1_x2" =>
     }
   }
 
-  it should "issue a warning if requested a v1 instance by ID but v2 is available" in {
-    testDb.selectByName("mem1_ssd1_x16") should matchPattern {
-      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x16" =>
-    }
-  }
-
-  it should "respect requests for GPU instances" taggedAs EdgeTest in {
-    val db = InstanceTypeDB(
-        Map(
-            "mem1_ssd1_v2_x4" -> DxInstanceType(
-                "mem1_ssd1_v2_x4",
-                8000,
-                80,
-                4,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            ),
-            "mem1_ssd1_x4" -> DxInstanceType(
-                "mem1_ssd1_x4",
-                8000,
-                80,
-                4,
-                gpu = false,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(1)
-            ),
-            "mem3_ssd1_gpu_x8" -> DxInstanceType(
-                "mem3_ssd1_gpu_x8",
-                30000,
-                100,
-                8,
-                gpu = true,
-                ExecutionEnvironments,
-                Some(DiskType.SSD),
-                Some(2)
-            )
-        )
+  it should "selectOptimal. respect requests for GPU instances" taggedAs EdgeTest in {
+    val db = createInstanceTypeDB(
+      createTestInstance("mem1_ssd1_v2_x4", 8000, 80, 4),
+      createTestInstance("mem1_ssd1_x4", 8000, 80, 4),
+      createTestInstance("mem3_ssd1_gpu_x8", 30000, 100, 8)
     )
+    println(db)
 
     db.selectOptimal(InstanceTypeRequest(minCpu = Some(4), gpu = Some(true))) should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem3_ssd1_gpu_x8" =>
@@ -222,18 +203,24 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     db.selectOptimal(InstanceTypeRequest(minCpu = Some(8), gpu = Some(false))) shouldBe None
   }
 
+  it should "selectByName. issue a warning if requested a v1 instance by ID but v2 is available" in {
+    testDb.selectByName("mem1_ssd1_x16") should matchPattern {
+      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x16" =>
+    }
+  }
+
   it should "Query returns correct pricing models for org and user" taggedAs ApiTest in {
     // Instance type filter:
     // - Instance must support Ubuntu.
     // - Instance is not an FPGA instance.
     // - Instance does not have local HDD storage (those are older instance types).
     def instanceTypeFilter(instanceType: DxInstanceType): Boolean = {
-      instanceType.os.exists(_.release == "20.04") &&
-      !instanceType.diskType.contains(DiskType.HDD) &&
-      !instanceType.name.contains("fpga")
+      instanceType.os.exists(_.release == "24.04") &&
+        !instanceType.diskType.contains(DiskType.HDD) &&
+        !instanceType.name.contains("fpga")
     }
-    val userBilltoProject = dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq") // project name: dxCompiler_public_test
+    val userBilltoProject = dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq") // project name: dxCompiler_playground
     val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
-    db.instanceTypes.size shouldBe 85
+    db.instanceTypes.size shouldBe 112
   }
 }
