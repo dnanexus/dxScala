@@ -218,11 +218,15 @@ case class DxInstanceType(name: String,
   }
 
   /**
-    * Compare instances based on version (v1 vs v2) -
-    * v2 instances are always better than v1 instances.
-    */
+   * Compare instances based on version (v1 vs v2 vs v3) -
+   * v3 instances are better than v2, which are better than v1 instances.
+   */
   def compareByType(that: DxInstanceType): Int = {
-    def typeVersion(name: String): Int = if (name contains DxInstanceType.Version2Suffix) 2 else 1
+    def typeVersion(name: String): Int = {
+      if (name.contains(DxInstanceType.Version3Suffix)) 3
+      else if (name.contains(DxInstanceType.Version2Suffix)) 2
+      else 1
+    }
     typeVersion(this.name).compareTo(typeVersion(that.name))
   }
 
@@ -237,7 +241,7 @@ case class DxInstanceType(name: String,
       if (resCmp != 0) {
         resCmp
       } else {
-        // all else being equal, choose v2 instances over v1
+        // all else being equal, choose v3/v2 instances over v1
         -compareByType(that)
       }
     }
@@ -254,7 +258,9 @@ object DxInstanceType extends DefaultJsonProtocol {
       DxInstanceType.apply
   )
   val Version2Suffix = "_v2"
-  val NewestVersion = "v2"
+  val Version3Suffix = "_v3"
+  val Version2NewestVersion = "v2"
+  val Version3NewestVersion = "v3"
   val CpuSuffixStart = "x"
   val InstanceNameSeparator = "_"
   private val MemoryNormFactor: Double = 1024.0
@@ -271,29 +277,38 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
   }
 
   private def newerVersionAvailable(instance: DxInstanceType): Boolean = {
-    if (instance.name contains DxInstanceType.Version2Suffix) true
-    else {
-      instanceTypes.contains(upgradeToLatestVersion(instance))
+    val latestVersion = upgradeToLatestVersion(instance)
+    if (latestVersion == instance.name) {
+      return false
     }
+    instanceTypes.contains(latestVersion)
   }
 
   private def upgradeToLatestVersion(instance: DxInstanceType): String = {
     val instanceNameElements = instance.name.split(DxInstanceType.InstanceNameSeparator).toVector
     val linkedElements = LinkedList.create(instanceNameElements)
     @tailrec
-    def insertVersion(linkedList: LinkedListInterface[String],
+    def insertVersion(version: String,
+                      linkedList: LinkedListInterface[String],
                       accu: Vector[String] = Vector.empty): Vector[String] = {
       linkedList match {
         case LinkedNil                                    => accu
         case l: LinkedList[String] if l.next == LinkedNil => l.value +: accu
         case l: LinkedList[String]
             if l.value.startsWith(DxInstanceType.CpuSuffixStart)
-              && l.next.value != DxInstanceType.NewestVersion =>
-          insertVersion(l.next, DxInstanceType.NewestVersion +: l.value +: accu)
-        case l: LinkedList[(String)] => insertVersion(l.next, l.value +: accu)
+              && l.next.value != DxInstanceType.Version2NewestVersion && l.next.value != DxInstanceType.Version3NewestVersion =>
+            insertVersion(version, l.next, version +: l.value +: accu)
+        case l: LinkedList[String] => insertVersion(version, l.next, l.value +: accu)
       }
     }
-    insertVersion(linkedElements).mkString("_")
+
+    val v3Name = insertVersion(DxInstanceType.Version3NewestVersion, linkedElements).mkString(DxInstanceType.InstanceNameSeparator)
+    if (instanceTypes.contains(v3Name)) {
+      v3Name
+    } else {
+      val v2Name = insertVersion(DxInstanceType.Version2NewestVersion, linkedElements).mkString(DxInstanceType.InstanceNameSeparator)
+      v2Name
+    }
   }
 
   /**
@@ -309,22 +324,36 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
         instanceType.cpu >= InstanceTypeDB.MinCpu
       }
 
-    // GPU and FPGA instances are expensive, so we try to avoid them
-    val nonGpuOrFpgaInstances = eligibleInstances.filterNot { instance =>
-      instance.gpu || instance.name.contains("fpga")
+    // Categorize instances by priority (higher priority = checked first)
+    val categorized = eligibleInstances.groupBy { instance =>
+      val name = instance.name.toLowerCase
+
+      val baseCategory = if (name.contains(DxInstanceType.Version3Suffix)) {
+        "v3"
+      } else if (name.contains(DxInstanceType.Version2Suffix)) {
+        "v2"
+      } else {
+        "v1"
+      }
+
+      if (name.contains("_gpu") || name.contains("_fpga")) {
+        s"${baseCategory}_gpu_fpga"
+      } else {
+        baseCategory
+      }
     }
 
-    val (v2Instances, v1Instances) =
-      nonGpuOrFpgaInstances.partition(_.name.contains(DxInstanceType.Version2Suffix))
+    val priorityOrder = Vector("v3", "v2", "v1","v3_gpu_fpga", "v2_gpu_fpga", "v1_gpu_fpga")
 
-    selectMinimalInstanceType(v2Instances) // a. Try preferred v2 (non-GPU/FPGA) first
-      .orElse(selectMinimalInstanceType(v1Instances)) // b. Then try v1
-      .orElse(selectMinimalInstanceType(eligibleInstances)) // c. As a last resort, consider all instances (including GPU/FPGA)
+    priorityOrder
+      .flatMap(category => categorized.get(category))
+      .flatMap(selectMinimalInstanceType)
+      .headOption
       .getOrElse(
-          throw new Exception(
-              s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}
-                 |AND cpu >= ${InstanceTypeDB.MinCpu}""".stripMargin.replaceAll("\n", " ")
-          )
+        throw new Exception(
+          s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}
+             |AND cpu >= ${InstanceTypeDB.MinCpu}""".stripMargin.replaceAll("\n", " ")
+        )
       )
   }
 
@@ -369,7 +398,7 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
       instance match {
         case None => return instance
         case Some(x)
-            if newerVersionAvailable(x) && !(x.name contains DxInstanceType.Version2Suffix) =>
+            if newerVersionAvailable(x) =>
           Logger.get.warning(
               s"""
                  |WARNING: an older version of the instance ${x.name} is specified.
