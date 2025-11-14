@@ -1,6 +1,6 @@
 # dxApi
 
-## Unreleased
+## 0.13.15 (2025-11-14)
 
 * Prefer v3 instance types over v2
 
