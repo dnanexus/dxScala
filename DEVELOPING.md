@@ -54,7 +54,7 @@ If you want to make a change to dxScala, do the following:
  - Authentication requirement for some tests: Before running tests, authenticate to the staging environment and select a project `dx select dxCompiler_playground`.
    This is required because there are some tests that check files without implicitly specifying project, so this project has to be selected in background.
 5. Update the release notes under the top-most header (which should be "Unreleased").
-6. Format changes with `sbt scalafmt`.
+6. Format changes with `sbt scalafmtAll`.
 7. If the current snapshot version only differs from the release version by a patch, and you added any new functionality (vs just fixing a bug), increment the minor version instead.
    - For example, when you first created the branch you set the version to `1.0.1-SNAPSHOT`, but then you realized you needed to add a new function to the public API, change the version to `1.1.0-SNAPSHOT`. 
 8. When you are done, create a pull request against the `develop` branch.
