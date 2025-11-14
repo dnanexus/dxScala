@@ -220,9 +220,9 @@ case class DxInstanceType(name: String,
   }
 
   /**
-   * Compare instances based on version (v1 vs v2 vs v3 vs ...).
-   * Higher version number is always better.
-   */
+    * Compare instances based on version (v1 vs v2 vs v3 vs ...).
+    * Higher version number is always better.
+    */
   def compareByType(that: DxInstanceType): Int = {
     this.version.compareTo(that.version)
   }
@@ -263,12 +263,12 @@ object DxInstanceType extends DefaultJsonProtocol {
   private val DiskNormFactor: Double = 16.0
 
   /**
-   * Extracts the numeric version from the instance type name.
-   * Examples:
-   * "mem1_ssd1_x4" -> 1 (default)
-   * "mem1_ssd1_v2_x4" -> 2
-   * "mem1_ssd1_v3_x4" -> 3
-   */
+    * Extracts the numeric version from the instance type name.
+    * Examples:
+    * "mem1_ssd1_x4" -> 1 (default)
+    * "mem1_ssd1_v2_x4" -> 2
+    * "mem1_ssd1_v3_x4" -> 3
+    */
   def typeVersion(name: String): Int = {
     // Iterate over matches to find the last (most relevant) version suffix
     VersionRegex.findFirstMatchIn(name) match {
@@ -293,14 +293,14 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
   }
 
   /**
-   * Generates the name of the next highest version of the current instance name.
-   * If the current version is vN, it returns the string for v(N+1).
-   * E.g., "mem1_ssd1_x4" (v1) -> "mem1_ssd1_v2_x4"
-   * E.g., "mem1_ssd1_v2_x4" -> "mem1_ssd1_v3_x4"
-   *
-   * @param instance The DxInstanceType to upgrade.
-   * @return The potential name of the next version instance.
-   */
+    * Generates the name of the next highest version of the current instance name.
+    * If the current version is vN, it returns the string for v(N+1).
+    * E.g., "mem1_ssd1_x4" (v1) -> "mem1_ssd1_v2_x4"
+    * E.g., "mem1_ssd1_v2_x4" -> "mem1_ssd1_v3_x4"
+    *
+    * @param instance The DxInstanceType to upgrade.
+    * @return The potential name of the next version instance.
+    */
   private def getNextVersionName(instance: DxInstanceType): String = {
     val currentName = instance.name
     val currentVersion = DxInstanceType.typeVersion(currentName)
@@ -317,7 +317,8 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
         val parts = currentName.split(DxInstanceType.InstanceNameSeparator).toVector
         val (prefix, suffix) = parts.partition(!_.startsWith(DxInstanceType.CpuSuffixStart))
 
-        (prefix :+ nextVersionSuffix.stripPrefix("_") :+ suffix.head).mkString(DxInstanceType.InstanceNameSeparator)
+        (prefix :+ nextVersionSuffix.stripPrefix("_") :+ suffix.head)
+          .mkString(DxInstanceType.InstanceNameSeparator)
     }
   }
 
@@ -367,22 +368,25 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
       instance.gpu || instance.name.contains("fpga")
     }
 
-    val instancesToConsider = if (preferredInstances.nonEmpty) preferredInstances else eligibleInstances
+    val instancesToConsider =
+      if (preferredInstances.nonEmpty) preferredInstances else eligibleInstances
 
     // Sort by version first (descending), then by price/resources (ascending)
-    instancesToConsider.toVector.sortWith { (a, b) =>
-      val versionCmp = -a.compareByType(b)
-      if (versionCmp != 0) {
-        versionCmp < 0
-      } else {
-        a.compare(b) < 0
+    instancesToConsider.toVector
+      .sortWith { (a, b) =>
+        val versionCmp = -a.compareByType(b)
+        if (versionCmp != 0) {
+          versionCmp < 0
+        } else {
+          a.compare(b) < 0
+        }
       }
-    }.headOption
+      .headOption
       .getOrElse(
-        throw new Exception(
-          s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}
-             |AND cpu >= ${InstanceTypeDB.MinCpu}""".stripMargin.replaceAll("\n", " ")
-        )
+          throw new Exception(
+              s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}
+                 |AND cpu >= ${InstanceTypeDB.MinCpu}""".stripMargin.replaceAll("\n", " ")
+          )
       )
   }
 
@@ -426,8 +430,7 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
       val instance = instanceTypes.get(name)
       instance match {
         case None => return instance
-        case Some(x)
-            if newerVersionAvailable(x) =>
+        case Some(x) if newerVersionAvailable(x) =>
           Logger.get.warning(
               s"""
                  |WARNING: an older version of the instance ${x.name} is specified.
