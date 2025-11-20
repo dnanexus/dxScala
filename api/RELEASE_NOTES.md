@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* Revert preferring v3 instance types over v2, until v3 are more widely available.
+
+## 0.13.15 (2025-11-14)
+
 * Prefer v3 instance types over v2
 
 ## 0.13.14 (2025-10-03)

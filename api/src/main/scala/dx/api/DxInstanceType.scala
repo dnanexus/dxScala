@@ -27,7 +27,7 @@ price       comparative price
 package dx.api
 
 import dx.api
-import dx.util.{Enum, JsUtils, Logger}
+import dx.util.{Enum, JsUtils, LinkedList, LinkedListInterface, LinkedNil, Logger}
 import dx.util.Enum.enumFormat
 import spray.json.{RootJsonFormat, _}
 
@@ -70,7 +70,7 @@ case class InstanceTypeRequest(dxInstanceType: Option[String] = None,
                                os: Option[ExecutionEnvironment] = None,
                                optional: Boolean = false) {
   override def toString: String = {
-    s"""memory=(${minMemoryMB},${maxMemoryMB}) disk=(${minDiskGB},${maxDiskGB}) diskType=${diskType}
+    s"""memory=(${minMemoryMB},${maxMemoryMB}) disk=(${minDiskGB},${maxDiskGB}) diskType=${diskType} 
        |cores=(${minCpu},${maxCpu}) gpu=${gpu} os=${os} instancetype=${dxInstanceType}
        |optional=${optional}""".stripMargin.replaceAll("\n", " ")
   }
@@ -117,8 +117,6 @@ case class DxInstanceType(name: String,
                           diskType: Option[DiskType.DiskType] = None,
                           priceRank: Option[Int] = None)
     extends Ordered[DxInstanceType] {
-
-  @transient private lazy val version: Int = DxInstanceType.typeVersion(name)
 
   /**
     * Returns true if this instance type satisfies the requirements of `query`,
@@ -220,11 +218,12 @@ case class DxInstanceType(name: String,
   }
 
   /**
-    * Compare instances based on version (v1 vs v2 vs v3 vs ...).
-    * Higher version number is always better.
+    * Compare instances based on version (v1 vs v2) -
+    * v2 instances are always better than v1 instances.
     */
   def compareByType(that: DxInstanceType): Int = {
-    this.version.compareTo(that.version)
+    def typeVersion(name: String): Int = if (name contains DxInstanceType.Version2Suffix) 2 else 1
+    typeVersion(this.name).compareTo(typeVersion(that.name))
   }
 
   override def compare(that: DxInstanceType): Int = {
@@ -238,7 +237,7 @@ case class DxInstanceType(name: String,
       if (resCmp != 0) {
         resCmp
       } else {
-        // all else being equal, choose newer versions (higher version number is better)
+        // all else being equal, choose v2 instances over v1
         -compareByType(that)
       }
     }
@@ -254,33 +253,12 @@ object DxInstanceType extends DefaultJsonProtocol {
   implicit val dxInstanceTypeFormat: RootJsonFormat[DxInstanceType] = jsonFormat8(
       DxInstanceType.apply
   )
-
-  // Use a regex to dynamically find any version suffix like '_vN'
-  val VersionRegex = "_v(\\d+)_".r
+  val Version2Suffix = "_v2"
+  val NewestVersion = "v2"
   val CpuSuffixStart = "x"
   val InstanceNameSeparator = "_"
   private val MemoryNormFactor: Double = 1024.0
   private val DiskNormFactor: Double = 16.0
-
-  /**
-    * Extracts the numeric version from the instance type name.
-    * Examples:
-    * "mem1_ssd1_x4" -> 1 (default)
-    * "mem1_ssd1_v2_x4" -> 2
-    * "mem1_ssd1_v3_x4" -> 3
-    */
-  def typeVersion(name: String): Int = {
-    // Iterate over matches to find the last (most relevant) version suffix
-    VersionRegex.findFirstMatchIn(name) match {
-      case Some(m) =>
-        try {
-          m.group(1).toInt
-        } catch {
-          case _: NumberFormatException => 1
-        }
-      case _ => 1
-    }
-  }
 }
 
 case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
@@ -292,63 +270,30 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
     instanceTypes.toVector.sortWith(_ < _).headOption
   }
 
-  /**
-    * Generates the name of the next highest version of the current instance name.
-    * If the current version is vN, it returns the string for v(N+1).
-    * E.g., "mem1_ssd1_x4" (v1) -> "mem1_ssd1_v2_x4"
-    * E.g., "mem1_ssd1_v2_x4" -> "mem1_ssd1_v3_x4"
-    *
-    * @param instance The DxInstanceType to upgrade.
-    * @return The potential name of the next version instance.
-    */
-  private def getNextVersionName(instance: DxInstanceType): String = {
-    val currentName = instance.name
-    val currentVersion = DxInstanceType.typeVersion(currentName)
-    val nextVersion = currentVersion + 1
-    val nextVersionSuffix = s"_v${nextVersion}"
-
-    // Explicitly match the type for the regex result to access start/end
-    DxInstanceType.VersionRegex.findFirstMatchIn(currentName) match {
-      case Some(m: scala.util.matching.Regex.Match) =>
-        // Replace the existing version suffix with the next version suffix
-        currentName.substring(0, m.start) + nextVersionSuffix + currentName.substring(m.end)
-      case None =>
-        // Append the version suffix before the CPU part
-        val parts = currentName.split(DxInstanceType.InstanceNameSeparator).toVector
-        val (prefix, suffix) = parts.partition(!_.startsWith(DxInstanceType.CpuSuffixStart))
-
-        (prefix :+ nextVersionSuffix.stripPrefix("_") :+ suffix.head)
-          .mkString(DxInstanceType.InstanceNameSeparator)
-    }
-  }
-
   private def newerVersionAvailable(instance: DxInstanceType): Boolean = {
-    val nextVersionName = getNextVersionName(instance)
-    instanceTypes.contains(nextVersionName)
+    if (instance.name contains DxInstanceType.Version2Suffix) true
+    else {
+      instanceTypes.contains(upgradeToLatestVersion(instance))
+    }
   }
 
   private def upgradeToLatestVersion(instance: DxInstanceType): String = {
+    val instanceNameElements = instance.name.split(DxInstanceType.InstanceNameSeparator).toVector
+    val linkedElements = LinkedList.create(instanceNameElements)
     @tailrec
-    def findLatest(currentName: String): String = {
-      instanceTypes.get(currentName) match {
-        case None =>
-          currentName
-        case Some(tempInstance) =>
-          val nextVersionName = getNextVersionName(tempInstance)
-          if (nextVersionName != currentName && instanceTypes.contains(nextVersionName)) {
-            findLatest(nextVersionName)
-          } else {
-            currentName
-          }
+    def insertVersion(linkedList: LinkedListInterface[String],
+                      accu: Vector[String] = Vector.empty): Vector[String] = {
+      linkedList match {
+        case LinkedNil                                    => accu
+        case l: LinkedList[String] if l.next == LinkedNil => l.value +: accu
+        case l: LinkedList[String]
+            if l.value.startsWith(DxInstanceType.CpuSuffixStart)
+              && l.next.value != DxInstanceType.NewestVersion =>
+          insertVersion(l.next, DxInstanceType.NewestVersion +: l.value +: accu)
+        case l: LinkedList[(String)] => insertVersion(l.next, l.value +: accu)
       }
     }
-
-    val nextVersionName = getNextVersionName(instance)
-    if (instanceTypes.contains(nextVersionName)) {
-      findLatest(nextVersionName)
-    } else {
-      instance.name
-    }
+    insertVersion(linkedElements).mkString("_")
   }
 
   /**
@@ -367,21 +312,12 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
     val preferredInstances = eligibleInstances.filterNot { instance =>
       instance.gpu || instance.name.contains("fpga")
     }
+    val (v2Instances, v1Instances) =
+      preferredInstances.partition(_.name.contains(DxInstanceType.Version2Suffix))
 
-    val instancesToConsider =
-      if (preferredInstances.nonEmpty) preferredInstances else eligibleInstances
-
-    // Sort by version first (descending), then by price/resources (ascending)
-    instancesToConsider.toVector
-      .sortWith { (a, b) =>
-        val versionCmp = -a.compareByType(b)
-        if (versionCmp != 0) {
-          versionCmp < 0
-        } else {
-          a.compare(b) < 0
-        }
-      }
-      .headOption
+    selectMinimalInstanceType(v2Instances) // Try preferred v2 non-GPU/FPGA
+      .orElse(selectMinimalInstanceType(v1Instances)) // Then try v1 non-GPU/FPGA
+      .orElse(selectMinimalInstanceType(eligibleInstances)) // As a last resort, consider all instances (including GPU/FPGA)
       .getOrElse(
           throw new Exception(
               s"""no instance types meet the minimal requirements memory >= ${InstanceTypeDB.MinMemory}
@@ -430,7 +366,8 @@ case class InstanceTypeDB(instanceTypes: Map[String, DxInstanceType]) {
       val instance = instanceTypes.get(name)
       instance match {
         case None => return instance
-        case Some(x) if newerVersionAvailable(x) =>
+        case Some(x)
+            if newerVersionAvailable(x) && !(x.name contains DxInstanceType.Version2Suffix) =>
           Logger.get.warning(
               s"""
                  |WARNING: an older version of the instance ${x.name} is specified.
