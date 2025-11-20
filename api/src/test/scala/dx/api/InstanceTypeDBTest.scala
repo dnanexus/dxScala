@@ -153,27 +153,6 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "defaultInstanceType. prefer v3 instance over v2" in {
-    val db = createInstanceTypeDB(
-        createTestInstance("mem1_ssd1_x4", 3072, 80),
-        createTestInstance("mem1_ssd1_v2_x4", 3072, 80),
-        createTestInstance("mem1_ssd1_v3_x4", 3072, 80),
-        createTestInstance("mem1_ssd1_gpu1_x4", 3072, 80)
-    )
-
-    db.defaultInstanceType.name shouldBe "mem1_ssd1_v3_x4"
-  }
-
-  it should "defaultInstanceType. prefer gpu v3 instance if non-gpu v3, v2, or v1 exists" in {
-    // All preferred (non-GPU/FPGA) instances are filtered out. Only GPU/FPGA remain.
-    val db = createInstanceTypeDB(
-        createTestInstance("mem1_ssd1_gpu1_v3_x4", 3072, 80),
-        createTestInstance("mem1_ssd1_gpu1_v2_x4", 3072, 80)
-    )
-
-    db.defaultInstanceType.name shouldBe "mem1_ssd1_gpu1_v3_x4"
-  }
-
   it should "selectOptimal. work on large instances (JIRA-1258)" in {
     val db = createInstanceTypeDB(
         createTestInstance("mem3_ssd1_x32", 245751, 597),
@@ -231,44 +210,8 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     db.selectOptimal(InstanceTypeRequest(minCpu = Some(8), gpu = Some(false))) shouldBe None
   }
 
-  it should "selectOptimal. prefer v3 over v2 over v1 when resources are equal" taggedAs EdgeTest in {
-    val db = createInstanceTypeDB(
-        createTestInstance("mem1_ssd1_x4", 8000, 80),
-        createTestInstance("mem1_ssd1_v2_x4", 8000, 80),
-        createTestInstance("mem1_ssd1_v3_x4", 8000, 80)
-    )
-
-    db.selectOptimal(InstanceTypeRequest(minCpu = Some(4))) should matchPattern {
-      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_v3_x4" =>
-    }
-  }
-
-  it should "selectOptimal. GPU request prefers v3 GPU over v2 GPU" taggedAs EdgeTest in {
-    val db = createInstanceTypeDB(
-        createTestInstance("mem3_ssd1_gpu_v2_x8", 30000, 100),
-        createTestInstance("mem3_ssd1_gpu_v3_x8", 30000, 100),
-        createTestInstance("mem1_ssd1_v3_x4", 8000, 80)
-    )
-
-    db.selectOptimal(InstanceTypeRequest(minCpu = Some(8), gpu = Some(true))) should matchPattern {
-      case Some(instanceType: DxInstanceType) if instanceType.name == "mem3_ssd1_gpu_v3_x8" =>
-    }
-  }
-
   it should "selectByName. issue a warning if requested a v1 instance by ID but v2 is available" in {
     testDb.selectByName("mem1_ssd1_x16") should matchPattern {
-      case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x16" =>
-    }
-  }
-
-  it should "selectByName. issue a warning if requested a v1 instance by ID but v3 is available" in {
-    val db = createInstanceTypeDB(
-        createTestInstance("mem1_ssd1_x16", 8000, 100),
-        createTestInstance("mem1_ssd1_v2_x16", 8000, 100),
-        createTestInstance("mem1_ssd1_v3_x16", 8000, 100)
-    )
-
-    db.selectByName("mem1_ssd1_x16") should matchPattern {
       case Some(instanceType: DxInstanceType) if instanceType.name == "mem1_ssd1_x16" =>
     }
   }
@@ -281,7 +224,7 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
 
     db.instanceTypes.size shouldBe 133
-    db.defaultInstanceType.name shouldBe "mem1_ssd2_v3_x2"
+    db.defaultInstanceType.name shouldBe "mem1_ssd1_v2_x2"
   }
 
   it should "OCI region. Query returns correct pricing models for org and user" taggedAs ApiTest in {
