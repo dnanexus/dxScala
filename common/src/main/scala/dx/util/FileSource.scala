@@ -775,14 +775,36 @@ case class HttpFileSource(
   override def isListable: Boolean = false
 }
 
-case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
-    extends FileAccessProtocol {
+case class HttpFileAccessProtocol(
+  encoding: Charset = FileUtils.DefaultEncoding,
+  domainBearerTokens: Map[String, String] = Map.empty,
+  logger: Logger = Logger.Quiet
+) extends FileAccessProtocol {
   override val schemes = Vector(FileUtils.HttpScheme, FileUtils.HttpsScheme)
   // directories are supported via unpacking of archive files
   override val supportsDirectories: Boolean = true
 
+  /**
+    * Looks up the Bearer token for the given URI's host.
+    * Returns None if no token is configured for the domain.
+    */
+  private def domainBearerTokenForUri(uri: URI): Option[String] = {
+    Option(uri.getHost).flatMap { host =>
+      domainBearerTokens.collectFirst {
+        case (domain, token) if domain.equalsIgnoreCase(host) => token
+      }
+    }
+  }
+
+  private def authForUri(uri: URI): Option[HttpFileAuthentication] = {
+    domainBearerTokenForUri(uri).map(token => {
+      logger.trace(s"Using Bearer token authenticated HTTP for import from: ${uri.getHost}")
+      HttpFileAuthentication(AuthType.Bearer, token)
+    })
+  }
+
   def resolve(uri: URI, value: Option[String] = None): HttpFileSource = {
-    HttpFileSource(uri, encoding, isDirectory = false)(value.getOrElse(uri.toString))
+    HttpFileSource(uri, encoding, isDirectory = false, authForUri(uri))(value.getOrElse(uri.toString))
   }
 
   override def resolve(address: String): HttpFileSource = {
@@ -796,7 +818,66 @@ case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
   //  unless the server supports WebDAV. Handling those results is
   //  probably outside the scope of this package.
   override def resolveDirectory(address: String): HttpFileSource = {
-    HttpFileSource(URI.create(address), encoding, isDirectory = true)(address)
+    HttpFileSource(URI.create(address), encoding, isDirectory = true, authForUri(URI.create(address)))(address)
+  }
+}
+
+object HttpFileAccessProtocol {
+
+  /** Environment variable name for per-domain tokens */
+  val TokensEnvVar: String = "WDL_IMPORT_BEARER_TOKENS"
+
+  /**
+    * Parses the WDL_IMPORT_BEARER_TOKENS environment variable value.
+    * Format: domain:token[;domain:token]*
+    * Splits on first colon only, so tokens containing colons are supported.
+    *
+    * @param value the raw env var value
+    * @return Map of lowercase domain -> token
+    */
+  def parseTokens(value: String): Map[String, String] = {
+    value
+      .split(";")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .flatMap { entry =>
+        val idx = entry.indexOf(':')
+        if (idx > 0 && idx < entry.length - 1) {
+          val domain = entry.substring(0, idx).trim.toLowerCase
+          val token = entry.substring(idx + 1).trim
+          if (domain.nonEmpty && token.nonEmpty) Some(domain -> token) else None
+        } else {
+          None
+        }
+      }
+      .toMap
+  }
+
+  /**
+    * Creates an instance with configuration from environment variables.
+    *
+    * @param logger Logger for trace output (token values are never logged)
+    * @return HttpFileAccessProtocol configured from environment
+    */
+  def fromEnvironment(encoding: Charset = FileUtils.DefaultEncoding, logger: Logger = Logger.Quiet): HttpFileAccessProtocol = {
+    val domainBearerTokens = sys.env.get(TokensEnvVar) match {
+      case Some(value) =>
+        val parsed = parseTokens(value)
+        if (parsed.nonEmpty) {
+          logger.trace(
+              s"${TokensEnvVar} found; authenticated HTTP imports enabled for domains: ${parsed.keys
+                .mkString(", ")}"
+          )
+        }
+        parsed
+      case None =>
+        Map.empty[String, String]
+    }
+    HttpFileAccessProtocol(
+      encoding = encoding,
+      domainBearerTokens = domainBearerTokens,
+      logger = logger
+    )
   }
 }
 
@@ -956,7 +1037,7 @@ object FileSourceResolver {
              encoding: Charset = FileUtils.DefaultEncoding): FileSourceResolver = {
     val protocols: Vector[FileAccessProtocol] = Vector(
         LocalFileAccessProtocol(localDirectories, logger, encoding),
-        HttpFileAccessProtocol(encoding)
+        HttpFileAccessProtocol.fromEnvironment(encoding, logger)
     )
     FileSourceResolver(protocols ++ userProtocols)
   }
