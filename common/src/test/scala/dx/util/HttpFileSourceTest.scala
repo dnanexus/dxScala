@@ -148,12 +148,12 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   // --- auth propagation -------------------------------------------------
 
   it should "propagate auth through resolve" in {
-    val parent = fs("/ok/", Some(bearerAuth("tok"))).asInstanceOf[HttpFileSource]
+    val parent = fs("/ok/", Some(bearerAuth("tok")))
     parent.resolve("child.txt").auth shouldBe Some(bearerAuth("tok"))
   }
 
   it should "propagate auth through resolveDirectory" in {
-    val parent = fs("/ok/", Some(bearerAuth("tok"))).asInstanceOf[HttpFileSource]
+    val parent = fs("/ok/", Some(bearerAuth("tok")))
     parent.resolveDirectory("sub").auth shouldBe Some(bearerAuth("tok"))
   }
 
