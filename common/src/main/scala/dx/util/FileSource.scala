@@ -168,7 +168,7 @@ trait AddressableFileSource extends FileSource {
 }
 
 /**
-  * A FileNode is a FileSource that represents a single phyiscal file.
+  * A FileNode is a FileSource that represents a single physical file.
   * It has a size, and its contents may be read as bytes or a string.
   * A FileNode may be a "directory" - such as an archive file that,
   * when localized, is extracted to a hierarchy of files.
@@ -276,8 +276,8 @@ trait FileAccessProtocol {
 /**
   * A FileSource for a local file.
   * @param address the original path/URI used to resolve this file.
-  * @param originalPath the original, non-cannonicalized Path determined from `address` - may be relative
-  * @param canonicalPath the absolute, cannonical path to this file
+  * @param originalPath the original, non-canonicalized Path determined from `address` - may be relative
+  * @param canonicalPath the absolute, canonical path to this file
   * @param logger the logger
   * @param encoding the file encoding
   * @param isDirectory whether this FileSource represents a directory
@@ -547,10 +547,32 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
   }
 }
 
+sealed trait AuthType {
+  def unauthorizedMessage: String
+  def forbiddenMessage: String
+}
+
+object AuthType {
+  case class BearerAuthType(unauthorizedMessage: String, forbiddenMessage: String) extends AuthType
+
+  val Bearer: BearerAuthType = BearerAuthType(
+      s"""If this is a private repository, ensure WDL_IMPORT_BEARER_TOKENS is set.
+          |Format: domain:token[;domain:token]*
+          |Example: raw.githubusercontent.com:<YOUR_TOKEN>
+          |For GitHub: generate a token at https://github.com/settings/tokens with 'repo' scope.""".stripMargin,
+      s"""The token may be invalid or lack the required permissions.
+          |For GitHub: ensure the token has 'repo' scope for private repositories.""".stripMargin 
+  )
+
+}
+
+case class HttpFileAuthentication (authType: AuthType, authValue: String)
+
 case class HttpFileSource(
     override val uri: URI,
     override val encoding: Charset,
-    override val isDirectory: Boolean
+    override val isDirectory: Boolean,
+    auth: Option[HttpFileAuthentication] = None
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
@@ -571,6 +593,13 @@ case class HttpFileSource(
     try {
       conn = url.openConnection().asInstanceOf[HttpURLConnection]
       conn.setRequestMethod("HEAD")
+      auth.foreach { a =>
+        conn.setRequestProperty("Authorization",
+          a.authType match {
+            case AuthType.BearerAuthType(_, _) => s"Bearer ${a.authValue}"
+          }
+        )
+      }
       fn(conn)
     } finally {
       if (conn != null) {
@@ -579,12 +608,40 @@ case class HttpFileSource(
     }
   }
 
+  private def throwOnWrongAuth(responseCode: Int): Unit = {
+    if (auth.isEmpty) {
+      return
+    }
+
+    responseCode match {
+      case HttpURLConnection.HTTP_UNAUTHORIZED =>
+        throw new Exception(
+            s"HTTP 401 Unauthorized when accessing ${uri}.\n${auth.get.authType.unauthorizedMessage}"
+        )
+      case HttpURLConnection.HTTP_FORBIDDEN =>
+        throw new Exception(
+            s"HTTP 403 Forbidden when accessing ${uri}.\n${auth.get.authType.forbiddenMessage}"
+        )
+      case _ => ()
+    }
+  }
+
   override def exists: Boolean = {
     try {
-      val rc = withConnection(conn => conn.getResponseCode)
-      rc == HttpURLConnection.HTTP_OK
+      val rc = withConnection{ conn => 
+      conn.setRequestMethod("HEAD")
+      conn.getResponseCode
+      }
+      rc match {
+        case HttpURLConnection.HTTP_OK => true
+        case _ => {
+          throwOnWrongAuth(rc)
+          false
+        }
+      }
     } catch {
-      case _: Throwable => false
+      case _: java.net.UnknownHostException => false
+      case e: Exception                     => throw e
     }
   }
 
@@ -597,7 +654,7 @@ case class HttpFileSource(
       } else {
         uri.resolve(".")
       }
-      Some(HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString))
+      Some(HttpFileSource(newUri, encoding, isDirectory = true, auth)(newUri.toString))
     }
   }
 
@@ -607,7 +664,7 @@ case class HttpFileSource(
     } else {
       uri.resolve(".").resolve(path)
     }
-    HttpFileSource(newUri, encoding, isDir)(newUri.toString)
+    HttpFileSource(newUri, encoding, isDir, auth)(newUri.toString)
   }
 
   override def resolve(path: String): HttpFileSource = {
@@ -632,7 +689,10 @@ case class HttpFileSource(
   // https://stackoverflow.com/questions/12800588/how-to-calculate-a-file-size-from-url-in-java
   override lazy val size: Long = {
     try {
-      withConnection(conn => conn.getContentLengthLong)
+      withConnection { conn =>
+        conn.setRequestMethod("HEAD") 
+        conn.getContentLengthLong
+    }
     } catch {
       case t: Throwable =>
         throw new Exception(s"Error getting size of URL ${uri}: ${t.getMessage}")
@@ -640,23 +700,30 @@ case class HttpFileSource(
   }
 
   private def fetchUri(buffer: OutputStream, chunkSize: Int = 16384): Int = {
-    val url = uri.toURL
-    val is = url.openStream()
-    try {
-      // read all the bytes from the URL
-      var nRead = 0
-      var totalRead = 0
-      val data = new Array[Byte](chunkSize)
-      do {
-        nRead = is.read(data, 0, chunkSize)
-        if (nRead > 0) {
-          buffer.write(data, 0, nRead)
-          totalRead += nRead
-        }
-      } while (nRead > 0)
-      totalRead
-    } finally {
-      is.close()
+    withConnection { conn =>
+      conn.setRequestMethod("GET")
+      val responseCode = conn.getResponseCode
+      if (responseCode != HttpURLConnection.HTTP_OK) {
+        throwOnWrongAuth(responseCode)
+        throw new Exception(s"Error fetching URL ${uri}: HTTP ${responseCode}")
+      }
+      val is = conn.getInputStream
+      try {
+        // read all the bytes from the URL
+        var nRead = 0
+        var totalRead = 0
+        val data = new Array[Byte](chunkSize)
+        do {
+          nRead = is.read(data, 0, chunkSize)
+          if (nRead > 0) {
+            buffer.write(data, 0, nRead)
+            totalRead += nRead
+          }
+        } while (nRead > 0)
+        totalRead
+      } finally {
+        is.close()
+      }
     }
   }
 
@@ -725,7 +792,7 @@ case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
   // TODO: currently the only way to specify an http directory is as an
   //  archive file that will be unpacked when localized.
   //  HTTP does not have the concept of directory listings; though they
-  //  may be supported by some serevers, there is no standard response
+  //  may be supported by some servers, there is no standard response
   //  unless the server supports WebDAV. Handling those results is
   //  probably outside the scope of this package.
   override def resolveDirectory(address: String): HttpFileSource = {
