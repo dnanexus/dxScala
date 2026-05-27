@@ -74,28 +74,24 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   private def bearer(token: String): HttpCredentials =
     HttpCredentials(HttpAuthenticationScheme.Bearer, token)
 
-  private def basic(value: String): HttpCredentials =
-    HttpCredentials(HttpAuthenticationScheme.Basic, value)
-
   private def lastAuthHeader(): Option[String] = {
     authHeadersSeen.asScala.lastOption.flatten
   }
 
   // --- HttpAuthenticationScheme -----------------------------------------
 
-  it should "expose Bearer and Basic schemes with the correct header values" in {
+  it should "expose the Bearer scheme with the correct header value" in {
     HttpAuthenticationScheme.Bearer.value shouldBe "Bearer"
-    HttpAuthenticationScheme.Basic.value shouldBe "Basic"
   }
 
-  it should "parse scheme names case-insensitively via fromString" in {
+  it should "parse the Bearer scheme name case-insensitively via fromString" in {
     HttpAuthenticationScheme.fromString("bearer") shouldBe Some(HttpAuthenticationScheme.Bearer)
     HttpAuthenticationScheme.fromString("BEARER") shouldBe Some(HttpAuthenticationScheme.Bearer)
-    HttpAuthenticationScheme.fromString("Basic") shouldBe Some(HttpAuthenticationScheme.Basic)
-    HttpAuthenticationScheme.fromString("BASIC") shouldBe Some(HttpAuthenticationScheme.Basic)
+    HttpAuthenticationScheme.fromString("Bearer") shouldBe Some(HttpAuthenticationScheme.Bearer)
   }
 
   it should "return None from fromString for unknown schemes" in {
+    HttpAuthenticationScheme.fromString("basic") shouldBe None
     HttpAuthenticationScheme.fromString("digest") shouldBe None
     HttpAuthenticationScheme.fromString("") shouldBe None
   }
@@ -164,14 +160,6 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
     val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).readBytes
     thrown.getMessage should include("HTTP 401 Unauthorized")
     thrown.getMessage should include(HttpFileAccessProtocol.TokensEnvVar)
-  }
-
-  // --- With Basic credentials -------------------------------------------
-
-  it should "send an 'Authorization: Basic <value>' header when Basic credentials are configured" in {
-    authHeadersSeen.clear()
-    fs("/ok/file.txt", Some(basic("dXNlcjpwYXNz"))).exists shouldBe true
-    lastAuthHeader() shouldBe Some("Basic dXNlcjpwYXNz")
   }
 
   // --- credentials propagation -----------------------------------------

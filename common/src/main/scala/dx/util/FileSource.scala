@@ -553,12 +553,10 @@ sealed trait HttpAuthenticationScheme {
 
 object HttpAuthenticationScheme {
   case object Bearer extends HttpAuthenticationScheme { val value = "Bearer" }
-  case object Basic  extends HttpAuthenticationScheme { val value = "Basic" }
 
   // Optional: A helper to parse from a string, mimicking a static method
   def fromString(s: String): Option[HttpAuthenticationScheme] = s.toLowerCase match {
     case "bearer" => Some(Bearer)
-    case "basic"  => Some(Basic)
     case _        => None
   }
 }
