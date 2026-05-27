@@ -547,28 +547,10 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
   }
 }
 
-sealed trait HttpAuthenticationScheme {
-  def value: String
-}
-
-object HttpAuthenticationScheme {
-  case object Bearer extends HttpAuthenticationScheme { val value = "Bearer" }
-
-  // Optional: A helper to parse from a string, mimicking a static method
-  def fromString(s: String): Option[HttpAuthenticationScheme] = s.toLowerCase match {
-    case "bearer" => Some(Bearer)
-    case _        => None
-  }
-}
-
-case class HttpCredentials (scheme: HttpAuthenticationScheme, credentials: String)
-
 case class HttpFileSource(
     override val uri: URI,
     override val encoding: Charset,
-    override val isDirectory: Boolean,
-    credentials: Option[HttpCredentials] = None,
-    logger: Logger = Logger.Quiet
+    override val isDirectory: Boolean
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
@@ -589,9 +571,6 @@ case class HttpFileSource(
     try {
       conn = url.openConnection().asInstanceOf[HttpURLConnection]
       conn.setRequestMethod("HEAD")
-      credentials.foreach { c =>
-        conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
-      }
       fn(conn)
     } finally {
       if (conn != null) {
@@ -600,40 +579,12 @@ case class HttpFileSource(
     }
   }
 
-  private def throwOnWrongAuth(responseCode: Int): Unit = {
-    responseCode match {
-      case HttpURLConnection.HTTP_UNAUTHORIZED =>
-        throw new Exception(
-          s"""HTTP 401 Unauthorized when accessing ${uri}.
-              |If this is a private repository, ensure the credentials are provided. Currently supported authentication types: Bearer token.
-              |Bearer tokens can be supplied by the ${HttpFileAccessProtocol.TokensEnvVar} environment variable. The value must be in the format domain:token[;domain:token]*, for example: raw.githubusercontent.com:<YOUR_GITHUB_TOKEN>;example.com:<YOUR_GITLAB_TOKEN>.""".stripMargin
-        )
-      case HttpURLConnection.HTTP_FORBIDDEN =>
-        throw new Exception(
-            s"""HTTP 403 Forbidden when accessing ${uri}.
-              |If this is a private repository, this may indicate that the provided credentials are invalid or lack the required permissions.
-              |For example, a GitHub token must have 'repo' scope to access private repositories.""".stripMargin
-        )
-      case _ => ()
-    }
-  }
-
   override def exists: Boolean = {
     try {
-      val rc = withConnection{ conn => 
-      conn.setRequestMethod("HEAD")
-      conn.getResponseCode
-      }
-      rc match {
-        case HttpURLConnection.HTTP_OK => true
-        case _ => {
-          throwOnWrongAuth(rc)
-          false
-        }
-      }
+      val rc = withConnection(conn => conn.getResponseCode)
+      rc == HttpURLConnection.HTTP_OK
     } catch {
-      case _: java.net.UnknownHostException => false
-      case e: Exception                     => throw e
+      case _: Throwable => false
     }
   }
 
@@ -646,7 +597,7 @@ case class HttpFileSource(
       } else {
         uri.resolve(".")
       }
-      Some(HttpFileSource(newUri, encoding, isDirectory = true, credentials)(newUri.toString))
+      Some(HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString))
     }
   }
 
@@ -656,7 +607,7 @@ case class HttpFileSource(
     } else {
       uri.resolve(".").resolve(path)
     }
-    HttpFileSource(newUri, encoding, isDir, credentials)(newUri.toString)
+    HttpFileSource(newUri, encoding, isDir)(newUri.toString)
   }
 
   override def resolve(path: String): HttpFileSource = {
@@ -681,10 +632,7 @@ case class HttpFileSource(
   // https://stackoverflow.com/questions/12800588/how-to-calculate-a-file-size-from-url-in-java
   override lazy val size: Long = {
     try {
-      withConnection { conn =>
-        conn.setRequestMethod("HEAD") 
-        conn.getContentLengthLong
-    }
+      withConnection(conn => conn.getContentLengthLong)
     } catch {
       case t: Throwable =>
         throw new Exception(s"Error getting size of URL ${uri}: ${t.getMessage}")
@@ -692,30 +640,23 @@ case class HttpFileSource(
   }
 
   private def fetchUri(buffer: OutputStream, chunkSize: Int = 16384): Int = {
-    withConnection { conn =>
-      conn.setRequestMethod("GET")
-      val responseCode = conn.getResponseCode
-      if (responseCode != HttpURLConnection.HTTP_OK) {
-        throwOnWrongAuth(responseCode)
-        throw new Exception(s"Error fetching URL ${uri}: HTTP ${responseCode}")
-      }
-      val is = conn.getInputStream
-      try {
-        // read all the bytes from the URL
-        var nRead = 0
-        var totalRead = 0
-        val data = new Array[Byte](chunkSize)
-        do {
-          nRead = is.read(data, 0, chunkSize)
-          if (nRead > 0) {
-            buffer.write(data, 0, nRead)
-            totalRead += nRead
-          }
-        } while (nRead > 0)
-        totalRead
-      } finally {
-        is.close()
-      }
+    val url = uri.toURL
+    val is = url.openStream()
+    try {
+      // read all the bytes from the URL
+      var nRead = 0
+      var totalRead = 0
+      val data = new Array[Byte](chunkSize)
+      do {
+        nRead = is.read(data, 0, chunkSize)
+        if (nRead > 0) {
+          buffer.write(data, 0, nRead)
+          totalRead += nRead
+        }
+      } while (nRead > 0)
+      totalRead
+    } finally {
+      is.close()
     }
   }
 
@@ -767,36 +708,14 @@ case class HttpFileSource(
   override def isListable: Boolean = false
 }
 
-case class HttpFileAccessProtocol(
-  encoding: Charset = FileUtils.DefaultEncoding,
-  domainBearerTokens: Map[String, String] = Map.empty,
-  logger: Logger = Logger.Quiet
-) extends FileAccessProtocol {
+case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
+    extends FileAccessProtocol {
   override val schemes = Vector(FileUtils.HttpScheme, FileUtils.HttpsScheme)
   // directories are supported via unpacking of archive files
   override val supportsDirectories: Boolean = true
 
-  /**
-    * Looks up the Bearer token for the given URI's host.
-    * Returns None if no token is configured for the domain.
-    */
-  private def domainBearerTokenForUri(uri: URI): Option[String] = {
-    Option(uri.getHost).flatMap { host =>
-      domainBearerTokens.collectFirst {
-        case (domain, token) if domain.equalsIgnoreCase(host) => token
-      }
-    }
-  }
-
-  private def credentialsForUri(uri: URI): Option[HttpCredentials] = {
-    domainBearerTokenForUri(uri).map(token => {
-      logger.trace(s"Using Bearer token authenticated HTTP for import from: ${uri.getHost}")
-      HttpCredentials(HttpAuthenticationScheme.Bearer, token)
-    })
-  }
-
   def resolve(uri: URI, value: Option[String] = None): HttpFileSource = {
-    HttpFileSource(uri, encoding, isDirectory = false, credentialsForUri(uri))(value.getOrElse(uri.toString))
+    HttpFileSource(uri, encoding, isDirectory = false)(value.getOrElse(uri.toString))
   }
 
   override def resolve(address: String): HttpFileSource = {
@@ -810,66 +729,7 @@ case class HttpFileAccessProtocol(
   //  unless the server supports WebDAV. Handling those results is
   //  probably outside the scope of this package.
   override def resolveDirectory(address: String): HttpFileSource = {
-    HttpFileSource(URI.create(address), encoding, isDirectory = true, credentialsForUri(URI.create(address)))(address)
-  }
-}
-
-object HttpFileAccessProtocol {
-
-  /** Environment variable name for per-domain tokens */
-  val TokensEnvVar: String = "WDL_IMPORT_BEARER_TOKENS"
-
-  /**
-    * Parses the WDL_IMPORT_BEARER_TOKENS environment variable value.
-    * Format: domain:token[;domain:token]*
-    * Splits on first colon only, so tokens containing colons are supported.
-    *
-    * @param value the raw env var value
-    * @return Map of lowercase domain -> token
-    */
-  def parseTokens(value: String): Map[String, String] = {
-    value
-      .split(";")
-      .map(_.trim)
-      .filter(_.nonEmpty)
-      .flatMap { entry =>
-        val idx = entry.indexOf(':')
-        if (idx > 0 && idx < entry.length - 1) {
-          val domain = entry.substring(0, idx).trim.toLowerCase
-          val token = entry.substring(idx + 1).trim
-          if (domain.nonEmpty && token.nonEmpty) Some(domain -> token) else None
-        } else {
-          None
-        }
-      }
-      .toMap
-  }
-
-  /**
-    * Creates an instance with configuration from environment variables.
-    *
-    * @param logger Logger for trace output (token values are never logged)
-    * @return HttpFileAccessProtocol configured from environment
-    */
-  def fromEnvironment(encoding: Charset = FileUtils.DefaultEncoding, logger: Logger = Logger.Quiet): HttpFileAccessProtocol = {
-    val domainBearerTokens = sys.env.get(TokensEnvVar) match {
-      case Some(value) =>
-        val parsed = parseTokens(value)
-        if (parsed.nonEmpty) {
-          logger.trace(
-              s"${TokensEnvVar} found; authenticated HTTP imports enabled for domains: ${parsed.keys
-                .mkString(", ")}"
-          )
-        }
-        parsed
-      case None =>
-        Map.empty[String, String]
-    }
-    HttpFileAccessProtocol(
-      encoding = encoding,
-      domainBearerTokens = domainBearerTokens,
-      logger = logger
-    )
+    HttpFileSource(URI.create(address), encoding, isDirectory = true)(address)
   }
 }
 
@@ -1029,7 +889,7 @@ object FileSourceResolver {
              encoding: Charset = FileUtils.DefaultEncoding): FileSourceResolver = {
     val protocols: Vector[FileAccessProtocol] = Vector(
         LocalFileAccessProtocol(localDirectories, logger, encoding),
-        HttpFileAccessProtocol.fromEnvironment(encoding, logger)
+        HttpFileAccessProtocol(encoding)
     )
     FileSourceResolver(protocols ++ userProtocols)
   }

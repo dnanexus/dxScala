@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.jdk.CollectionConverters._
 
-class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
+class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   // Records the Authorization header value seen on each request, in order.
   private val authHeadersSeen = new ConcurrentLinkedQueue[Option[String]]()
@@ -63,9 +63,9 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   }
 
   private def fs(path: String,
-                 credentials: Option[HttpCredentials] = None): HttpFileSource = {
+                 credentials: Option[HttpCredentials] = None): AuthenticatedHttpFileSource = {
     val uri = baseUri.resolve(path)
-    HttpFileSource(uri,
+    AuthenticatedHttpFileSource(uri,
                    StandardCharsets.UTF_8,
                    isDirectory = false,
                    credentials)(uri.toString)
@@ -116,7 +116,7 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
 
   it should "return false from exists when the host cannot be resolved" in {
     val uri = URI.create("http://no-such-host.invalid./missing.txt")
-    HttpFileSource(uri,
+    AuthenticatedHttpFileSource(uri,
                    StandardCharsets.UTF_8,
                    isDirectory = false,
                    None)(uri.toString).exists shouldBe false
@@ -146,7 +146,7 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   it should "throw from exists with the 401 guidance message when credentials are configured but rejected" in {
     val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).exists
     thrown.getMessage should include("HTTP 401 Unauthorized")
-    thrown.getMessage should include(HttpFileAccessProtocol.TokensEnvVar)
+    thrown.getMessage should include(AuthenticatedHttpFileAccessProtocol.TokensEnvVar)
     thrown.getMessage should include("Bearer token")
   }
 
@@ -159,7 +159,7 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   it should "throw from readBytes with the 401 guidance message when credentials are configured but rejected" in {
     val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).readBytes
     thrown.getMessage should include("HTTP 401 Unauthorized")
-    thrown.getMessage should include(HttpFileAccessProtocol.TokensEnvVar)
+    thrown.getMessage should include(AuthenticatedHttpFileAccessProtocol.TokensEnvVar)
   }
 
   // --- credentials propagation -----------------------------------------

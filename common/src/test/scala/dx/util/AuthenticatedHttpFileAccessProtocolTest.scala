@@ -5,60 +5,60 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 
-class HttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
+class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
 
   // --- parseTokens ------------------------------------------------------
 
   it should "parse an empty string into an empty map" in {
-    HttpFileAccessProtocol.parseTokens("") shouldBe empty
+    AuthenticatedHttpFileAccessProtocol.parseTokens("") shouldBe empty
   }
 
   it should "parse a single domain:token entry" in {
-    HttpFileAccessProtocol.parseTokens("foo.com:abc") shouldBe Map("foo.com" -> "abc")
+    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:abc") shouldBe Map("foo.com" -> "abc")
   }
 
   it should "parse multiple entries separated by semicolons" in {
-    HttpFileAccessProtocol.parseTokens("foo.com:abc;bar.com:xyz") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:abc;bar.com:xyz") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
   it should "lowercase the domain but preserve token case" in {
-    HttpFileAccessProtocol.parseTokens("FOO.com:AbCdEf") shouldBe Map("foo.com" -> "AbCdEf")
+    AuthenticatedHttpFileAccessProtocol.parseTokens("FOO.com:AbCdEf") shouldBe Map("foo.com" -> "AbCdEf")
   }
 
   it should "trim surrounding whitespace from entries, domains, and tokens" in {
-    HttpFileAccessProtocol.parseTokens("  foo.com : abc  ;  bar.com : xyz  ") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseTokens("  foo.com : abc  ;  bar.com : xyz  ") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
   it should "split on the first colon only so tokens may contain colons" in {
-    HttpFileAccessProtocol.parseTokens("foo.com:abc:def:ghi") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:abc:def:ghi") shouldBe
       Map("foo.com" -> "abc:def:ghi")
   }
 
   it should "skip entries with no colon" in {
-    HttpFileAccessProtocol.parseTokens("foo.com;bar.com:xyz") shouldBe Map("bar.com" -> "xyz")
+    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com;bar.com:xyz") shouldBe Map("bar.com" -> "xyz")
   }
 
   it should "skip entries with empty domain or empty token" in {
-    HttpFileAccessProtocol.parseTokens(":token;domain:;real.com:tok") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseTokens(":token;domain:;real.com:tok") shouldBe
       Map("real.com" -> "tok")
   }
 
   it should "ignore empty segments from leading/trailing/duplicate semicolons" in {
-    HttpFileAccessProtocol.parseTokens(";;foo.com:abc;;;bar.com:xyz;;") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseTokens(";;foo.com:abc;;;bar.com:xyz;;") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
   it should "keep the last value when the same domain appears twice" in {
     // `.toMap` on a duplicate-key sequence keeps the last
-    HttpFileAccessProtocol.parseTokens("foo.com:first;foo.com:second") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:first;foo.com:second") shouldBe
       Map("foo.com" -> "second")
   }
 
-  // --- HttpFileAccessProtocol auth attachment ---------------------------
+  // --- AuthenticatedHttpFileAccessProtocol auth attachment ---------------------------
 
-  private val protocolWithTokens = HttpFileAccessProtocol(
+  private val protocolWithTokens = AuthenticatedHttpFileAccessProtocol(
       domainBearerTokens = Map("raw.githubusercontent.com" -> "tok-1", "other.com" -> "tok-2")
   )
 
@@ -89,7 +89,7 @@ class HttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
   }
 
   it should "leave auth as None for any URI when no tokens are configured" in {
-    val emptyProtocol = HttpFileAccessProtocol()
+    val emptyProtocol = AuthenticatedHttpFileAccessProtocol()
     emptyProtocol.resolve("https://raw.githubusercontent.com/x.wdl").credentials shouldBe None
     emptyProtocol.resolveDirectory("https://raw.githubusercontent.com/dir/").credentials shouldBe None
   }
@@ -107,23 +107,23 @@ class HttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
   // --- fromEnvironment --------------------------------------------------
 
   it should "expose the correct env variable name" in {
-    HttpFileAccessProtocol.TokensEnvVar shouldBe "WDL_IMPORT_BEARER_TOKENS"
+    AuthenticatedHttpFileAccessProtocol.TokensEnvVar shouldBe "WDL_IMPORT_BEARER_TOKENS"
   }
 
   it should "return a protocol with no tokens when WDL_IMPORT_BEARER_TOKENS is not set" in {
     // We can't portably mutate process env vars on JVM 11, so we only verify
     // the unset path. The set path is logically equivalent to parseTokens(value)
     // followed by direct construction, both already covered above.
-    assume(sys.env.get(HttpFileAccessProtocol.TokensEnvVar).isEmpty,
+    assume(sys.env.get(AuthenticatedHttpFileAccessProtocol.TokensEnvVar).isEmpty,
            "WDL_IMPORT_BEARER_TOKENS is set in the test environment; skipping unset-path test")
-    val protocol = HttpFileAccessProtocol.fromEnvironment()
+    val protocol = AuthenticatedHttpFileAccessProtocol.fromEnvironment()
     protocol.domainBearerTokens shouldBe empty
     protocol.resolve("https://raw.githubusercontent.com/x.wdl").credentials shouldBe None
   }
 
   it should "use the default encoding and a Quiet logger when fromEnvironment is called with no args" in {
-    assume(sys.env.get(HttpFileAccessProtocol.TokensEnvVar).isEmpty)
-    val protocol = HttpFileAccessProtocol.fromEnvironment()
+    assume(sys.env.get(AuthenticatedHttpFileAccessProtocol.TokensEnvVar).isEmpty)
+    val protocol = AuthenticatedHttpFileAccessProtocol.fromEnvironment()
     protocol.encoding shouldBe FileUtils.DefaultEncoding
     protocol.logger shouldBe Logger.Quiet
   }
