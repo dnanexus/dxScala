@@ -63,29 +63,44 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   }
 
   private def fs(path: String,
-                 auth: Option[HttpFileAuthentication] = None): HttpFileSource = {
+                 credentials: Option[HttpCredentials] = None): HttpFileSource = {
     val uri = baseUri.resolve(path)
     HttpFileSource(uri,
                    StandardCharsets.UTF_8,
                    isDirectory = false,
-                   auth)(uri.toString)
+                   credentials)(uri.toString)
   }
 
-  private def bearerAuth(token: String): HttpFileAuthentication =
-    HttpFileAuthentication(AuthType.Bearer, token)
+  private def bearer(token: String): HttpCredentials =
+    HttpCredentials(HttpAuthenticationScheme.Bearer, token)
+
+  private def basic(value: String): HttpCredentials =
+    HttpCredentials(HttpAuthenticationScheme.Basic, value)
 
   private def lastAuthHeader(): Option[String] = {
     authHeadersSeen.asScala.lastOption.flatten
   }
 
-  // --- AuthType ---------------------------------------------------------
+  // --- HttpAuthenticationScheme -----------------------------------------
 
-  it should "expose a Bearer AuthType with non-empty messages" in {
-    AuthType.Bearer.unauthorizedMessage should not be empty
-    AuthType.Bearer.forbiddenMessage should not be empty
+  it should "expose Bearer and Basic schemes with the correct header values" in {
+    HttpAuthenticationScheme.Bearer.value shouldBe "Bearer"
+    HttpAuthenticationScheme.Basic.value shouldBe "Basic"
   }
 
-  // --- Without auth -----------------------------------------------------
+  it should "parse scheme names case-insensitively via fromString" in {
+    HttpAuthenticationScheme.fromString("bearer") shouldBe Some(HttpAuthenticationScheme.Bearer)
+    HttpAuthenticationScheme.fromString("BEARER") shouldBe Some(HttpAuthenticationScheme.Bearer)
+    HttpAuthenticationScheme.fromString("Basic") shouldBe Some(HttpAuthenticationScheme.Basic)
+    HttpAuthenticationScheme.fromString("BASIC") shouldBe Some(HttpAuthenticationScheme.Basic)
+  }
+
+  it should "return None from fromString for unknown schemes" in {
+    HttpAuthenticationScheme.fromString("digest") shouldBe None
+    HttpAuthenticationScheme.fromString("") shouldBe None
+  }
+
+  // --- Without credentials ----------------------------------------------
 
   it should "return true from exists when the server responds 200" in {
     authHeadersSeen.clear()
@@ -93,72 +108,86 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
     lastAuthHeader() shouldBe None
   }
 
-  it should "return false from exists on 401 when no auth is configured" in {
-    fs("/unauthorized/file.txt").exists shouldBe false
+  it should "throw from exists on 401 even when no credentials are configured" in {
+    val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt").exists
+    thrown.getMessage should include("HTTP 401 Unauthorized")
   }
 
-  it should "return false from exists on 403 when no auth is configured" in {
-    fs("/forbidden/file.txt").exists shouldBe false
+  it should "throw from exists on 403 even when no credentials are configured" in {
+    val thrown = the[Exception] thrownBy fs("/forbidden/file.txt").exists
+    thrown.getMessage should include("HTTP 403 Forbidden")
   }
 
   it should "return false from exists when the host cannot be resolved" in {
     val uri = URI.create("http://no-such-host.invalid./missing.txt")
-    HttpFileSource(uri, StandardCharsets.UTF_8, isDirectory = false, None)(uri.toString).exists shouldBe false
+    HttpFileSource(uri,
+                   StandardCharsets.UTF_8,
+                   isDirectory = false,
+                   None)(uri.toString).exists shouldBe false
   }
 
-  it should "read bytes from a 200 response when no auth is configured" in {
+  it should "read bytes from a 200 response when no credentials are configured" in {
     new String(fs("/ok/file.txt").readBytes, StandardCharsets.UTF_8) shouldBe "hello"
   }
 
-  it should "throw from readBytes on a 401 response when no auth is configured" in {
+  it should "throw from readBytes on a 401 response when no credentials are configured" in {
     val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt").readBytes
-    thrown.getMessage should include("Error fetching URL")
-    thrown.getMessage should include("401")
+    thrown.getMessage should include("HTTP 401 Unauthorized")
   }
 
-  // --- With Bearer auth -------------------------------------------------
+  // --- With Bearer credentials ------------------------------------------
 
-  it should "send an Authorization: Bearer header when bearer auth is configured" in {
+  it should "send an 'Authorization: Bearer <token>' header when Bearer credentials are configured" in {
     authHeadersSeen.clear()
-    fs("/ok/file.txt", Some(bearerAuth("abc"))).exists shouldBe true
+    fs("/ok/file.txt", Some(bearer("abc"))).exists shouldBe true
     lastAuthHeader() shouldBe Some("Bearer abc")
   }
 
   it should "succeed against a bearer-protected endpoint when the token matches" in {
-    fs("/protected/file.txt", Some(bearerAuth(expectedToken))).exists shouldBe true
+    fs("/protected/file.txt", Some(bearer(expectedToken))).exists shouldBe true
   }
 
-  it should "throw from exists with the Bearer 401 message on 401 when auth is configured" in {
-    val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearerAuth("bad"))).exists
-    thrown.getMessage should include("401")
-    thrown.getMessage should include(AuthType.Bearer.unauthorizedMessage)
+  it should "throw from exists with the 401 guidance message when credentials are configured but rejected" in {
+    val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).exists
+    thrown.getMessage should include("HTTP 401 Unauthorized")
+    thrown.getMessage should include(HttpFileAccessProtocol.TokensEnvVar)
+    thrown.getMessage should include("Bearer token")
   }
 
-  it should "throw from exists with the Bearer 403 message on 403 when auth is configured" in {
-    val thrown = the[Exception] thrownBy fs("/forbidden/file.txt", Some(bearerAuth("bad"))).exists
-    thrown.getMessage should include("403")
-    thrown.getMessage should include(AuthType.Bearer.forbiddenMessage)
+  it should "throw from exists with the 403 guidance message when credentials are configured but forbidden" in {
+    val thrown = the[Exception] thrownBy fs("/forbidden/file.txt", Some(bearer("bad"))).exists
+    thrown.getMessage should include("HTTP 403 Forbidden")
+    thrown.getMessage should include("'repo' scope")
   }
 
-  it should "throw from readBytes with the Bearer 401 message on 401 when auth is configured" in {
-    val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearerAuth("bad"))).readBytes
-    thrown.getMessage should include(AuthType.Bearer.unauthorizedMessage)
+  it should "throw from readBytes with the 401 guidance message when credentials are configured but rejected" in {
+    val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).readBytes
+    thrown.getMessage should include("HTTP 401 Unauthorized")
+    thrown.getMessage should include(HttpFileAccessProtocol.TokensEnvVar)
   }
 
-  // --- auth propagation -------------------------------------------------
+  // --- With Basic credentials -------------------------------------------
 
-  it should "propagate auth through resolve" in {
-    val parent = fs("/ok/", Some(bearerAuth("tok")))
-    parent.resolve("child.txt").auth shouldBe Some(bearerAuth("tok"))
+  it should "send an 'Authorization: Basic <value>' header when Basic credentials are configured" in {
+    authHeadersSeen.clear()
+    fs("/ok/file.txt", Some(basic("dXNlcjpwYXNz"))).exists shouldBe true
+    lastAuthHeader() shouldBe Some("Basic dXNlcjpwYXNz")
   }
 
-  it should "propagate auth through resolveDirectory" in {
-    val parent = fs("/ok/", Some(bearerAuth("tok")))
-    parent.resolveDirectory("sub").auth shouldBe Some(bearerAuth("tok"))
+  // --- credentials propagation -----------------------------------------
+
+  it should "propagate credentials through resolve" in {
+    val parent = fs("/ok/", Some(bearer("tok")))
+    parent.resolve("child.txt").credentials shouldBe Some(bearer("tok"))
   }
 
-  it should "propagate auth through getParent" in {
-    val child = fs("/ok/dir/file.txt", Some(bearerAuth("tok")))
-    child.getParent.flatMap(_.auth) shouldBe Some(bearerAuth("tok"))
+  it should "propagate credentials through resolveDirectory" in {
+    val parent = fs("/ok/", Some(bearer("tok")))
+    parent.resolveDirectory("sub").credentials shouldBe Some(bearer("tok"))
+  }
+
+  it should "propagate credentials through getParent" in {
+    val child = fs("/ok/dir/file.txt", Some(bearer("tok")))
+    child.getParent.flatMap(_.credentials) shouldBe Some(bearer("tok"))
   }
 }

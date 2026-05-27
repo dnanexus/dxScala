@@ -64,34 +64,34 @@ class HttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
 
   it should "attach Bearer auth on resolve when the host matches a configured domain" in {
     val fs = protocolWithTokens.resolve("https://raw.githubusercontent.com/owner/repo/main/x.wdl")
-    fs.auth shouldBe Some(HttpFileAuthentication(AuthType.Bearer, "tok-1"))
+    fs.credentials shouldBe Some(HttpCredentials(HttpAuthenticationScheme.Bearer, "tok-1"))
   }
 
   it should "match domains case-insensitively when attaching auth" in {
     val fs = protocolWithTokens.resolve("https://RAW.GitHubUserContent.com/x.wdl")
-    fs.auth shouldBe Some(HttpFileAuthentication(AuthType.Bearer, "tok-1"))
+    fs.credentials shouldBe Some(HttpCredentials(HttpAuthenticationScheme.Bearer, "tok-1"))
   }
 
   it should "not attach auth when the host is not in the configured tokens" in {
     val fs = protocolWithTokens.resolve("https://unknown.example/x.wdl")
-    fs.auth shouldBe None
+    fs.credentials shouldBe None
   }
 
   it should "use only the host for matching, ignoring path/query" in {
     val fs = protocolWithTokens.resolve("https://other.com/path?q=raw.githubusercontent.com")
-    fs.auth shouldBe Some(HttpFileAuthentication(AuthType.Bearer, "tok-2"))
+    fs.credentials shouldBe Some(HttpCredentials(HttpAuthenticationScheme.Bearer, "tok-2"))
   }
 
   it should "attach auth on resolveDirectory the same way as resolve" in {
     val dir = protocolWithTokens.resolveDirectory("https://raw.githubusercontent.com/owner/repo/")
-    dir.auth shouldBe Some(HttpFileAuthentication(AuthType.Bearer, "tok-1"))
+    dir.credentials shouldBe Some(HttpCredentials(HttpAuthenticationScheme.Bearer, "tok-1"))
     dir.isDirectory shouldBe true
   }
 
   it should "leave auth as None for any URI when no tokens are configured" in {
     val emptyProtocol = HttpFileAccessProtocol()
-    emptyProtocol.resolve("https://raw.githubusercontent.com/x.wdl").auth shouldBe None
-    emptyProtocol.resolveDirectory("https://raw.githubusercontent.com/dir/").auth shouldBe None
+    emptyProtocol.resolve("https://raw.githubusercontent.com/x.wdl").credentials shouldBe None
+    emptyProtocol.resolveDirectory("https://raw.githubusercontent.com/dir/").credentials shouldBe None
   }
 
   it should "preserve the original address as the FileSource address" in {
@@ -118,7 +118,7 @@ class HttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
            "WDL_IMPORT_BEARER_TOKENS is set in the test environment; skipping unset-path test")
     val protocol = HttpFileAccessProtocol.fromEnvironment()
     protocol.domainBearerTokens shouldBe empty
-    protocol.resolve("https://raw.githubusercontent.com/x.wdl").auth shouldBe None
+    protocol.resolve("https://raw.githubusercontent.com/x.wdl").credentials shouldBe None
   }
 
   it should "use the default encoding and a Quiet logger when fromEnvironment is called with no args" in {
