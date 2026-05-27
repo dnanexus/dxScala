@@ -547,32 +547,30 @@ case class LocalFileAccessProtocol(searchPath: Vector[Path] = Vector.empty,
   }
 }
 
-sealed trait AuthType {
-  def unauthorizedMessage: String
-  def forbiddenMessage: String
+sealed trait HttpAuthenticationScheme {
+  def value: String
 }
 
-object AuthType {
-  case class BearerAuthType(unauthorizedMessage: String, forbiddenMessage: String) extends AuthType
+object HttpAuthenticationScheme {
+  case object Bearer extends HttpAuthenticationScheme { val value = "Bearer" }
+  case object Basic  extends HttpAuthenticationScheme { val value = "Basic" }
 
-  val Bearer: BearerAuthType = BearerAuthType(
-      s"""If this is a private repository, ensure WDL_IMPORT_BEARER_TOKENS is set.
-          |Format: domain:token[;domain:token]*
-          |Example: raw.githubusercontent.com:<YOUR_TOKEN>
-          |For GitHub: generate a token at https://github.com/settings/tokens with 'repo' scope.""".stripMargin,
-      s"""The token may be invalid or lack the required permissions.
-          |For GitHub: ensure the token has 'repo' scope for private repositories.""".stripMargin 
-  )
-
+  // Optional: A helper to parse from a string, mimicking a static method
+  def fromString(s: String): Option[HttpAuthenticationScheme] = s.toLowerCase match {
+    case "bearer" => Some(Bearer)
+    case "basic"  => Some(Basic)
+    case _        => None
+  }
 }
 
-case class HttpFileAuthentication (authType: AuthType, authValue: String)
+case class HttpCredentials (scheme: HttpAuthenticationScheme, credentials: String)
 
 case class HttpFileSource(
     override val uri: URI,
     override val encoding: Charset,
     override val isDirectory: Boolean,
-    auth: Option[HttpFileAuthentication] = None
+    credentials: Option[HttpCredentials] = None,
+    logger: Logger = Logger.Quiet
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
 
@@ -593,12 +591,8 @@ case class HttpFileSource(
     try {
       conn = url.openConnection().asInstanceOf[HttpURLConnection]
       conn.setRequestMethod("HEAD")
-      auth.foreach { a =>
-        conn.setRequestProperty("Authorization",
-          a.authType match {
-            case AuthType.BearerAuthType(_, _) => s"Bearer ${a.authValue}"
-          }
-        )
+      credentials.foreach { c =>
+        conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
       }
       fn(conn)
     } finally {
@@ -609,18 +603,18 @@ case class HttpFileSource(
   }
 
   private def throwOnWrongAuth(responseCode: Int): Unit = {
-    if (auth.isEmpty) {
-      return
-    }
-
     responseCode match {
       case HttpURLConnection.HTTP_UNAUTHORIZED =>
         throw new Exception(
-            s"HTTP 401 Unauthorized when accessing ${uri}.\n${auth.get.authType.unauthorizedMessage}"
+          s"""HTTP 401 Unauthorized when accessing ${uri}.
+              |If this is a private repository, ensure the credentials are provided. Currently supported authentication types: Bearer token.
+              |Bearer tokens can be supplied by the ${HttpFileAccessProtocol.TokensEnvVar} environment variable. The value must be in the format domain:token[;domain:token]*, for example: raw.githubusercontent.com:<YOUR_GITHUB_TOKEN>;example.com:<YOUR_GITLAB_TOKEN>.""".stripMargin
         )
       case HttpURLConnection.HTTP_FORBIDDEN =>
         throw new Exception(
-            s"HTTP 403 Forbidden when accessing ${uri}.\n${auth.get.authType.forbiddenMessage}"
+            s"""HTTP 403 Forbidden when accessing ${uri}.
+              |If this is a private repository, this may indicate that the provided credentials are invalid or lack the required permissions.
+              |For example, a GitHub token must have 'repo' scope to access private repositories.""".stripMargin
         )
       case _ => ()
     }
@@ -654,7 +648,7 @@ case class HttpFileSource(
       } else {
         uri.resolve(".")
       }
-      Some(HttpFileSource(newUri, encoding, isDirectory = true, auth)(newUri.toString))
+      Some(HttpFileSource(newUri, encoding, isDirectory = true, credentials)(newUri.toString))
     }
   }
 
@@ -664,7 +658,7 @@ case class HttpFileSource(
     } else {
       uri.resolve(".").resolve(path)
     }
-    HttpFileSource(newUri, encoding, isDir, auth)(newUri.toString)
+    HttpFileSource(newUri, encoding, isDir, credentials)(newUri.toString)
   }
 
   override def resolve(path: String): HttpFileSource = {
@@ -796,15 +790,15 @@ case class HttpFileAccessProtocol(
     }
   }
 
-  private def authForUri(uri: URI): Option[HttpFileAuthentication] = {
+  private def credentialsForUri(uri: URI): Option[HttpCredentials] = {
     domainBearerTokenForUri(uri).map(token => {
       logger.trace(s"Using Bearer token authenticated HTTP for import from: ${uri.getHost}")
-      HttpFileAuthentication(AuthType.Bearer, token)
+      HttpCredentials(HttpAuthenticationScheme.Bearer, token)
     })
   }
 
   def resolve(uri: URI, value: Option[String] = None): HttpFileSource = {
-    HttpFileSource(uri, encoding, isDirectory = false, authForUri(uri))(value.getOrElse(uri.toString))
+    HttpFileSource(uri, encoding, isDirectory = false, credentialsForUri(uri))(value.getOrElse(uri.toString))
   }
 
   override def resolve(address: String): HttpFileSource = {
@@ -818,7 +812,7 @@ case class HttpFileAccessProtocol(
   //  unless the server supports WebDAV. Handling those results is
   //  probably outside the scope of this package.
   override def resolveDirectory(address: String): HttpFileSource = {
-    HttpFileSource(URI.create(address), encoding, isDirectory = true, authForUri(URI.create(address)))(address)
+    HttpFileSource(URI.create(address), encoding, isDirectory = true, credentialsForUri(URI.create(address)))(address)
   }
 }
 
