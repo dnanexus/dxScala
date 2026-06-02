@@ -24,12 +24,17 @@ case class HttpCredentials(scheme: HttpAuthenticationScheme, credentials: String
   * An HTTP-backed FileSource that attaches an `Authorization` header on every
   * request when credentials are provided, and surfaces 401/403 responses as
   * exceptions with actionable guidance.
+  *
+  * `tokenEnvVarHint`, when provided, is surfaced verbatim in the 401 error
+  * message so users know which environment variable to set. The library is
+  * intentionally agnostic about the name; callers supply it.
   */
 case class AuthenticatedHttpFileSource(
     override val uri: URI,
     override val encoding: Charset,
     override val isDirectory: Boolean,
     credentials: Option[HttpCredentials] = None,
+    tokenEnvVarHint: Option[String] = None,
     logger: Logger = Logger.Quiet
 )(override val address: String)
     extends AbstractAddressableFileNode(address, encoding) {
@@ -62,13 +67,20 @@ case class AuthenticatedHttpFileSource(
     }
   }
 
+  private def unauthorizedHint: String = tokenEnvVarHint match {
+    case Some(envVar) =>
+      s"""Bearer tokens can be supplied via the ${envVar} environment variable. The value must be in the format domain:token[;domain:token]*, for example: raw.githubusercontent.com:<YOUR_GITHUB_TOKEN>;example.com:<YOUR_GITLAB_TOKEN>."""
+    case None =>
+      "Supply Bearer credentials to access this resource."
+  }
+
   private def throwOnWrongAuth(responseCode: Int): Unit = {
     responseCode match {
       case HttpURLConnection.HTTP_UNAUTHORIZED =>
         throw new Exception(
             s"""HTTP 401 Unauthorized when accessing ${uri}.
                |If this is a private repository, ensure the credentials are provided. Currently supported authentication types: Bearer token.
-               |Bearer tokens can be supplied by the ${AuthenticatedHttpFileAccessProtocol.TokensEnvVar} environment variable. The value must be in the format domain:token[;domain:token]*, for example: raw.githubusercontent.com:<YOUR_GITHUB_TOKEN>;example.com:<YOUR_GITLAB_TOKEN>.""".stripMargin
+               |${unauthorizedHint}""".stripMargin
         )
       case HttpURLConnection.HTTP_FORBIDDEN =>
         throw new Exception(
@@ -105,7 +117,12 @@ case class AuthenticatedHttpFileSource(
         uri.resolve(".")
       }
       Some(
-          AuthenticatedHttpFileSource(newUri, encoding, isDirectory = true, credentials, logger)(
+          AuthenticatedHttpFileSource(newUri,
+                                      encoding,
+                                      isDirectory = true,
+                                      credentials,
+                                      tokenEnvVarHint,
+                                      logger)(
               newUri.toString
           )
       )
@@ -118,7 +135,9 @@ case class AuthenticatedHttpFileSource(
     } else {
       uri.resolve(".").resolve(path)
     }
-    AuthenticatedHttpFileSource(newUri, encoding, isDir, credentials, logger)(newUri.toString)
+    AuthenticatedHttpFileSource(newUri, encoding, isDir, credentials, tokenEnvVarHint, logger)(
+        newUri.toString
+    )
   }
 
   override def resolve(path: String): AuthenticatedHttpFileSource = {
@@ -227,10 +246,15 @@ case class AuthenticatedHttpFileSource(
 /**
   * A FileAccessProtocol for http/https URLs that attaches Bearer credentials
   * based on a per-domain token map.
+  *
+  * `tokenEnvVarHint` is forwarded to constructed `AuthenticatedHttpFileSource`
+  * instances so 401 error messages can guide the user to the env var the
+  * caller exposes. The library does not own that env var name.
   */
 case class AuthenticatedHttpFileAccessProtocol(
     encoding: Charset = FileUtils.DefaultEncoding,
     domainBearerTokens: Map[String, String] = Map.empty,
+    tokenEnvVarHint: Option[String] = None,
     logger: Logger = Logger.Quiet
 ) extends FileAccessProtocol {
   override val schemes = Vector(FileUtils.HttpScheme, FileUtils.HttpsScheme)
@@ -256,6 +280,7 @@ case class AuthenticatedHttpFileAccessProtocol(
                                 encoding,
                                 isDirectory = false,
                                 credentialsForUri(uri),
+                                tokenEnvVarHint,
                                 logger)(value.getOrElse(uri.toString))
   }
 
@@ -269,20 +294,18 @@ case class AuthenticatedHttpFileAccessProtocol(
                                 encoding,
                                 isDirectory = true,
                                 credentialsForUri(uri),
+                                tokenEnvVarHint,
                                 logger)(address)
   }
 }
 
 object AuthenticatedHttpFileAccessProtocol {
 
-  /** Environment variable name for per-domain tokens. */
-  val TokensEnvVar: String = "WDL_IMPORT_BEARER_TOKENS"
-
   /**
-    * Parses the WDL_IMPORT_BEARER_TOKENS environment variable value.
-    * Format: domain:token[;domain:token]*
-    * Splits on first colon only, so tokens containing colons are supported.
-    * Domains are lowercased; tokens preserve case.
+    * Parses a string of the form `domain:token[;domain:token]*` into a
+    * domain -> token map. Splits each entry on the first colon only, so
+    * tokens containing colons are supported. Domains are lowercased; tokens
+    * preserve case.
     */
   def parseTokens(value: String): Map[String, String] = {
     value
@@ -300,32 +323,5 @@ object AuthenticatedHttpFileAccessProtocol {
         }
       }
       .toMap
-  }
-
-  /**
-    * Creates an instance with configuration from the WDL_IMPORT_BEARER_TOKENS
-    * environment variable. Returns a protocol with an empty token map if the
-    * variable is unset.
-    */
-  def fromEnvironment(encoding: Charset = FileUtils.DefaultEncoding,
-                      logger: Logger = Logger.Quiet): AuthenticatedHttpFileAccessProtocol = {
-    val domainBearerTokens = sys.env.get(TokensEnvVar) match {
-      case Some(value) =>
-        val parsed = parseTokens(value)
-        if (parsed.nonEmpty) {
-          logger.trace(
-              s"${TokensEnvVar} found; authenticated HTTP imports enabled for domains: ${parsed.keys
-                .mkString(", ")}"
-          )
-        }
-        parsed
-      case None =>
-        Map.empty[String, String]
-    }
-    AuthenticatedHttpFileAccessProtocol(
-        encoding = encoding,
-        domainBearerTokens = domainBearerTokens,
-        logger = logger
-    )
   }
 }

@@ -23,7 +23,9 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
   }
 
   it should "lowercase the domain but preserve token case" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("FOO.com:AbCdEf") shouldBe Map("foo.com" -> "AbCdEf")
+    AuthenticatedHttpFileAccessProtocol.parseTokens("FOO.com:AbCdEf") shouldBe Map(
+        "foo.com" -> "AbCdEf"
+    )
   }
 
   it should "trim surrounding whitespace from entries, domains, and tokens" in {
@@ -37,7 +39,9 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
   }
 
   it should "skip entries with no colon" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com;bar.com:xyz") shouldBe Map("bar.com" -> "xyz")
+    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com;bar.com:xyz") shouldBe Map(
+        "bar.com" -> "xyz"
+    )
   }
 
   it should "skip entries with empty domain or empty token" in {
@@ -91,7 +95,9 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
   it should "leave auth as None for any URI when no tokens are configured" in {
     val emptyProtocol = AuthenticatedHttpFileAccessProtocol()
     emptyProtocol.resolve("https://raw.githubusercontent.com/x.wdl").credentials shouldBe None
-    emptyProtocol.resolveDirectory("https://raw.githubusercontent.com/dir/").credentials shouldBe None
+    emptyProtocol
+      .resolveDirectory("https://raw.githubusercontent.com/dir/")
+      .credentials shouldBe None
   }
 
   it should "preserve the original address as the FileSource address" in {
@@ -104,27 +110,28 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
     protocolWithTokens.resolve(uri).address shouldBe uri.toString
   }
 
-  // --- fromEnvironment --------------------------------------------------
+  // --- tokenEnvVarHint propagation --------------------------------------
 
-  it should "expose the correct env variable name" in {
-    AuthenticatedHttpFileAccessProtocol.TokensEnvVar shouldBe "WDL_IMPORT_BEARER_TOKENS"
+  it should "default tokenEnvVarHint to None and forward None to constructed sources" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol()
+    protocol.tokenEnvVarHint shouldBe None
+    protocol.resolve("https://example.com/x.wdl").tokenEnvVarHint shouldBe None
+    protocol.resolveDirectory("https://example.com/dir/").tokenEnvVarHint shouldBe None
   }
 
-  it should "return a protocol with no tokens when WDL_IMPORT_BEARER_TOKENS is not set" in {
-    // We can't portably mutate process env vars on JVM 11, so we only verify
-    // the unset path. The set path is logically equivalent to parseTokens(value)
-    // followed by direct construction, both already covered above.
-    assume(sys.env.get(AuthenticatedHttpFileAccessProtocol.TokensEnvVar).isEmpty,
-           "WDL_IMPORT_BEARER_TOKENS is set in the test environment; skipping unset-path test")
-    val protocol = AuthenticatedHttpFileAccessProtocol.fromEnvironment()
-    protocol.domainBearerTokens shouldBe empty
-    protocol.resolve("https://raw.githubusercontent.com/x.wdl").credentials shouldBe None
+  it should "forward tokenEnvVarHint to constructed sources via resolve" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol(
+        tokenEnvVarHint = Some("MY_TOKENS_VAR")
+    )
+    protocol.resolve("https://example.com/x.wdl").tokenEnvVarHint shouldBe Some("MY_TOKENS_VAR")
   }
 
-  it should "use the default encoding and a Quiet logger when fromEnvironment is called with no args" in {
-    assume(sys.env.get(AuthenticatedHttpFileAccessProtocol.TokensEnvVar).isEmpty)
-    val protocol = AuthenticatedHttpFileAccessProtocol.fromEnvironment()
-    protocol.encoding shouldBe FileUtils.DefaultEncoding
-    protocol.logger shouldBe Logger.Quiet
+  it should "forward tokenEnvVarHint to constructed sources via resolveDirectory" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol(
+        tokenEnvVarHint = Some("MY_TOKENS_VAR")
+    )
+    protocol
+      .resolveDirectory("https://example.com/dir/")
+      .tokenEnvVarHint shouldBe Some("MY_TOKENS_VAR")
   }
 }

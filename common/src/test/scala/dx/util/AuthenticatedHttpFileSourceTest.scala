@@ -63,12 +63,14 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   }
 
   private def fs(path: String,
-                 credentials: Option[HttpCredentials] = None): AuthenticatedHttpFileSource = {
+                 credentials: Option[HttpCredentials] = None,
+                 tokenEnvVarHint: Option[String] = None): AuthenticatedHttpFileSource = {
     val uri = baseUri.resolve(path)
     AuthenticatedHttpFileSource(uri,
-                   StandardCharsets.UTF_8,
-                   isDirectory = false,
-                   credentials)(uri.toString)
+                                StandardCharsets.UTF_8,
+                                isDirectory = false,
+                                credentials,
+                                tokenEnvVarHint)(uri.toString)
   }
 
   private def bearer(token: String): HttpCredentials =
@@ -146,7 +148,6 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   it should "throw from exists with the 401 guidance message when credentials are configured but rejected" in {
     val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).exists
     thrown.getMessage should include("HTTP 401 Unauthorized")
-    thrown.getMessage should include(AuthenticatedHttpFileAccessProtocol.TokensEnvVar)
     thrown.getMessage should include("Bearer token")
   }
 
@@ -159,7 +160,42 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   it should "throw from readBytes with the 401 guidance message when credentials are configured but rejected" in {
     val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).readBytes
     thrown.getMessage should include("HTTP 401 Unauthorized")
-    thrown.getMessage should include(AuthenticatedHttpFileAccessProtocol.TokensEnvVar)
+  }
+
+  // --- tokenEnvVarHint propagation in the 401 message -------------------
+
+  it should "include the supplied tokenEnvVarHint in the 401 guidance message" in {
+    val thrown = the[Exception] thrownBy fs(
+        "/unauthorized/file.txt",
+        Some(bearer("bad")),
+        tokenEnvVarHint = Some("MY_BEARER_TOKENS_VAR")
+    ).exists
+    thrown.getMessage should include("HTTP 401 Unauthorized")
+    thrown.getMessage should include("MY_BEARER_TOKENS_VAR")
+  }
+
+  it should "fall back to a generic guidance message in the 401 message when no hint is supplied" in {
+    val thrown = the[Exception] thrownBy fs(
+        "/unauthorized/file.txt",
+        Some(bearer("bad"))
+    ).exists
+    thrown.getMessage should include("HTTP 401 Unauthorized")
+    thrown.getMessage should include("Supply Bearer credentials")
+  }
+
+  it should "propagate tokenEnvVarHint through resolve" in {
+    val parent = fs("/ok/", Some(bearer("tok")), tokenEnvVarHint = Some("X"))
+    parent.resolve("child.txt").tokenEnvVarHint shouldBe Some("X")
+  }
+
+  it should "propagate tokenEnvVarHint through resolveDirectory" in {
+    val parent = fs("/ok/", Some(bearer("tok")), tokenEnvVarHint = Some("X"))
+    parent.resolveDirectory("sub").tokenEnvVarHint shouldBe Some("X")
+  }
+
+  it should "propagate tokenEnvVarHint through getParent" in {
+    val child = fs("/ok/dir/file.txt", Some(bearer("tok")), tokenEnvVarHint = Some("X"))
+    child.getParent.flatMap(_.tokenEnvVarHint) shouldBe Some("X")
   }
 
   // --- credentials propagation -----------------------------------------
