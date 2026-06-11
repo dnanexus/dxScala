@@ -53,14 +53,25 @@ case class AuthenticatedHttpFileSource(
 
   private var hasBytes: Boolean = false
 
+  private def openConnection(method: String): HttpURLConnection = {
+    val conn = uri.toURL.openConnection().asInstanceOf[HttpURLConnection]
+    conn.setRequestMethod(method)
+    credentials.foreach { c =>
+      conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
+    }
+    conn
+  }
+
   private def withConnection[T](method: String = "HEAD")(fn: HttpURLConnection => T): T = {
-    val url = uri.toURL
     var conn: HttpURLConnection = null
     try {
-      conn = url.openConnection().asInstanceOf[HttpURLConnection]
-      conn.setRequestMethod(method)
-      credentials.foreach { c =>
-        conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
+      conn = openConnection(method)
+      // Many servers reject HEAD on a resource that GET would serve (RFC 7231
+      // §6.5.5). Transparently retry such requests with GET so callers can rely
+      // on HEAD-style "exists / size" probes regardless of server quirks.
+      if (method == "HEAD" && conn.getResponseCode == HttpURLConnection.HTTP_BAD_METHOD) {
+        conn.disconnect()
+        conn = openConnection("GET")
       }
       fn(conn)
     } finally {

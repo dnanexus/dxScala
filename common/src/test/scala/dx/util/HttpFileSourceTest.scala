@@ -31,6 +31,17 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
   override def beforeAll(): Unit = {
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0)
     server.createContext("/binary", (exchange: HttpExchange) => respond(exchange, 200, binaryBody))
+    // Refuses HEAD with 405 but serves GET normally — mirrors servers that
+    // selectively register methods (RFC 7231 §6.5.5).
+    server.createContext(
+        "/head405",
+        (exchange: HttpExchange) =>
+          if (exchange.getRequestMethod == "HEAD") {
+            exchange.getResponseHeaders.set("Allow", "GET")
+            exchange.sendResponseHeaders(405, -1)
+            exchange.close()
+          } else respond(exchange, 200, binaryBody)
+    )
     server.setExecutor(null)
     server.start()
     baseUri = URI.create(s"http://127.0.0.1:${server.getAddress.getPort}")
@@ -73,5 +84,10 @@ class HttpFileSourceTest extends AnyFlatSpec with Matchers with BeforeAndAfterAl
     } finally {
       FileUtils.deleteRecursive(tempRoot)
     }
+  }
+
+  it should "transparently retry with GET when the server rejects HEAD with 405" in {
+    fs("/head405/file.bin").exists shouldBe true
+    fs("/head405/file.bin").size shouldBe binaryBody.length.toLong
   }
 }
