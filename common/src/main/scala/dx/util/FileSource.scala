@@ -589,15 +589,13 @@ case class HttpFileSource(
   }
 
   override def getParent: Option[HttpFileSource] = {
-    if (path.getParent == null) {
-      None
-    } else {
+    path.getParent.map { _ =>
       val newUri = if (isDirectory) {
         uri.resolve("..")
       } else {
         uri.resolve(".")
       }
-      Some(HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString))
+      HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString)
     }
   }
 
@@ -673,9 +671,10 @@ case class HttpFileSource(
   }
 
   private def localizeToFile(path: Path): Unit = {
+    Option(path.getParent).foreach(FileUtils.createDirectories)
     // avoid re-downloading the file if we've already cached the bytes
     if (hasBytes) {
-      FileUtils.writeFileContent(path, new String(readBytes, encoding))
+      Files.write(path, readBytes)
     } else {
       val buffer = new FileOutputStream(path.toFile)
       try {

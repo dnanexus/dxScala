@@ -108,24 +108,18 @@ case class AuthenticatedHttpFileSource(
   }
 
   override def getParent: Option[AuthenticatedHttpFileSource] = {
-    if (path.getParent == null) {
-      None
-    } else {
+    path.getParent.map { _ =>
       val newUri = if (isDirectory) {
         uri.resolve("..")
       } else {
         uri.resolve(".")
       }
-      Some(
-          AuthenticatedHttpFileSource(newUri,
-                                      encoding,
-                                      isDirectory = true,
-                                      credentials,
-                                      tokenEnvVarHint,
-                                      logger)(
-              newUri.toString
-          )
-      )
+      AuthenticatedHttpFileSource(newUri,
+                                  encoding,
+                                  isDirectory = true,
+                                  credentials,
+                                  tokenEnvVarHint,
+                                  logger)(newUri.toString)
     }
   }
 
@@ -211,8 +205,9 @@ case class AuthenticatedHttpFileSource(
   }
 
   private def localizeToFile(path: Path): Unit = {
+    Option(path.getParent).foreach(FileUtils.createDirectories)
     if (hasBytes) {
-      FileUtils.writeFileContent(path, new String(readBytes, encoding))
+      Files.write(path, readBytes)
     } else {
       val buffer = new FileOutputStream(path.toFile)
       try {

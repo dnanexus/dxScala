@@ -52,6 +52,7 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     server.createContext("/unauthorized", handler401)
     server.createContext("/forbidden", handler403)
     server.createContext("/protected", handlerBearerProtected)
+    server.createContext("/binary", (exchange: HttpExchange) => respond(exchange, 200, binaryBody))
     server.setExecutor(null)
     server.start()
     val port = server.getAddress.getPort
@@ -212,5 +213,42 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   it should "propagate credentials through getParent" in {
     val child = fs("/ok/dir/file.txt", Some(bearer("tok")))
     child.getParent.flatMap(_.credentials) shouldBe Some(bearer("tok"))
+  }
+
+  // --- getParent edge cases --------------------------------------------
+
+  it should "return None from getParent at the root URI" in {
+    fs("/").getParent shouldBe None
+  }
+
+  // --- localize ---------------------------------------------------------
+
+  // Endpoint that returns arbitrary binary bytes (0x00..0xFF) on GET.
+  private val binaryBody: Array[Byte] = (0 to 255).map(_.toByte).toArray
+
+  it should "preserve binary bytes when localizing a cached file (no String round-trip)" in {
+    val source = fs("/binary/blob.bin")
+    val _ = source.readBytes // populate the cache so the hasBytes branch is exercised
+    val dest = java.nio.file.Files.createTempFile("auth-http-bin", ".bin")
+    try {
+      java.nio.file.Files.deleteIfExists(dest) // localize will (re)create it
+      source.localize(dest, overwrite = true)
+      java.nio.file.Files.readAllBytes(dest) shouldBe binaryBody
+    } finally {
+      java.nio.file.Files.deleteIfExists(dest)
+    }
+  }
+
+  it should "create missing parent directories when localizing" in {
+    val source = fs("/binary/blob.bin")
+    val tempRoot = java.nio.file.Files.createTempDirectory("auth-http-loc")
+    val dest = tempRoot.resolve("nested/dirs/that/do/not/exist/blob.bin")
+    try {
+      source.localize(dest)
+      java.nio.file.Files.exists(dest) shouldBe true
+      java.nio.file.Files.readAllBytes(dest) shouldBe binaryBody
+    } finally {
+      FileUtils.deleteRecursive(tempRoot)
+    }
   }
 }
