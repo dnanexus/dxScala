@@ -45,6 +45,20 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     if (header.contains(s"Bearer $expectedToken")) respond(exchange, 200, okBody)
     else respond(exchange, 401, Array.emptyByteArray)
   }
+  // Responds 200 OK without a Content-Length header — simulates servers using
+  // chunked transfer encoding (e.g. GitHub raw URLs).
+  private val handlerNoLength: HttpHandler = (exchange: HttpExchange) => {
+    if (exchange.getRequestMethod == "HEAD") {
+      exchange.sendResponseHeaders(200, -1)
+      exchange.close()
+    } else {
+      // responseLength=0 -> chunked transfer encoding, no Content-Length sent
+      exchange.sendResponseHeaders(200, 0)
+      val os = exchange.getResponseBody
+      try os.write(okBody)
+      finally os.close()
+    }
+  }
 
   private var server: HttpServer = _
   private var baseUri: URI = _
@@ -56,6 +70,7 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     server.createContext("/forbidden", handler403)
     server.createContext("/protected", handlerBearerProtected)
     server.createContext("/binary", (exchange: HttpExchange) => respond(exchange, 200, binaryBody))
+    server.createContext("/chunked", handlerNoLength)
     server.setExecutor(null)
     server.start()
     val port = server.getAddress.getPort
@@ -88,6 +103,13 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
 
   it should "expose the Bearer scheme with the correct header value" in {
     HttpAuthenticationScheme.Bearer.value shouldBe "Bearer"
+  }
+
+  it should "redact the credentials value in HttpCredentials.toString" in {
+    val credentials = HttpCredentials(HttpAuthenticationScheme.Bearer, "super-secret-token")
+    val rendered = credentials.toString
+    rendered shouldBe "HttpCredentials(Bearer, ***)"
+    rendered should not include "super-secret-token"
   }
 
   it should "parse the Bearer scheme name case-insensitively via fromString" in {
@@ -234,6 +256,11 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     val thrown = the[Exception] thrownBy fs("/forbidden/file.txt", Some(bearer("bad"))).size
     thrown.getMessage should include("HTTP 403 Forbidden")
     thrown.getMessage should include("'repo' scope")
+  }
+
+  it should "return -1 from size when the server does not send Content-Length" in {
+    // Mirrors servers using chunked transfer encoding (e.g. GitHub raw URLs).
+    fs("/chunked/file.txt").size shouldBe -1L
   }
 
   // --- getParent edge cases --------------------------------------------

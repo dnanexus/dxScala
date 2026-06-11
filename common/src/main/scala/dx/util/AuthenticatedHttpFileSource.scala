@@ -18,7 +18,9 @@ object HttpAuthenticationScheme {
   }
 }
 
-case class HttpCredentials(scheme: HttpAuthenticationScheme, credentials: String)
+case class HttpCredentials(scheme: HttpAuthenticationScheme, credentials: String) {
+  override def toString: String = s"HttpCredentials(${scheme.value}, ***)"
+}
 
 /**
   * An HTTP-backed FileSource that attaches an `Authorization` header on every
@@ -51,12 +53,12 @@ case class AuthenticatedHttpFileSource(
 
   private var hasBytes: Boolean = false
 
-  private def withConnection[T](fn: HttpURLConnection => T): T = {
+  private def withConnection[T](method: String = "HEAD")(fn: HttpURLConnection => T): T = {
     val url = uri.toURL
     var conn: HttpURLConnection = null
     try {
       conn = url.openConnection().asInstanceOf[HttpURLConnection]
-      conn.setRequestMethod("HEAD")
+      conn.setRequestMethod(method)
       credentials.foreach { c =>
         conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
       }
@@ -89,7 +91,7 @@ case class AuthenticatedHttpFileSource(
 
   override def exists: Boolean = {
     try {
-      val rc = withConnection(conn => conn.getResponseCode)
+      val rc = withConnection()(conn => conn.getResponseCode)
       rc match {
         case HttpURLConnection.HTTP_OK => true
         case _ =>
@@ -142,14 +144,17 @@ case class AuthenticatedHttpFileSource(
       case fs: AuthenticatedHttpFileSource if isDirectory =>
         path.relativize(fs.path).toString
       case fs: AuthenticatedHttpFileSource =>
-        path.getParent.get.relativize(fs.path).toString
+        path.getParent
+          .getOrElse(throw new Exception(s"Cannot relativize: ${address} has no parent directory"))
+          .relativize(fs.path)
+          .toString
       case _ =>
         throw new Exception(s"not an AuthenticatedHttpFileSource: ${fileSource}")
     }
   }
 
   override lazy val size: Long = {
-    withConnection { conn =>
+    withConnection() { conn =>
       val responseCode = conn.getResponseCode
       if (responseCode != HttpURLConnection.HTTP_OK) {
         throwOnWrongAuth(responseCode)
@@ -160,8 +165,7 @@ case class AuthenticatedHttpFileSource(
   }
 
   private def fetchUri(buffer: OutputStream, chunkSize: Int = 16384): Int = {
-    withConnection { conn =>
-      conn.setRequestMethod("GET")
+    withConnection("GET") { conn =>
       val responseCode = conn.getResponseCode
       if (responseCode != HttpURLConnection.HTTP_OK) {
         throwOnWrongAuth(responseCode)
