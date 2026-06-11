@@ -168,7 +168,7 @@ trait AddressableFileSource extends FileSource {
 }
 
 /**
-  * A FileNode is a FileSource that represents a single phyiscal file.
+  * A FileNode is a FileSource that represents a single physical file.
   * It has a size, and its contents may be read as bytes or a string.
   * A FileNode may be a "directory" - such as an archive file that,
   * when localized, is extracted to a hierarchy of files.
@@ -276,8 +276,8 @@ trait FileAccessProtocol {
 /**
   * A FileSource for a local file.
   * @param address the original path/URI used to resolve this file.
-  * @param originalPath the original, non-cannonicalized Path determined from `address` - may be relative
-  * @param canonicalPath the absolute, cannonical path to this file
+  * @param originalPath the original, non-canonicalized Path determined from `address` - may be relative
+  * @param canonicalPath the absolute, canonical path to this file
   * @param logger the logger
   * @param encoding the file encoding
   * @param isDirectory whether this FileSource represents a directory
@@ -589,15 +589,13 @@ case class HttpFileSource(
   }
 
   override def getParent: Option[HttpFileSource] = {
-    if (path.getParent == null) {
-      None
-    } else {
+    path.getParent.map { _ =>
       val newUri = if (isDirectory) {
         uri.resolve("..")
       } else {
         uri.resolve(".")
       }
-      Some(HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString))
+      HttpFileSource(newUri, encoding, isDirectory = true)(newUri.toString)
     }
   }
 
@@ -673,9 +671,10 @@ case class HttpFileSource(
   }
 
   private def localizeToFile(path: Path): Unit = {
+    Option(path.getParent).foreach(FileUtils.createDirectories)
     // avoid re-downloading the file if we've already cached the bytes
     if (hasBytes) {
-      FileUtils.writeFileContent(path, new String(readBytes, encoding))
+      Files.write(path, readBytes)
     } else {
       val buffer = new FileOutputStream(path.toFile)
       try {
@@ -725,7 +724,7 @@ case class HttpFileAccessProtocol(encoding: Charset = FileUtils.DefaultEncoding)
   // TODO: currently the only way to specify an http directory is as an
   //  archive file that will be unpacked when localized.
   //  HTTP does not have the concept of directory listings; though they
-  //  may be supported by some serevers, there is no standard response
+  //  may be supported by some servers, there is no standard response
   //  unless the server supports WebDAV. Handling those results is
   //  probably outside the scope of this package.
   override def resolveDirectory(address: String): HttpFileSource = {
