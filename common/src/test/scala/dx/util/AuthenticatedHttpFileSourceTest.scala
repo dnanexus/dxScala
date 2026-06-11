@@ -18,6 +18,9 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   private def respond(exchange: HttpExchange, status: Int, body: Array[Byte]): Unit = {
     authHeadersSeen.add(Option(exchange.getRequestHeaders.getFirst("Authorization")))
     if (exchange.getRequestMethod == "HEAD") {
+      // HEAD must advertise Content-Length without writing a body. Setting
+      // the header before sendResponseHeaders(_, -1) is the JDK-supported way.
+      exchange.getResponseHeaders.set("Content-Length", body.length.toString)
       exchange.sendResponseHeaders(status, -1)
       exchange.close()
     } else {
