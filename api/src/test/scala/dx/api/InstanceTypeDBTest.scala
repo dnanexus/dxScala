@@ -223,7 +223,7 @@ class InstanceTypeDBTest extends AnyFlatSpec with Matchers {
     val userBilltoProject = dxApi.project("project-Fy9QqgQ0yzZbg9KXKP4Jz6Yq") // project name: dxCompiler_playground
     val db = InstanceTypeDB.create(userBilltoProject, instanceTypeFilter)
 
-    db.instanceTypes.size shouldBe 133
+    db.instanceTypes.size shouldBe 125
     db.defaultInstanceType.name shouldBe "mem1_ssd1_v2_x2"
   }
 
