@@ -14,7 +14,9 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
   }
 
   it should "parse a single domain:token entry" in {
-    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com:abc") shouldBe Map("foo.com" -> "abc")
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com:abc") shouldBe Map(
+        "foo.com" -> "abc"
+    )
   }
 
   it should "parse multiple entries separated by semicolons" in {
@@ -29,7 +31,8 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
   }
 
   it should "trim surrounding whitespace from entries, domains, and tokens" in {
-    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("  foo.com : abc  ;  bar.com : xyz  ") shouldBe
+    AuthenticatedHttpFileAccessProtocol
+      .parseAuthTokens("  foo.com : abc  ;  bar.com : xyz  ") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
