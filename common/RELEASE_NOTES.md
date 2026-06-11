@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.0 (2026-06-11)
+
 * Adds `AuthenticatedHttpFileSource` and `AuthenticatedHttpFileAccessProtocol` for HTTP/HTTPS access with Bearer credentials.
 * Fixes `HttpFileSource.getParent` to return `None` at the root URI instead of a self-referential parent, and fixes `localize` to write cached bytes directly (preserving binary content) and to create missing parent directories.
 
