@@ -7,56 +7,56 @@ import java.net.URI
 
 class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers {
 
-  // --- parseTokens ------------------------------------------------------
+  // --- parseAuthTokens ------------------------------------------------------
 
   it should "parse an empty string into an empty map" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("") shouldBe empty
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("") shouldBe empty
   }
 
   it should "parse a single domain:token entry" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:abc") shouldBe Map("foo.com" -> "abc")
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com:abc") shouldBe Map("foo.com" -> "abc")
   }
 
   it should "parse multiple entries separated by semicolons" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:abc;bar.com:xyz") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com:abc;bar.com:xyz") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
   it should "lowercase the domain but preserve token case" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("FOO.com:AbCdEf") shouldBe Map(
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("FOO.com:AbCdEf") shouldBe Map(
         "foo.com" -> "AbCdEf"
     )
   }
 
   it should "trim surrounding whitespace from entries, domains, and tokens" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("  foo.com : abc  ;  bar.com : xyz  ") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("  foo.com : abc  ;  bar.com : xyz  ") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
   it should "split on the first colon only so tokens may contain colons" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:abc:def:ghi") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com:abc:def:ghi") shouldBe
       Map("foo.com" -> "abc:def:ghi")
   }
 
   it should "skip entries with no colon" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com;bar.com:xyz") shouldBe Map(
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com;bar.com:xyz") shouldBe Map(
         "bar.com" -> "xyz"
     )
   }
 
   it should "skip entries with empty domain or empty token" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens(":token;domain:;real.com:tok") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens(":token;domain:;real.com:tok") shouldBe
       Map("real.com" -> "tok")
   }
 
   it should "ignore empty segments from leading/trailing/duplicate semicolons" in {
-    AuthenticatedHttpFileAccessProtocol.parseTokens(";;foo.com:abc;;;bar.com:xyz;;") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens(";;foo.com:abc;;;bar.com:xyz;;") shouldBe
       Map("foo.com" -> "abc", "bar.com" -> "xyz")
   }
 
   it should "keep the last value when the same domain appears twice" in {
     // `.toMap` on a duplicate-key sequence keeps the last
-    AuthenticatedHttpFileAccessProtocol.parseTokens("foo.com:first;foo.com:second") shouldBe
+    AuthenticatedHttpFileAccessProtocol.parseAuthTokens("foo.com:first;foo.com:second") shouldBe
       Map("foo.com" -> "second")
   }
 
@@ -110,28 +110,28 @@ class AuthenticatedHttpFileAccessProtocolTest extends AnyFlatSpec with Matchers 
     protocolWithTokens.resolve(uri).address shouldBe uri.toString
   }
 
-  // --- tokenEnvVarHint propagation --------------------------------------
+  // --- unauthorizedHint propagation --------------------------------------
 
-  it should "default tokenEnvVarHint to None and forward None to constructed sources" in {
+  it should "default unauthorizedHint to None and forward None to constructed sources" in {
     val protocol = AuthenticatedHttpFileAccessProtocol()
-    protocol.tokenEnvVarHint shouldBe None
-    protocol.resolve("https://example.com/x.wdl").tokenEnvVarHint shouldBe None
-    protocol.resolveDirectory("https://example.com/dir/").tokenEnvVarHint shouldBe None
+    protocol.unauthorizedHint shouldBe None
+    protocol.resolve("https://example.com/x.wdl").unauthorizedHint shouldBe None
+    protocol.resolveDirectory("https://example.com/dir/").unauthorizedHint shouldBe None
   }
 
-  it should "forward tokenEnvVarHint to constructed sources via resolve" in {
+  it should "forward unauthorizedHint to constructed sources via resolve" in {
     val protocol = AuthenticatedHttpFileAccessProtocol(
-        tokenEnvVarHint = Some("MY_TOKENS_VAR")
+        unauthorizedHint = Some("MY_TOKENS_VAR")
     )
-    protocol.resolve("https://example.com/x.wdl").tokenEnvVarHint shouldBe Some("MY_TOKENS_VAR")
+    protocol.resolve("https://example.com/x.wdl").unauthorizedHint shouldBe Some("MY_TOKENS_VAR")
   }
 
-  it should "forward tokenEnvVarHint to constructed sources via resolveDirectory" in {
+  it should "forward unauthorizedHint to constructed sources via resolveDirectory" in {
     val protocol = AuthenticatedHttpFileAccessProtocol(
-        tokenEnvVarHint = Some("MY_TOKENS_VAR")
+        unauthorizedHint = Some("MY_TOKENS_VAR")
     )
     protocol
       .resolveDirectory("https://example.com/dir/")
-      .tokenEnvVarHint shouldBe Some("MY_TOKENS_VAR")
+      .unauthorizedHint shouldBe Some("MY_TOKENS_VAR")
   }
 }

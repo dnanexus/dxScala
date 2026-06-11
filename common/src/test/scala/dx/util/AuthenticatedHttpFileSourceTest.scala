@@ -68,13 +68,13 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
 
   private def fs(path: String,
                  credentials: Option[HttpCredentials] = None,
-                 tokenEnvVarHint: Option[String] = None): AuthenticatedHttpFileSource = {
+                 unauthorizedHint: Option[String] = None): AuthenticatedHttpFileSource = {
     val uri = baseUri.resolve(path)
     AuthenticatedHttpFileSource(uri,
                                 StandardCharsets.UTF_8,
                                 isDirectory = false,
                                 credentials,
-                                tokenEnvVarHint)(uri.toString)
+                                unauthorizedHint)(uri.toString)
   }
 
   private def bearer(token: String): HttpCredentials =
@@ -165,40 +165,41 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     thrown.getMessage should include("HTTP 401 Unauthorized")
   }
 
-  // --- tokenEnvVarHint propagation in the 401 message -------------------
+  // --- unauthorizedHint propagation in the 401 message -------------------
 
-  it should "include the supplied tokenEnvVarHint in the 401 guidance message" in {
+  it should "include the supplied unauthorizedHint verbatim in the 401 guidance message" in {
+    val hint = "Set MY_BEARER_TOKENS_VAR=domain:token to authenticate."
     val thrown = the[Exception] thrownBy fs(
         "/unauthorized/file.txt",
         Some(bearer("bad")),
-        tokenEnvVarHint = Some("MY_BEARER_TOKENS_VAR")
+        unauthorizedHint = Some(hint)
     ).exists
     thrown.getMessage should include("HTTP 401 Unauthorized")
-    thrown.getMessage should include("MY_BEARER_TOKENS_VAR")
+    thrown.getMessage should include(hint)
   }
 
-  it should "fall back to a generic guidance message in the 401 message when no hint is supplied" in {
+  it should "fall back to AuthenticatedHttpFileSource.DefaultHint in the 401 message when no hint is supplied" in {
     val thrown = the[Exception] thrownBy fs(
         "/unauthorized/file.txt",
         Some(bearer("bad"))
     ).exists
     thrown.getMessage should include("HTTP 401 Unauthorized")
-    thrown.getMessage should include("Supply Bearer credentials")
+    thrown.getMessage should include(AuthenticatedHttpFileSource.DefaultHint)
   }
 
-  it should "propagate tokenEnvVarHint through resolve" in {
-    val parent = fs("/ok/", Some(bearer("tok")), tokenEnvVarHint = Some("X"))
-    parent.resolve("child.txt").tokenEnvVarHint shouldBe Some("X")
+  it should "propagate unauthorizedHint through resolve" in {
+    val parent = fs("/ok/", Some(bearer("tok")), unauthorizedHint = Some("X"))
+    parent.resolve("child.txt").unauthorizedHint shouldBe Some("X")
   }
 
-  it should "propagate tokenEnvVarHint through resolveDirectory" in {
-    val parent = fs("/ok/", Some(bearer("tok")), tokenEnvVarHint = Some("X"))
-    parent.resolveDirectory("sub").tokenEnvVarHint shouldBe Some("X")
+  it should "propagate unauthorizedHint through resolveDirectory" in {
+    val parent = fs("/ok/", Some(bearer("tok")), unauthorizedHint = Some("X"))
+    parent.resolveDirectory("sub").unauthorizedHint shouldBe Some("X")
   }
 
-  it should "propagate tokenEnvVarHint through getParent" in {
-    val child = fs("/ok/dir/file.txt", Some(bearer("tok")), tokenEnvVarHint = Some("X"))
-    child.getParent.flatMap(_.tokenEnvVarHint) shouldBe Some("X")
+  it should "propagate unauthorizedHint through getParent" in {
+    val child = fs("/ok/dir/file.txt", Some(bearer("tok")), unauthorizedHint = Some("X"))
+    child.getParent.flatMap(_.unauthorizedHint) shouldBe Some("X")
   }
 
   // --- credentials propagation -----------------------------------------
