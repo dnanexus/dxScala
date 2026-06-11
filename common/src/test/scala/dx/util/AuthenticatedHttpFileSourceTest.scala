@@ -215,6 +215,23 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     child.getParent.flatMap(_.credentials) shouldBe Some(bearer("tok"))
   }
 
+  // --- size -------------------------------------------------------------
+
+  it should "return the Content-Length from size on 200" in {
+    fs("/ok/file.txt").size shouldBe okBody.length.toLong
+  }
+
+  it should "throw from size with the 401 guidance message on 401" in {
+    val thrown = the[Exception] thrownBy fs("/unauthorized/file.txt", Some(bearer("bad"))).size
+    thrown.getMessage should include("HTTP 401 Unauthorized")
+  }
+
+  it should "throw from size with the 403 guidance message on 403" in {
+    val thrown = the[Exception] thrownBy fs("/forbidden/file.txt", Some(bearer("bad"))).size
+    thrown.getMessage should include("HTTP 403 Forbidden")
+    thrown.getMessage should include("'repo' scope")
+  }
+
   // --- getParent edge cases --------------------------------------------
 
   it should "return None from getParent at the root URI" in {

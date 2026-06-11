@@ -154,14 +154,13 @@ case class AuthenticatedHttpFileSource(
   }
 
   override lazy val size: Long = {
-    try {
-      withConnection(conn => {
-        conn.setRequestMethod("HEAD")
-        conn.getContentLengthLong
-      })
-    } catch {
-      case t: Throwable =>
-        throw new Exception(s"Error getting size of URL ${uri}: ${t.getMessage}")
+    withConnection { conn =>
+      val responseCode = conn.getResponseCode
+      if (responseCode != HttpURLConnection.HTTP_OK) {
+        throwOnWrongAuth(responseCode)
+        throw new Exception(s"Error getting size of URL ${uri}: HTTP ${responseCode}")
+      }
+      conn.getContentLengthLong
     }
   }
 
