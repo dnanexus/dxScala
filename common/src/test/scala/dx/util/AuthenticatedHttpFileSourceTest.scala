@@ -118,10 +118,9 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
 
   it should "return false from exists when the host cannot be resolved" in {
     val uri = URI.create("http://no-such-host.invalid./missing.txt")
-    AuthenticatedHttpFileSource(uri,
-                   StandardCharsets.UTF_8,
-                   isDirectory = false,
-                   None)(uri.toString).exists shouldBe false
+    AuthenticatedHttpFileSource(uri, StandardCharsets.UTF_8, isDirectory = false, None)(
+        uri.toString
+    ).exists shouldBe false
   }
 
   it should "read bytes from a 200 response when no credentials are configured" in {

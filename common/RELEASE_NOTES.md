@@ -1,7 +1,8 @@
 # dxCommon
 
 ## Unreleased
-...
+
+* Adds `AuthenticatedHttpFileSource` and `AuthenticatedHttpFileAccessProtocol` for HTTP/HTTPS access with Bearer credentials.
 
 ## 0.11.5 (2023-03-07)
 
