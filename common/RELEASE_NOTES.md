@@ -3,6 +3,8 @@
 ## Unreleased
 
 * `HttpFileSource` and `AuthenticatedHttpFileSource` now transparently retry with `GET` when the server rejects `HEAD` with `405 Method Not Allowed`, so `exists` / `size` work against servers that selectively register methods.
+* `AuthenticatedHttpFileAccessProtocol` no longer attaches Bearer credentials to plain HTTP requests; credentials are only sent over HTTPS.
+* `AuthenticatedHttpFileSource.size` returns `-1L` when the server responds `405` to both HEAD and GET probes.
 
 ## 0.12.0 (2026-06-11)
 
