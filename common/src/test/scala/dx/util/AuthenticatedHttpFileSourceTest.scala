@@ -58,6 +58,13 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     }
   }
 
+  // Refuses both HEAD and GET with 405.
+  private val handlerAlways405: HttpHandler = (exchange: HttpExchange) => {
+    exchange.getResponseHeaders.set("Allow", "POST")
+    exchange.sendResponseHeaders(405, -1)
+    exchange.close()
+  }
+
   // Responds 200 OK without a Content-Length header — simulates servers using
   // chunked transfer encoding (e.g. GitHub raw URLs).
   private val handlerNoLength: HttpHandler = (exchange: HttpExchange) => {
@@ -85,6 +92,7 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     server.createContext("/binary", (exchange: HttpExchange) => respond(exchange, 200, binaryBody))
     server.createContext("/chunked", handlerNoLength)
     server.createContext("/head405", handlerHeadNotAllowed)
+    server.createContext("/always405", handlerAlways405)
     server.setExecutor(null)
     server.start()
     val port = server.getAddress.getPort
@@ -280,6 +288,28 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   it should "transparently retry with GET when the server rejects HEAD with 405" in {
     fs("/head405/file.txt").exists shouldBe true
     fs("/head405/file.txt").size shouldBe okBody.length.toLong
+  }
+
+  it should "return -1 from size when both HEAD and GET are rejected with 405" in {
+    fs("/always405/file.txt").size shouldBe -1L
+  }
+
+  // --- protocol credential attachment ----------------------------------
+
+  it should "not attach bearer credentials to plain HTTP URLs" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol(
+        domainBearerTokens = Map("example.com" -> "secret")
+    )
+    val resolved = protocol.resolve("http://example.com/workflow.wdl")
+    resolved.credentials shouldBe None
+  }
+
+  it should "attach bearer credentials to HTTPS URLs" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol(
+        domainBearerTokens = Map("example.com" -> "secret")
+    )
+    val resolved = protocol.resolve("https://example.com/workflow.wdl")
+    resolved.credentials shouldBe Some(bearer("secret"))
   }
 
   // --- getParent edge cases --------------------------------------------
