@@ -45,6 +45,26 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     if (header.contains(s"Bearer $expectedToken")) respond(exchange, 200, okBody)
     else respond(exchange, 401, Array.emptyByteArray)
   }
+  // Refuses HEAD with 405 but serves GET normally — simulates servers that
+  // selectively register methods (Allow: GET, POST), common with some
+  // application frameworks, CDNs, and dynamic endpoints.
+  private val handlerHeadNotAllowed: HttpHandler = (exchange: HttpExchange) => {
+    if (exchange.getRequestMethod == "HEAD") {
+      exchange.getResponseHeaders.set("Allow", "GET")
+      exchange.sendResponseHeaders(405, -1)
+      exchange.close()
+    } else {
+      respond(exchange, 200, okBody)
+    }
+  }
+
+  // Refuses both HEAD and GET with 405.
+  private val handlerAlways405: HttpHandler = (exchange: HttpExchange) => {
+    exchange.getResponseHeaders.set("Allow", "POST")
+    exchange.sendResponseHeaders(405, -1)
+    exchange.close()
+  }
+
   // Responds 200 OK without a Content-Length header — simulates servers using
   // chunked transfer encoding (e.g. GitHub raw URLs).
   private val handlerNoLength: HttpHandler = (exchange: HttpExchange) => {
@@ -71,6 +91,8 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
     server.createContext("/protected", handlerBearerProtected)
     server.createContext("/binary", (exchange: HttpExchange) => respond(exchange, 200, binaryBody))
     server.createContext("/chunked", handlerNoLength)
+    server.createContext("/head405", handlerHeadNotAllowed)
+    server.createContext("/always405", handlerAlways405)
     server.setExecutor(null)
     server.start()
     val port = server.getAddress.getPort
@@ -261,6 +283,33 @@ class AuthenticatedHttpFileSourceTest extends AnyFlatSpec with Matchers with Bef
   it should "return -1 from size when the server does not send Content-Length" in {
     // Mirrors servers using chunked transfer encoding (e.g. GitHub raw URLs).
     fs("/chunked/file.txt").size shouldBe -1L
+  }
+
+  it should "transparently retry with GET when the server rejects HEAD with 405" in {
+    fs("/head405/file.txt").exists shouldBe true
+    fs("/head405/file.txt").size shouldBe okBody.length.toLong
+  }
+
+  it should "return -1 from size when both HEAD and GET are rejected with 405" in {
+    fs("/always405/file.txt").size shouldBe -1L
+  }
+
+  // --- protocol credential attachment ----------------------------------
+
+  it should "not attach bearer credentials to plain HTTP URLs" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol(
+        domainBearerTokens = Map("example.com" -> "secret")
+    )
+    val resolved = protocol.resolve("http://example.com/workflow.wdl")
+    resolved.credentials shouldBe None
+  }
+
+  it should "attach bearer credentials to HTTPS URLs" in {
+    val protocol = AuthenticatedHttpFileAccessProtocol(
+        domainBearerTokens = Map("example.com" -> "secret")
+    )
+    val resolved = protocol.resolve("https://example.com/workflow.wdl")
+    resolved.credentials shouldBe Some(bearer("secret"))
   }
 
   // --- getParent edge cases --------------------------------------------

@@ -53,14 +53,25 @@ case class AuthenticatedHttpFileSource(
 
   private var hasBytes: Boolean = false
 
+  private def openConnection(method: String): HttpURLConnection = {
+    val conn = uri.toURL.openConnection().asInstanceOf[HttpURLConnection]
+    conn.setRequestMethod(method)
+    credentials.foreach { c =>
+      conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
+    }
+    conn
+  }
+
   private def withConnection[T](method: String = "HEAD")(fn: HttpURLConnection => T): T = {
-    val url = uri.toURL
     var conn: HttpURLConnection = null
     try {
-      conn = url.openConnection().asInstanceOf[HttpURLConnection]
-      conn.setRequestMethod(method)
-      credentials.foreach { c =>
-        conn.setRequestProperty("Authorization", s"${c.scheme.value} ${c.credentials}")
+      conn = openConnection(method)
+      // Many servers reject HEAD on a resource that GET would serve (RFC 7231
+      // §6.5.5). Transparently retry such requests with GET so callers can rely
+      // on HEAD-style "exists / size" probes regardless of server quirks.
+      if (method == "HEAD" && conn.getResponseCode == HttpURLConnection.HTTP_BAD_METHOD) {
+        conn.disconnect()
+        conn = openConnection("GET")
       }
       fn(conn)
     } finally {
@@ -156,11 +167,20 @@ case class AuthenticatedHttpFileSource(
   override lazy val size: Long = {
     withConnection() { conn =>
       val responseCode = conn.getResponseCode
-      if (responseCode != HttpURLConnection.HTTP_OK) {
-        throwOnWrongAuth(responseCode)
-        throw new Exception(s"Error getting size of URL ${uri}: HTTP ${responseCode}")
+      responseCode match {
+        case HttpURLConnection.HTTP_OK =>
+          conn.getContentLengthLong
+        case HttpURLConnection.HTTP_BAD_METHOD =>
+          // Some endpoints reject both HEAD and GET for metadata probes.
+          // Returning unknown size allows downstream reads to proceed.
+          logger.trace(
+              s"Server at ${uri.getHost} returned 405 for size probe; skipping file size check"
+          )
+          -1L
+        case _ =>
+          throwOnWrongAuth(responseCode)
+          throw new Exception(s"Error getting size of URL ${uri}: HTTP ${responseCode}")
       }
-      conn.getContentLengthLong
     }
   }
 
@@ -268,9 +288,17 @@ case class AuthenticatedHttpFileAccessProtocol(
   }
 
   private def credentialsForUri(uri: URI): Option[HttpCredentials] = {
-    domainBearerTokenForUri(uri).map { token =>
-      logger.trace(s"Using Bearer token authenticated HTTP for import from: ${uri.getHost}")
-      HttpCredentials(HttpAuthenticationScheme.Bearer, token)
+    domainBearerTokenForUri(uri).flatMap { token =>
+      Option(uri.getScheme) match {
+        case Some(scheme) if scheme.equalsIgnoreCase(FileUtils.HttpsScheme) =>
+          logger.trace(s"Using Bearer token authenticated HTTP for import from: ${uri.getHost}")
+          Some(HttpCredentials(HttpAuthenticationScheme.Bearer, token))
+        case _ =>
+          logger.warning(
+              s"Skipping Bearer token for ${uri.getHost}; credentials are only attached to HTTPS requests"
+          )
+          None
+      }
     }
   }
 
