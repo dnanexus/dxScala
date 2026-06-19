@@ -1,5 +1,7 @@
 # dxCommon
 
+## Unreleased
+
 ## 0.12.1 (2026-06-17)
 
 * `HttpFileSource` and `AuthenticatedHttpFileSource` now transparently retry with `GET` when the server rejects `HEAD` with `405 Method Not Allowed`, so `exists` / `size` work against servers that selectively register methods.
